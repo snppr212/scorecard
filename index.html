@@ -237,9 +237,9 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div id="tab-atbat">
 <div class="matchup-bar"><div class="mu-side"><div class="mu-label">Pitcher</div><div class="mu-name" id="mu-p">—</div><div class="mu-detail" id="mu-pd"></div></div><div class="mu-vs">vs</div><div class="mu-side"><div class="mu-label">Batter</div><div class="mu-name" id="mu-b">—</div><div class="mu-detail" id="mu-bd"></div></div></div>
 <div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);padding:8px 0;"><div style="max-width:380px;margin:0 auto;" id="field-svg"></div></div>
-<div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Undo</button></div></div>
+<div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><div style="display:flex;gap:5px;"><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Pitch</button><button class="btn btn-xs btn-red" onclick="undoAB()" id="undo-ab-btn" style="display:none;">↩ AB</button></div></div></div>
 <div class="panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div></div>
-<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">Homer</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">DP</button><button class="rbtn" onclick="endAB('GIDP')">GIDP</button><button class="rbtn" onclick="endAB('TP')" style="font-size:10px;">Triple<br>Play</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="manualRun()">+ Run</button></div></div>
+<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">Homer</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">DP</button><button class="rbtn" onclick="endAB('GIDP')">GIDP</button><button class="rbtn" onclick="endAB('TP')" style="font-size:10px;">Triple<br>Play</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button></div></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
 <!-- FIELD -->
@@ -299,12 +299,31 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEndGame()">Save & return home</button><button class="btn btn-full" onclick="cm('m-endgame')">Keep scoring</button></div>
 </div></div>
 
-<!-- 40-PITCH WARNING MODAL -->
+<!-- PITCH COUNT WARNING MODAL (rest thresholds + 40p rule) -->
 <div class="modal-ov" id="m-pwarn"><div class="modal" style="text-align:center;">
-<h3 style="color:var(--amber2);">⚠️ Pitch Count Warning</h3>
-<div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;" id="pwarn-msg"></div>
-<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">This pitcher will be ineligible to pitch in the next game.</div>
-<button class="btn btn-gold btn-full" onclick="cm('m-pwarn')">OK, continue</button>
+<h3 style="color:var(--amber2);" id="pwarn-title">⚠️ Pitch Count</h3>
+<div style="font-size:14px;font-family:sans-serif;font-weight:bold;margin-bottom:6px;" id="pwarn-name"></div>
+<div style="font-size:13px;font-family:sans-serif;margin-bottom:4px;" id="pwarn-msg"></div>
+<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;" id="pwarn-sub"></div>
+<button class="btn btn-gold btn-full" onclick="cm('m-pwarn')">Got it — continue</button>
+</div></div>
+
+<!-- MERCY RULE MODAL -->
+<div class="modal-ov" id="m-mercy"><div class="modal" style="text-align:center;">
+<h3 style="color:var(--green2);">🏆 Mercy Rule</h3>
+<div style="font-size:14px;font-family:sans-serif;margin-bottom:6px;" id="mercy-msg"></div>
+<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">10-run rule. The umpire may end the game.</div>
+<div class="mact"><button class="btn btn-red btn-full" onclick="cm('m-mercy');endGame()">🏁 End game now</button><button class="btn btn-full" onclick="cm('m-mercy')">Continue playing</button></div>
+</div></div>
+
+<!-- MANUAL RUN MODAL -->
+<div class="modal-ov" id="m-manrun"><div class="modal"><h3>Add Manual Run</h3>
+<div class="mrow"><label>Which team scored?</label>
+<div class="g2" style="margin-top:6px;">
+<button class="btn btn-full" id="manrun-us" onclick="doManualRun('us')">—</button>
+<button class="btn btn-full" id="manrun-them" onclick="doManualRun('them')">—</button>
+</div></div>
+<div class="mact"><button class="btn btn-full" onclick="cm('m-manrun')">Cancel</button></div>
 </div></div>
 
 <!-- PITCH LIMIT BLOCK MODAL (3.1) -->
@@ -651,7 +670,9 @@ function confirmOpp(){
 }
 function enterSC(){ss('screen-sc');document.querySelectorAll('#screen-sc .tab').forEach(t=>t.classList.remove('active'));document.querySelector('#screen-sc .tab').classList.add('active');
 ['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');$('tab-atbat').style.display='block';
-if(G.cbi<0&&clu().length>0){var _ini=isHB()?G.hbi:G.abi;G.cbi=_ini>=0?_ini:0;}renderSC();}
+if(G.cbi<0&&clu().length>0){var _ini=isHB()?G.hbi:G.abi;G.cbi=_ini>=0?_ini:0;}
+chkPitcherRest();// warn about any player who can't pitch today
+renderSC();}
 
 // SCORECARD
 function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();}
@@ -787,6 +808,11 @@ function openPSwitch(who,forced){
 function selectPSwitcher(idx){
   var pl=_pswWho==='us'?ourP():theirP();
   if(!pl[idx])return;
+  // Catcher-pitcher rule: warn if player caught 4+ innings
+  if(_pswWho==='us'){
+    var caught=getInningsCaught(pl[idx].name);
+    if(caught>=4){if(!confirm(sn(pl[idx].name)+' has caught '+caught+' innings this game.\n\nRules: 4+ innings catching = cannot pitch.\n\nAre you sure you want to set them as pitcher?'))return;}
+  }
   if(_pswWho==='us'){setOurPI(idx);if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=pl[idx].name;G.plb=false;}
   else setTheirPI(idx);
   cm('m-pswitch');sv();renderSC();
@@ -845,10 +871,16 @@ else if(c==='F'||c==='FT'){p.fo=(p.fo||0)+1;if(G.strikes<2)p.stk=(p.stk||0)+1;}
 else if(c==='B')p.ba=(p.ba||0)+1;
 else if(c==='X')p.bip=(p.bip||0)+1;
 else if(c==='H')p.hbp=(p.hbp||0)+1;}
-function chkPW(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i>=0&&l[i]){var p=l[i],c=p.total||0,nm=sn(p.name)||'Pitcher';
-if(c===40){$('pwarn-msg').textContent=nm+' has reached 40 pitches — ineligible to pitch the next game.';om('m-pwarn');}
-if(c===65)toast('⚠️ '+nm+' — only 10 pitches left!',3000);
-if(c>=75)toast('🛑 '+nm+' — must be removed now!',4000);}}
+function showPWarn(nm,title,msg,sub){$('pwarn-title').textContent=title;$('pwarn-name').textContent=nm;$('pwarn-msg').textContent=msg;$('pwarn-sub').textContent=sub||'';om('m-pwarn');}
+function chkPW(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i<0||!l[i])return;
+var p=l[i],c=p.total||0,nm=sn(p.name)||'Pitcher';
+if(c===21)showPWarn(nm,'⚠️ Rest Required — 21 pitches','Requires 1 calendar day rest before pitching again.','Can still pitch today until the inning ends.');
+else if(c===36)showPWarn(nm,'⚠️ Rest Required — 36 pitches','Requires 2 calendar days rest before pitching again.','Plan your substitution accordingly.');
+else if(c===40)showPWarn(nm,'⚠️ 40-Pitch Rule','Ineligible to pitch in the next game.','2 days rest required. Can continue today up to 75 pitches.');
+else if(c===51)showPWarn(nm,'⚠️ Rest Required — 51 pitches','Requires 3 calendar days rest before pitching again.','');
+else if(c===66)showPWarn(nm,'⚠️ Rest Required — 66 pitches','Requires 4 calendar days rest before pitching again.','Only 9 pitches remaining today.');
+else if(c===65)toast('⚠️ '+nm+' — 10 pitches left today!',3000);
+if(c>=75)toast('🛑 '+nm+' — at limit, must be removed!',4000);}
 // 3.1: check pitch limit when WE start fielding a new half-inning
 function chkPitcherLimit(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
@@ -914,6 +946,8 @@ if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',po
 cm('m-play');finAB(G.pres,not,G.prbi);}
 
 function finAB(r,not,rbi){
+saveSnap();// save state before any mutation so we can undo
+if($('undo-ab-btn'))$('undo-ab-btn').style.display='inline-flex';
 var lu=clu(),b=lu[G.cbi],t=isHB()?'home':'away';
 G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0});
 var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
@@ -1002,9 +1036,51 @@ if(!isLast)n=Math.min(n,6-curR);
 if(G.half==='top'){G.as+=n;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+n;}
 else{G.hs+=n;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+n;}
 var newR=G.half==='top'?(G.inns.a[G.inn-1]||0):(G.inns.h[G.inn-1]||0);
-if(!isLast&&newR>=6){sv();renderSB();$('sixrun-msg').textContent=(G.half==='top'?(G.at):(G.ht))+' has scored 6 runs — inning is over.';om('m-6run');}}
+if(!isLast&&newR>=6){sv();renderSB();$('sixrun-msg').textContent=(G.half==='top'?(G.at):(G.ht))+' has scored 6 runs — inning is over.';om('m-6run');}
+chkMercy();}
 function logRun(bi,team){if(!G.runs)G.runs=[];G.runs.push({bi:bi,team:team,inn:G.inn});
 var _fp=curPitcher();if(_fp){_fp.runs_allowed=(_fp.runs_allowed||0)+1;_fp.er=(_fp.er||0)+1;}}
+
+// MERCY RULE CHECK
+function chkMercy(){
+  if(G.inn<4)return;// need at least 4 innings
+  var lead=Math.abs(G.hs-G.as);if(lead<10)return;
+  if(G._mercyShown)return;G._mercyShown=true;sv();
+  var leader=G.hs>G.as?G.ht:G.at;
+  $('mercy-msg').textContent=leader+' leads by '+lead+' after '+G.inn+(G.inn===1?' inning':' innings')+'.';
+  om('m-mercy');}
+
+// UNDO LAST AB
+var _lastGSnap=null;
+function saveSnap(){_lastGSnap=JSON.parse(JSON.stringify(G));}
+function undoAB(){if(!_lastGSnap){toast('Nothing to undo');return;}
+  if(!confirm('Undo last at-bat? This will restore bases, score, and batting order to before that AB.'))return;
+  G=_lastGSnap;_lastGSnap=null;
+  if($('undo-ab-btn'))$('undo-ab-btn').style.display='none';
+  sv();renderSC();toast('Last AB undone');}
+
+// MANUAL RUN MODAL
+function openManualRun(){$('manrun-us').textContent=ourName();$('manrun-them').textContent=theirName();om('m-manrun');}
+function doManualRun(who){
+  cm('m-manrun');
+  var isUs=(who==='us');
+  var isHome=isUs===isOH();// true = home team scored
+  if(isHome){G.hs++;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+1;}
+  else{G.as++;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+1;}
+  sv();renderSC();chkMercy();}
+function manualRun(){openManualRun();}// legacy alias
+
+// INNINGS CAUGHT TRACKER
+function getInningsCaught(name){
+  var c=0;Object.values(G.fa).forEach(function(fa){if(fa['C']===name)c++;});return c;}
+
+// MULTI-GAME PITCHER REST CHECK (runs when entering scorecard)
+function chkPitcherRest(){
+  var ev=A.schedule.find(e=>e.id===G.eid);if(!ev)return;
+  var gd=new Date(ev.date);if(isNaN(gd))return;
+  var msgs=[];
+  A.roster.forEach(function(p){var s=pStatus(p.name,gd);if(s.rest>0)msgs.push('• '+sn(p.name)+': needs '+s.rest+' more day'+(s.rest>1?'s':'')+' rest (threw '+s.last+'p last game)');});
+  if(msgs.length)setTimeout(function(){alert('⚠️ Pitching Rest Restrictions:\n\n'+msgs.join('\n')+'\n\nThese players cannot pitch today.');},600);}
 
 function showNB(r){
 // auto-advance — no modal, just set batter and render
