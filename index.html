@@ -175,13 +175,26 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="row-b" style="margin-bottom:8px;"><div style="font-size:10px;color:var(--text2);font-family:sans-serif;text-transform:uppercase;letter-spacing:.07em;">Schedule</div><div class="row" style="gap:5px;"><button class="btn btn-xs" id="f-all" onclick="setFilter('all',this)" style="border-color:var(--gold);color:var(--gold);">All</button><button class="btn btn-xs" id="f-game" onclick="setFilter('game',this)">Games</button><button class="btn btn-xs" id="f-up" onclick="setFilter('upcoming',this)">Upcoming</button></div></div>
 <div id="schedule-list"></div>
 </div></div>
-<!-- AVAIL -->
+<!-- AVAIL / LINEUP BUILD -->
 <div class="screen" id="screen-avail">
 <div class="hdr"><div><div class="hdr-title" id="avail-game-label">Game day</div><div class="hdr-sub" id="avail-count"></div></div><button class="btn btn-sm" onclick="goHome()">← Back</button></div>
 <div class="scroll pad">
-<div class="panel"><div class="ptitle">Tap name = absent/present · Drag ☰ to reorder lineup</div><div id="avail-list"></div></div>
-<div class="g2" style="margin-top:8px;"><button class="btn btn-gold btn-full" onclick="confirmAvail()">Set lineup & continue →</button><button class="btn btn-full" onclick="goHome()">Cancel</button></div>
-</div></div>
+<!-- Step 1: mark present/absent -->
+<div id="avail-step1">
+<div class="panel"><div class="ptitle">Tap to mark absent/present</div><div id="avail-list"></div></div>
+<div class="g2" style="margin-top:8px;"><button class="btn btn-gold btn-full" onclick="goToLineupBuild()">Build lineup →</button><button class="btn btn-full" onclick="goHome()">Cancel</button></div>
+</div>
+<!-- Step 2: numbered lineup spots -->
+<div id="avail-step2" style="display:none;">
+<div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Batting order</div><button class="btn btn-sm" onclick="importLastLineup()">↑ Import last game</button></div>
+<div id="lineup-spots"></div></div>
+<div class="panel"><div class="ptitle">Available players</div><div id="lineup-pool"></div></div>
+<div class="g2" style="margin-top:8px;"><button class="btn btn-gold btn-full" onclick="confirmAvail()">Confirm lineup →</button><button class="btn btn-sm" onclick="backToPresence()">← Back</button></div>
+</div>
+</div>
+<!-- Player picker sheet -->
+<div class="modal-ov" id="m-linepick"><div class="modal"><h3 id="lp-title">Pick batter</h3><div id="lp-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-linepick')">Cancel</button></div></div></div>
+</div>
 <!-- OPP LINEUP -->
 <div class="screen" id="screen-opp">
 <div class="hdr"><div><div class="hdr-title">Opponent Lineup</div><div class="hdr-sub" id="opp-sub">Enter numbers or names</div></div><button class="btn btn-sm" onclick="skipOpp()">Skip →</button></div>
@@ -251,6 +264,25 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-next"><div class="modal" style="text-align:center;"><h3 id="nb-res" style="font-size:16px;margin-bottom:14px;"></h3><div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;">Up next: <strong id="nb-1" style="color:var(--gold);">—</strong></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:2px;">On deck: <span id="nb-2">—</span></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">In the hole: <span id="nb-3">—</span></div><button class="btn btn-gold btn-full" onclick="ackNext()">Got it</button></div></div>
 <div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button></div></div></div>
 
+<!-- PITCHER SWITCH MODAL (3.2 + 3.1) -->
+<div class="modal-ov" id="m-pswitch"><div class="modal"><h3 id="psw-title">Change Pitcher</h3>
+<div id="psw-list" style="margin-bottom:10px;"></div>
+<div class="sep"></div>
+<div class="row" style="margin-top:8px;gap:6px;">
+  <select id="psw-new-sel" style="flex:1;"><option value="">Add from lineup…</option></select>
+  <button class="btn btn-sm btn-green" onclick="addPSwitchNew()">Add</button>
+</div>
+<div class="mact" id="psw-cancel-row"><button class="btn btn-full" onclick="cm('m-pswitch')">Cancel</button></div>
+</div></div>
+
+<!-- PITCH LIMIT BLOCK MODAL (3.1) -->
+<div class="modal-ov" id="m-plimit"><div class="modal" style="text-align:center;">
+<h3 style="color:var(--red2);">🛑 Pitcher Over Limit</h3>
+<div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;" id="plimit-msg"></div>
+<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">You must make a pitching change before continuing.</div>
+<button class="btn btn-gold btn-full" onclick="cm('m-plimit');openPSwitch('us',true)">Make pitching change →</button>
+</div></div>
+
 <script>
 var RNAMES=['Benjamin Shapiro','Bodhi Langford','Brody Steinberg','Cobe Bresson','Ethan Thomas','Ezra Kalman','Hunter Bresson','Jacob Aronstein','Julian Singer','Malcolm McPherson','Mihir Chatnani','Miles Beck'];
 var POS=['P','C','1B','2B','3B','SS','LF','CF','RF'],APOS=POS.slice();
@@ -292,7 +324,7 @@ var A={roster:[],schedule:[],gameResults:{},pitchLog:{},filter:'all',epId:null,e
 var G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
 inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
 cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
-fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1};
+fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false};
 
 function $(id){return document.getElementById(id);}
 function sa(){try{localStorage.setItem('mm_a',JSON.stringify(A));}catch(e){}}
@@ -313,6 +345,7 @@ if(!G.bases)G.bases=[null,null,null];
 if(!G.fa)G.fa={};
 if(G.hbi===undefined)G.hbi=-1;if(G.abi===undefined)G.abi=-1;
 if(G.pscored===undefined)G.pscored=[];
+if(G.plb===undefined)G.plb=false;
 }
 function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -386,78 +419,90 @@ function startG(eid){var ev=A.schedule.find(e=>e.id===eid);if(!ev||ev.type==='pr
 var has=G.eid===eid&&G.abs&&G.abs.length>0;if(has){if(!confirm('Resume?'))resetG(ev);}else resetG(ev);
 $('avail-game-label').textContent='Mussels '+ev.title+' · '+ev.date;renderAvail();ss('screen-avail');}
 function resetG(ev){var ih=ev.ha==='home',op=ev.opponent||'Visitors';
-G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1};APOS=POS.slice();sg();}
+G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false};APOS=POS.slice();sg();}
 function r2lu(){return A.roster.map(p=>({name:p.name||'',jersey:p.jersey||'',rid:p.id}));}
 
-// AVAILABILITY
+// AVAILABILITY — Step 1: mark present/absent
 function renderAvail(){
+$('avail-step1').style.display='block';$('avail-step2').style.display='none';
 var el=$('avail-list');
-// Present players in order, then absent
-var presentPlayers=G.pp.map(function(pid){return A.roster.find(r=>r.id===pid);}).filter(Boolean);
-var absentPlayers=A.roster.filter(function(p){return G.pp.indexOf(p.id)<0;});
-var allOrdered=presentPlayers.concat(absentPlayers);
-el.innerHTML=allOrdered.map(function(p,idx){var present=G.pp.indexOf(p.id)>=0;var oi=present?G.pp.indexOf(p.id)+1:-1;
-return '<div class="avail-player'+(present?' present':' absent')+'" data-id="'+p.id+'" draggable="'+(present?'true':'false')+'">'
-+'<div class="avail-grip" data-drag="1">☰</div>'
-+'<div class="avail-ord'+(present?'':' out')+'">'+(present?oi:'—')+'</div>'
+var present=G.pp.map(id=>A.roster.find(r=>r.id===id)).filter(Boolean);
+var absent=A.roster.filter(p=>G.pp.indexOf(p.id)<0);
+el.innerHTML=present.concat(absent).map(function(p){var here=G.pp.indexOf(p.id)>=0;
+return '<div class="avail-player'+(here?' present':' absent')+'" onclick="togAvail(\''+p.id+'\')">'
 +'<div class="pjrsy">'+(p.jersey||'?')+'</div>'
-+'<span style="flex:1;font-size:14px;cursor:pointer;" onclick="togAvail(\''+p.id+'\')">'+(p.name||'Player')+'</span>'
-+'<span style="font-size:11px;font-family:sans-serif;cursor:pointer;color:'+(present?'var(--green2)':'var(--red2)')+'" onclick="togAvail(\''+p.id+'\')">'+(present?'Present':'Absent')+'</span></div>';}).join('');
-initDragDrop();
-$('avail-count').textContent=G.pp.length+' present'+(G.pp.length<8?' — need 8':'');}
++'<span style="flex:1;font-size:14px;">'+(p.name||'Player')+'</span>'
++'<span style="font-size:11px;font-family:sans-serif;color:'+(here?'var(--green2)':'var(--red2)')+';">'+(here?'✓ Present':'✗ Absent')+'</span></div>';}).join('');
+$('avail-count').textContent=G.pp.length+' present'+(G.pp.length<8?' ⚠️ need 8':'');}
 function togAvail(id){var i=G.pp.indexOf(id);if(i>=0)G.pp.splice(i,1);else G.pp.push(id);renderAvail();}
-// Touch drag-and-drop for lineup reorder
-var _dragId=null,_dragEl=null,_dragY=0,_dragClone=null;
-function initDragDrop(){
-var items=$('avail-list').querySelectorAll('.avail-player.present');
-items.forEach(function(el){
-  el.addEventListener('touchstart',function(e){
-    var t=e.target;if(!t.dataset||!t.dataset.drag)return;
-    _dragId=el.dataset.id;_dragEl=el;_dragY=e.touches[0].clientY;
-    el.classList.add('dragging');
-    e.preventDefault();
-  },{passive:false});
-  el.addEventListener('touchmove',function(e){
-    if(!_dragId)return;e.preventDefault();
-    var y=e.touches[0].clientY;
-    var all=$('avail-list').querySelectorAll('.avail-player.present');
-    all.forEach(function(other){
-      other.classList.remove('drag-over');
-      var r=other.getBoundingClientRect();
-      if(y>r.top&&y<r.bottom&&other.dataset.id!==_dragId)other.classList.add('drag-over');
-    });
-  },{passive:false});
-  el.addEventListener('touchend',function(e){
-    if(!_dragId)return;
-    var y=e.changedTouches[0].clientY;
-    var all=$('avail-list').querySelectorAll('.avail-player.present');
-    var targetId=null;
-    all.forEach(function(other){
-      other.classList.remove('drag-over');
-      var r=other.getBoundingClientRect();
-      if(y>r.top&&y<r.bottom&&other.dataset.id!==_dragId)targetId=other.dataset.id;
-    });
-    if(_dragEl)_dragEl.classList.remove('dragging');
-    if(targetId&&_dragId){
-      var fi=G.pp.indexOf(_dragId),ti=G.pp.indexOf(targetId);
-      if(fi>=0&&ti>=0){G.pp.splice(fi,1);G.pp.splice(ti,0,_dragId);renderAvail();}
-    }
-    _dragId=null;_dragEl=null;
-  });
-  // Also support mouse drag for desktop testing
-  el.addEventListener('dragstart',function(e){_dragId=el.dataset.id;el.classList.add('dragging');});
-  el.addEventListener('dragend',function(e){el.classList.remove('dragging');_dragId=null;});
-  el.addEventListener('dragover',function(e){e.preventDefault();if(el.dataset.id!==_dragId)el.classList.add('drag-over');});
-  el.addEventListener('dragleave',function(e){el.classList.remove('drag-over');});
-  el.addEventListener('drop',function(e){e.preventDefault();el.classList.remove('drag-over');
-    var targetId=el.dataset.id;if(_dragId&&targetId&&_dragId!==targetId){
-      var fi=G.pp.indexOf(_dragId),ti=G.pp.indexOf(targetId);
-      if(fi>=0&&ti>=0){G.pp.splice(fi,1);G.pp.splice(ti,0,_dragId);renderAvail();}
-    }_dragId=null;});
-});}
+
+// Step 2: build numbered lineup
+var _lineupOrder=[];// array of roster IDs in batting order
+var _pickingSpot=-1;
+function goToLineupBuild(){
+if(G.pp.length<1){toast('Mark at least 1 player present');return;}
+// initialize order: keep existing if valid, else use G.pp order
+_lineupOrder=G.pp.slice();
+$('avail-step1').style.display='none';$('avail-step2').style.display='block';
+renderLineupSpots();}
+function backToPresence(){$('avail-step2').style.display='none';$('avail-step1').style.display='block';}
+function renderLineupSpots(){
+var spots='';
+for(var i=0;i<_lineupOrder.length;i++){
+  var pid=_lineupOrder[i];
+  var p=pid?A.roster.find(r=>r.id===pid):null;
+  var filled=!!p;
+  spots+='<div class="pos-row" onclick="openLinePick('+i+')" style="cursor:pointer;">'
+  +'<span class="pos-label" style="width:24px;color:var(--gold);">'+(i+1)+'</span>'
+  +(filled?'<div class="bat-jersey">'+(p.jersey||'?')+'</div>':'<div class="bat-jersey" style="color:var(--text3);border-style:dashed;">—</div>')
+  +'<span style="flex:1;font-size:13px;color:'+(filled?'var(--text)':'var(--text3)')+';">'+(filled?(p.name||'#'+p.jersey):'Tap to assign')+'</span>'
+  +(filled?'<button class="btn btn-xs btn-red" onclick="event.stopPropagation();removeFromSpot('+i+')">✕</button>':'')
+  +'</div>';
+}
+// add empty slot button
+spots+='<div class="pos-row" onclick="addEmptySpot()" style="cursor:pointer;"><span class="pos-label" style="width:24px;color:var(--text3);">+</span><span style="font-size:12px;color:var(--text3);font-family:sans-serif;">Add spot</span></div>';
+$('lineup-spots').innerHTML=spots;
+// pool: present players NOT in lineup
+var used=_lineupOrder.filter(Boolean);
+var pool=G.pp.filter(id=>used.indexOf(id)<0).map(id=>A.roster.find(r=>r.id===id)).filter(Boolean);
+$('lineup-pool').innerHTML=pool.length?pool.map(function(p){return '<div class="pos-row" style="cursor:pointer;opacity:.7;" onclick="autoFillPool(\''+p.id+'\')">'+'<div class="bat-jersey">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;">'+esc(p.name||'#'+p.jersey)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap to add →</span></div>';}).join(''):'<div class="empty">All present players assigned</div>';
+$('avail-count').textContent=_lineupOrder.filter(Boolean).length+' in lineup · '+G.pp.length+' present';}
+function openLinePick(spot){_pickingSpot=spot;
+var used=_lineupOrder.filter((id,i)=>id&&i!==spot);
+var avail=G.pp.map(id=>A.roster.find(r=>r.id===id)).filter(Boolean);
+$('lp-title').textContent='Spot '+(spot+1)+' — Pick batter';
+$('lp-list').innerHTML=avail.map(function(p){var taken=used.indexOf(p.id)>=0;
+return '<div class="pos-row'+(taken?' ':'')+'" onclick="'+(taken?'':'pickLineupPlayer(\''+p.id+'\')')+'" style="cursor:'+(taken?'default':'pointer')+';opacity:'+(taken?.4:1)+';">'
++'<div class="bat-jersey">'+(p.jersey||'?')+'</div>'
++'<span style="flex:1;font-size:13px;">'+(p.name||'#'+p.jersey)+'</span>'
++(taken?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">in lineup</span>':'')
++'</div>';}).join('');
+om('m-linepick');}
+function pickLineupPlayer(pid){_lineupOrder[_pickingSpot]=pid;cm('m-linepick');renderLineupSpots();}
+function removeFromSpot(i){_lineupOrder[i]=null;renderLineupSpots();}
+function addEmptySpot(){_lineupOrder.push(null);renderLineupSpots();}
+function autoFillPool(pid){// find first empty spot or append
+var idx=_lineupOrder.indexOf(null);if(idx>=0)_lineupOrder[idx]=pid;else _lineupOrder.push(pid);renderLineupSpots();}
+function importLastLineup(){
+// find most recent completed game with a lineupOrder
+var found=null;
+A.schedule.slice().reverse().forEach(function(ev){if(found||ev.id===G.eid)return;var r=A.gameResults[ev.id];if(r&&r.lineupOrder&&r.lineupOrder.length)found=r.lineupOrder;});
+if(!found){toast('No previous lineup found');return;}
+_lineupOrder=found.filter(id=>G.pp.indexOf(id)>=0);// only keep present players
+// add present players not in last lineup
+G.pp.forEach(id=>{if(_lineupOrder.indexOf(id)<0)_lineupOrder.push(id);});
+renderLineupSpots();toast('Imported!');}
+
 function confirmAvail(){
-var ih=isOH();var lu=G.pp.map(function(pid){var rp=A.roster.find(r=>r.id===pid);return rp?{name:rp.name||'',jersey:rp.jersey||'',rid:rp.id}:null;}).filter(Boolean);
+// build lineup from ordered spots (skip nulls)
+var ih=isOH();
+var lu=_lineupOrder.filter(Boolean).map(function(pid){var rp=A.roster.find(r=>r.id===pid);return rp?{name:rp.name||'',jersey:rp.jersey||'',rid:rp.id}:null;}).filter(Boolean);
+if(!lu.length){toast('Assign at least 1 player');return;}
 if(ih)G.hlu=lu;else G.alu=lu;
+// save lineup order for import-last-game (5.3)
+if(G.eid){if(!A.gameResults[G.eid])A.gameResults[G.eid]={};A.gameResults[G.eid].lineupOrder=_lineupOrder.filter(Boolean);}
+// reset per-team batter index for our team
+if(ih)G.hbi=0;else G.abi=0;
 // Pre-populate opponent lineup from OPP_ROSTERS
 var ev=A.schedule.find(e=>e.id===G.eid);
 var oppName=ev?ev.opponent:'';
@@ -484,7 +529,8 @@ if(G.cbi<0&&clu().length>0){var _ini=isHB()?G.hbi:G.abi;G.cbi=_ini>=0?_ini:0;}re
 // SCORECARD
 function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();}
 function stab(name,el){['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');document.querySelectorAll('#screen-sc .tab').forEach(t=>t.classList.remove('active'));$('tab-'+name).style.display='block';el.classList.add('active');
-if(name==='stats')renderStats();if(name==='log')renderLog();if(name==='box'){renderBox();mkShare();}if(name==='field')renderFT();if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat')renderSC();}
+renderSB();// always keep scorebar current
+if(name==='stats')renderStats();if(name==='log')renderLog();if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat')renderSC();}
 
 function renderSB(){$('sb-away').textContent=G.at;$('sb-home').textContent=G.ht;$('sb-away-score').textContent=G.as;$('sb-home-score').textContent=G.hs;$('sb-inn').textContent=ord(G.inn);$('sb-half').textContent=G.half==='top'?'▲ Top':'▼ Bot';for(var b=1;b<=3;b++)$('sbb-'+b).className='sb-base b'+b+(G.bases[b-1]?' on':'');
 var DOT_S='width:7px;height:7px;border-radius:50%;border:1.5px solid ';
@@ -555,18 +601,60 @@ $('mu-pd').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer
 $('mu-b').textContent=b?(theyBat()?oppDisplay(b):sn(b.name||'#'+b.jersey)):'Select batter';
 if(b&&G.cbi>=0){var st=gps(G.cbi,isHB()?'home':'away');$('mu-bd').textContent=st.ab>0?st.h+'-'+st.ab:'';}else $('mu-bd').textContent='';}
 
+// 3.2: unified pitcher switch modal — who='us'|'them', forced=true blocks cancel
+var _pswWho='us',_pswForced=false;
 function quickSwitchPitcher(){
-var pt=G.half==='top'?'home':'away';
-var pl=pt==='home'?G.hp:G.ap;
-if(!pl.length){stab('pitch',document.querySelectorAll('#screen-sc .tab')[2]);toast('Add a pitcher first');return;}
-if(pl.length===1){
-  if(pt==='home')G.chp=0;else G.cap=0;
-  if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=pl[0].name;
-  sv();renderSC();toast('Pitcher set: '+sn(pl[0].name));return;
+  // figure out whether we're switching our pitcher or theirs
+  var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+  openPSwitch(weField?'us':'them',false);
 }
-var opts=pl.map(function(p,i){return(i+1)+'. '+sn(p.name)+' ('+( p.total||0)+'p)';}).join('\n');
-var pick=prompt('Select pitcher:\n'+opts+'\n\nEnter number:');
-if(pick&&!isNaN(parseInt(pick))){var idx=parseInt(pick)-1;if(pl[idx]){if(pt==='home')G.chp=idx;else G.cap=idx;if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=pl[idx].name;sv();renderSC();toast('Pitcher: '+sn(pl[idx].name));}}
+function openPSwitch(who,forced){
+  _pswWho=who;_pswForced=forced;
+  var pl=who==='us'?ourP():theirP();
+  var ci=who==='us'?ourPI():theirPI();
+  var lu=who==='us'?olu():tlu();
+  var title=(forced?'🛑 ':'')+'Change Pitcher — '+(who==='us'?ourName():theirName());
+  $('psw-title').textContent=title;
+  $('psw-cancel-row').style.display=forced?'none':'flex';
+  // Build pitcher list
+  var html='';
+  if(!pl.length){html='<div class="empty">No pitchers added yet</div>';}
+  else{pl.forEach(function(p,i){var active=i===ci;var pc=p.total||0;var col=pc>=75?'var(--red2)':pc>=40?'var(--amber2)':'var(--green2)';
+    html+='<div class="row-b" style="padding:7px 0;border-bottom:1px solid var(--border);">'
+    +'<div><span style="font-size:13px;color:'+(active?'var(--gold)':'var(--text)')+';">'+(active?'▶ ':'')+esc(sn(p.name))+'</span>'
+    +'<span style="font-size:10px;font-family:sans-serif;color:'+col+';margin-left:6px;">PC: '+pc+'</span>'
+    +(pc>=40?'<span style="font-size:9px;font-family:sans-serif;color:var(--amber2);margin-left:4px;">40+</span>':'')
+    +'</div>'
+    +(active?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">Active</span>':'<button class="btn btn-xs btn-gold" onclick="selectPSwitcher('+i+')">Set active</button>')
+    +'</div>';});}
+  $('psw-list').innerHTML=html;
+  // Populate add dropdown from lineup
+  var ex=pl.map(p=>p.name);
+  var opts='<option value="">Add from lineup…</option>';
+  lu.filter(p=>p.name&&ex.indexOf(p.name)<0).forEach(function(p){opts+='<option value="'+esc(p.name)+'">'+esc(who==='us'?sn(p.name):oppDisplay(p))+'</option>';});
+  opts+='<option value="__custom__">+ Enter name…</option>';
+  $('psw-new-sel').innerHTML=opts;
+  om('m-pswitch');
+}
+function selectPSwitcher(idx){
+  var pl=_pswWho==='us'?ourP():theirP();
+  if(!pl[idx])return;
+  if(_pswWho==='us'){setOurPI(idx);if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=pl[idx].name;G.plb=false;}
+  else setTheirPI(idx);
+  cm('m-pswitch');sv();renderSC();
+  toast('Pitcher: '+sn(pl[idx].name));
+  // 3.1: if forced change clears the block, re-check fielding warning
+  if(_pswForced)chkFieldingWarnOnly();
+}
+function addPSwitchNew(){
+  var v=$('psw-new-sel').value;if(!v)return;
+  var name=v;
+  if(v==='__custom__'){name=prompt('Pitcher name:');if(!name)return;}
+  var pl=_pswWho==='us'?ourP():theirP();
+  var rp=A.roster.find(r=>r.name===name);
+  pl.push({name:name,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});
+  var newIdx=pl.length-1;
+  selectPSwitcher(newIdx);
 }
 
 function renderCB(){var bd='',sd='',od='';
@@ -588,7 +676,8 @@ function selBat(i){if(G.cbi===i)return;if(G.cbi>=0&&G.cpitch.length>0){if(!confi
 
 // PITCH
 function curPitcher(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;return(i>=0&&l[i])?l[i]:null;}
-function lp(c){if(G.cbi<0){toast('Select batter');return;}if(!curPitcher()){toast('⚠️ Set a pitcher first!');return;}G.cpitch.push(c);pAdd(c);
+function lp(c){if(G.cbi<0){toast('Select batter');return;}if(!curPitcher()){toast('⚠️ Set a pitcher first!');return;}
+if(G.plb){om('m-plimit');return;}// 3.1: pitch limit blockG.cpitch.push(c);pAdd(c);
 if(c==='X'){sv();renderSC();return;}
 if(c==='S'||c==='L'){G.strikes++;if(G.strikes>=3){toast('Strikeout!');endAB(c==='S'?'K':'KL');return;}}
 else if(c==='F'||c==='FT'){if(G.strikes<2)G.strikes++;}
@@ -603,6 +692,21 @@ else if(c==='B')p.ba=(p.ba||0)+1;
 else if(c==='X')p.bip=(p.bip||0)+1;
 else if(c==='H')p.hbp=(p.hbp||0)+1;}
 function chkPW(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i>=0&&l[i]){var c=l[i].total||0;if(c===40)toast('⚠️ 40p — ineligible next game!',3500);if(c===65)toast('⚠️ 65p — 10 left!',3000);if(c>=75)toast('🛑 75p — remove pitcher!',4000);}}
+// 3.1: check pitch limit when WE start fielding a new half-inning
+function chkPitcherLimit(){
+  var p=ourP();var i=ourPI();if(i<0||!p[i])return;
+  var c=p[i].total||0;
+  // 40-pitch warning (non-blocking)
+  if(c>=40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — ineligible to pitch next game',4000);
+  // 75-pitch hard block
+  if(c>=75){G.plb=true;sv();
+    $('plimit-msg').textContent=sn(p[i].name)+' has thrown '+c+' pitches (limit: 75).';
+    om('m-plimit');}
+}
+function chkFieldingWarnOnly(){
+  var p=ourP();var i=ourPI();if(i<0||!p[i])return;
+  var c=p[i].total||0;if(c>=40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — ineligible next game',4000);
+}
 function undoPitch(){if(!G.cpitch.length){toast('Nothing to undo');return;}var c=G.cpitch.pop();var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i>=0&&l[i]){var p=l[i];p.total=Math.max(0,(p.total||1)-1);
 if(c==='S'){p.sw=Math.max(0,(p.sw||1)-1);p.stk=Math.max(0,(p.stk||1)-1);}
 else if(c==='L'){p.lk=Math.max(0,(p.lk||1)-1);p.stk=Math.max(0,(p.stk||1)-1);}
@@ -617,6 +721,7 @@ G.balls=0;G.strikes=0;G.cpitch.forEach(function(c){if(c==='S'||c==='L')G.strikes
 // END AB
 function endAB(r){if(G.cbi<0){toast('Select batter');return;}
 if(!curPitcher()){toast('⚠️ Set a pitcher first!');return;}
+if(G.plb){om('m-plimit');return;}
 // Auto-add a pitch if none logged and it's a ball-in-play result
 if(G.cpitch.length===0){
   if(['K','KL'].includes(r)){G.cpitch.push('S');G.cpitch.push('S');G.cpitch.push(r==='K'?'S':'L');pAdd('S');pAdd('S');pAdd(r==='K'?'S':'L');}
@@ -757,12 +862,22 @@ G._nbi=ni;om('m-next');}
 function ackNext(){cm('m-next');var ni=isHB()?G.hbi:G.abi;G.cbi=(ni>=0?ni:0);sv();renderSC();}
 
 function showIE(){var d='';if(G.half==='top')d='Switch to '+G.ht+' batting';else d='Inning '+(G.inn+1)+' — '+G.at+' batting';$('ie-detail').textContent=d;om('m-innend');renderSC();}
-function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];G.isu=false;
+function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];G.isu=false;G.plb=false;
 if(G.half==='top')G.half='bottom';else{G.inn=Math.min(G.inn+1,G.ti+3);G.half='top';chkFW(G.inn);}
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
-var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
-if(wf){stab('field',document.querySelectorAll('#screen-sc .tab')[1]);}
-else{var lu=clu();if(lu.length>0){var ni=isHB()?G.hbi:G.abi;G.cbi=ni>=0?ni:0;}renderSC();}}
+// 3.3: determine who fields in the new half
+var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+if(weField){
+  // auto-switch to field tab and check pitcher eligibility
+  stab('field',document.querySelectorAll('#screen-sc .tab')[1]);
+  renderSB();// keep scorebar current on tab switch
+  setTimeout(chkPitcherLimit,300);// slight delay so tab renders first
+}else{
+  // we bat: auto-select correct next batter from our per-team index
+  var lu=clu();
+  if(lu.length>0){var ni=isHB()?G.hbi:G.abi;G.cbi=ni>=0?ni:0;}
+  renderSC();
+}}
 
 function chkFW(inn){if(inn<4)return;var msgs=[];olu().forEach(function(p){if(!p.name&&!p.jersey)return;var k=p.name||p.jersey,c=gfi(k);if(inn===4&&c===0)msgs.push(k+': 0 inn');if(inn>=5&&c<2)msgs.push(k+': '+c+' inn');});if(msgs.length)setTimeout(()=>alert('⚠️ Fielding warning:\n\n'+msgs.join('\n')),300);}
 
@@ -875,9 +990,31 @@ $('st-err').style.display=who==='us'?'block':'none';}
 
 // LOG
 function abBatterDisplay(ab){var opp=ab.team===themT();if(opp){var lu=tlu();var p=lu.find(function(p){return(p.name||'')===ab.batter;});return p?oppDisplay(p):ab.batter;}return sn(ab.batter);}
+// 4.1: derive display notation — prefer user-entered not, fall back to standard codes
+function abNotation(ab){
+  var r=ab.result,n=(ab.not||'').trim();
+  // if user typed something meaningful, use it
+  if(n&&n!==r)return n;
+  // standard fallbacks
+  var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR','1B':'1B','2B':'2B','3B':'3B',
+    FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP'};
+  return map[r]||r;
+}
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
 var ha=G.abs.filter(a=>a.team==='home'),aa=G.abs.filter(a=>a.team==='away');
-function mkTbl(abs){return '<div class="scroll-x"><table class="tbl"><thead><tr><th>#</th><th>Batter</th><th>Inn</th><th>Pitches</th><th>Ct</th><th>Result</th><th>Play</th></tr></thead><tbody>'+[...abs].reverse().map(function(ab){var seq=ab.pitches.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' ');var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');return '<tr><td style="color:var(--text3);">'+ab.num+'</td><td>'+esc(abBatterDisplay(ab))+'</td><td>'+ab.inn+(ab.half==='top'?'T':'B')+'</td><td style="font-family:monospace;font-size:10px;">'+seq+'</td><td>'+ab.pc+'</td><td><span class="badge '+bc+'">'+ab.result+'</span>'+(ab.rbi>0?' +'+ab.rbi:'')+'</td><td style="font-size:10px;">'+esc(ab.not)+'</td></tr>';}).join('')+'</tbody></table></div>';}
+function mkTbl(abs){return '<div class="scroll-x"><table class="tbl"><thead><tr><th>#</th><th>Batter</th><th>Inn</th><th>Pitches</th><th>PC</th><th>Play</th><th>RBI</th></tr></thead><tbody>'+[...abs].reverse().map(function(ab){
+  var seq=ab.pitches.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' ');
+  var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
+  var notation=abNotation(ab);
+  return '<tr>'
+  +'<td style="color:var(--text3);">'+ab.num+'</td>'
+  +'<td>'+esc(abBatterDisplay(ab))+'</td>'
+  +'<td>'+ab.inn+(ab.half==='top'?'▲':'▼')+'</td>'
+  +'<td style="font-family:monospace;font-size:10px;">'+seq+'</td>'
+  +'<td>'+ab.pc+'</td>'
+  +'<td><span class="badge '+bc+'" style="font-size:11px;letter-spacing:.02em;">'+esc(notation)+'</span></td>'
+  +'<td style="color:var(--text2);">'+(ab.rbi>0?'+'+ab.rbi:'')+'</td>'
+  +'</tr>';}).join('')+'</tbody></table></div>';}
 p.innerHTML='<div class="log-team-hdr">'+esc(G.ht)+' — '+ha.length+' AB</div>'+mkTbl(ha)+'<div class="log-team-hdr" style="margin-top:12px;">'+esc(G.at)+' — '+aa.length+' AB</div>'+mkTbl(aa);}
 
 // BOX
