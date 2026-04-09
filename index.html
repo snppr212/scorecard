@@ -239,7 +239,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- LOG -->
 <div id="tab-log" style="display:none;"><div class="panel" id="log-panel"></div></div>
 <!-- BOX -->
-<div id="tab-box" style="display:none;"><div class="panel"><div class="ptitle">Line score</div><div class="scroll-x"><table class="tbl" id="ls-tbl"></table></div></div><div class="panel"><div class="ptitle">Share</div><div id="share-txt" style="background:var(--bg3);border-radius:var(--rs);padding:9px;font-family:monospace;font-size:11px;color:var(--text2);white-space:pre-wrap;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div><div class="g2"><button class="btn btn-full btn-gold" onclick="cpShare()">Copy</button><button class="btn btn-full" onclick="mkShare()">Refresh</button></div></div><div class="panel"><div class="ptitle">Notes</div><textarea id="gm-notes" style="min-height:80px;" placeholder="Notes..."></textarea></div></div>
+<div id="tab-box" style="display:none;"><div class="panel"><div class="ptitle">Line score</div><div class="scroll-x"><table class="tbl" id="ls-tbl"></table></div></div><div class="panel"><div class="ptitle">Share</div><div id="share-txt" style="background:var(--bg3);border-radius:var(--rs);padding:9px;font-family:monospace;font-size:11px;color:var(--text2);white-space:pre-wrap;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div><div class="g2"><button class="btn btn-full btn-gold" onclick="cpShare()">Copy</button><button class="btn btn-full" onclick="mkShare()">Refresh</button></div></div><div class="panel"><div class="ptitle">Notes</div><textarea id="gm-notes" style="min-height:80px;" placeholder="Notes..."></textarea></div>
+<div style="margin-top:10px;"><button class="btn btn-full btn-red" onclick="endGame()" style="font-size:14px;padding:12px;">🏁 End Game</button></div></div>
 <!-- RULES -->
 <div id="tab-rules" style="display:none;"><div class="panel">
 <div class="rule-section"><div class="rule-section-title">⚾ Pitching</div><div class="rule-highlight"><div class="rule-label">Max pitches</div><div class="rule-body">75 per day. Pitcher reaching limit mid-count may finish that batter.</div></div><div class="rule-highlight"><div class="rule-label">40-pitch rule</div><div class="rule-body">40+ pitches = ineligible to pitch NEXT game.</div></div><div class="rule-item"><div class="rule-label">Rest days</div><div class="rule-body">1-20: 0 days · 21-35: 1 · 36-50: 2 · 51-65: 3 · 66+: 4</div></div><div class="rule-item"><div class="rule-label">Catcher-Pitcher</div><div class="rule-body">4+ innings catching = can't pitch. 41+ pitches = can't catch.</div></div><div class="rule-item"><div class="rule-label">3 HBP</div><div class="rule-body">Must be removed after hitting 3 batters.</div></div></div>
@@ -253,7 +254,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-roster"><div class="modal"><h3>Roster</h3><div id="ros-list"></div><div class="mact"><button class="btn btn-green btn-full" onclick="addRos()">+ Add</button><button class="btn btn-full" onclick="cm('m-roster')">Close</button></div></div></div>
 <div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
-<div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><button class="btn btn-red btn-full" onclick="cm('m-setup');endGame()">🏁 End Game</button></div></div>
 <div class="modal-ov" id="m-play"><div class="modal"><h3 id="mp-t">Log play</h3><div class="mrow"><label>Scorecard notation (4-3, L9, F8)</label><input type="text" id="mp-not"></div><div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
 <div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cm('m-play')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-steal"><div class="modal"><h3>Stolen base</h3><div class="mrow"><label>From</label><select id="st-from"></select></div><div class="mrow"><label>Player</label><select id="st-who"></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmSB()">Log SB</button><button class="btn btn-full" onclick="cm('m-steal')">Cancel</button></div></div></div>
@@ -273,6 +274,15 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <button class="btn btn-sm btn-green" onclick="addPSwitchNew()">Add</button>
 </div>
 <div class="mact" id="psw-cancel-row"><button class="btn btn-full" onclick="cm('m-pswitch')">Cancel</button></div>
+</div></div>
+
+<!-- END GAME MODAL (3.4) -->
+<div class="modal-ov" id="m-endgame"><div class="modal" style="text-align:center;">
+<h3 style="font-size:18px;" id="eg-title">Game Over</h3>
+<div id="eg-score" style="font-size:32px;font-weight:bold;color:var(--gold);margin:10px 0;"></div>
+<div id="eg-result" style="font-size:14px;font-family:sans-serif;margin-bottom:16px;"></div>
+<div id="eg-lines" style="font-size:11px;font-family:monospace;color:var(--text2);background:var(--bg3);border-radius:var(--rs);padding:10px;margin-bottom:14px;text-align:left;max-height:200px;overflow-y:auto;white-space:pre;"></div>
+<div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEndGame()">Save & return home</button><button class="btn btn-full" onclick="cm('m-endgame')">Keep scoring</button></div>
 </div></div>
 
 <!-- PITCH LIMIT BLOCK MODAL (3.1) -->
@@ -594,7 +604,7 @@ s+='<text x="'+(c[0]+ox)+'" y="'+(c[1]+oy+3)+'" text-anchor="middle" font-size="
 s+='</svg>';$('field-svg').innerHTML=s;}
 
 function renderMU(){var lu=clu(),b=G.cbi>=0&&lu[G.cbi]?lu[G.cbi]:null;var pt=G.half==='top'?'home':'away',pl=pt==='home'?G.hp:G.ap,pi=pt==='home'?G.chp:G.cap,p=pi>=0&&pl[pi]?pl[pi]:null;
-var pName=p?sn(p.name):'⚠️ Set pitcher';var pPC=p?'PC: '+(p.total||0):'Tap to set →';
+var pName=p?sn(p.name)+'  '+(p.throws==='L'?'LHP':'RHP'):'⚠️ Set pitcher';var pPC=p?'PC: '+(p.total||0):'Tap to set →';
 var pCol=p?(p.total>=65?'var(--red2)':p.total>=40?'var(--amber2)':'var(--green2)'):'var(--red2)';
 $('mu-p').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer;">'+esc(pName)+'</span>';
 $('mu-pd').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer;color:'+pCol+';">'+pPC+'</span>';
@@ -620,12 +630,21 @@ function openPSwitch(who,forced){
   var html='';
   if(!pl.length){html='<div class="empty">No pitchers added yet</div>';}
   else{pl.forEach(function(p,i){var active=i===ci;var pc=p.total||0;var col=pc>=75?'var(--red2)':pc>=40?'var(--amber2)':'var(--green2)';
-    html+='<div class="row-b" style="padding:7px 0;border-bottom:1px solid var(--border);">'
+    var hand=p.throws||'R';
+    html+='<div style="padding:7px 0;border-bottom:1px solid var(--border);">'
+    +'<div class="row-b">'
     +'<div><span style="font-size:13px;color:'+(active?'var(--gold)':'var(--text)')+';">'+(active?'▶ ':'')+esc(sn(p.name))+'</span>'
     +'<span style="font-size:10px;font-family:sans-serif;color:'+col+';margin-left:6px;">PC: '+pc+'</span>'
     +(pc>=40?'<span style="font-size:9px;font-family:sans-serif;color:var(--amber2);margin-left:4px;">40+</span>':'')
     +'</div>'
     +(active?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">Active</span>':'<button class="btn btn-xs btn-gold" onclick="selectPSwitcher('+i+')">Set active</button>')
+    +'</div>'
+    // RHP/LHP toggle row
+    +'<div class="row" style="gap:5px;margin-top:5px;">'
+    +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">Throws:</span>'
+    +'<button class="btn btn-xs'+(hand==='R'?' btn-blue':'')+'" onclick="setPThrows('+i+',\'R\')">RHP</button>'
+    +'<button class="btn btn-xs'+(hand==='L'?' btn-blue':'')+'" onclick="setPThrows('+i+',\'L\')">LHP</button>'
+    +'</div>'
     +'</div>';});}
   $('psw-list').innerHTML=html;
   // Populate add dropdown from lineup
@@ -652,9 +671,14 @@ function addPSwitchNew(){
   if(v==='__custom__'){name=prompt('Pitcher name:');if(!name)return;}
   var pl=_pswWho==='us'?ourP():theirP();
   var rp=A.roster.find(r=>r.name===name);
-  pl.push({name:name,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});
+  pl.push({name:name,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0,throws:'R'});
   var newIdx=pl.length-1;
   selectPSwitcher(newIdx);
+}
+function setPThrows(idx,hand){
+  var pl=_pswWho==='us'?ourP():theirP();
+  if(pl[idx])pl[idx].throws=hand;
+  sv();openPSwitch(_pswWho,_pswForced);// re-render modal in place
 }
 
 function renderCB(){var bd='',sd='',od='';
@@ -921,8 +945,13 @@ function renderFT(){$('fi-label').textContent=G.inn;var fa=G.fa[G.inn]||{};
 $('fa-list').innerHTML=APOS.map(function(pos){var a=fa[pos]||'',inns=a?gfi(a):0,w=G.inn>=4&&a&&inns<2;
 return '<div class="pos-row"><span class="pos-label">'+pos+'</span><span style="flex:1;font-size:12px;color:'+(a?(w?'var(--red2)':'var(--text)'):'var(--text3)')+';">'+(a?sn(a):'— empty')+(a?' <span style="font-size:10px;color:var(--text3);">'+inns+'i</span>':'')+'</span><button class="btn btn-xs" onclick="openPM(\''+pos+'\')">'+( a?'Change':'Set')+'</button>'+(a?'<button class="btn btn-xs btn-red" style="margin-left:4px;" onclick="clrPos(\''+pos+'\')">✕</button>':'')+'</div>';}).join('');
 $('fi-sum').innerHTML=olu().map(function(p){if(!p.name&&!p.jersey)return'';var k=p.name||p.jersey,c=gfi(k),w=G.inn>=4&&c<2;
-var sp=[];Object.keys(G.fa).forEach(function(i){APOS.forEach(function(pos){if((G.fa[i]||{})[pos]===k)sp.push(pos+'('+i+')');});});
-return '<div class="pos-row"><span style="width:80px;font-size:11px;font-family:sans-serif;color:'+(w?'var(--red2)':'var(--text)')+';">'+sn(p.name||'#'+p.jersey)+'</span><span style="flex:1;font-size:10px;font-family:sans-serif;color:var(--text2);">'+sp.join(', ')+'</span><span style="font-size:12px;font-family:sans-serif;color:'+(w?'var(--red2)':'var(--green2)')+';">'+c+'</span></div>';}).filter(Boolean).join('')||'<div class="empty">Add lineup first</div>';}
+// 4.2: group by position → POS (count; 1,2,6) · SS (1; 3)
+var byPos={};
+Object.keys(G.fa).forEach(function(i){APOS.forEach(function(pos){if((G.fa[i]||{})[pos]===k){if(!byPos[pos])byPos[pos]=[];byPos[pos].push(parseInt(i));}});});
+var grouped=Object.keys(byPos).map(function(pos){var inns=byPos[pos].sort((a,b)=>a-b);return '<span style="color:var(--gold);font-weight:bold;">'+pos+'</span> <span style="color:var(--text3);">('+inns.length+'; '+inns.join(', ')+')</span>';}).join(' <span style="color:var(--border2);">·</span> ');
+return '<div class="pos-row"><span style="width:76px;font-size:11px;font-family:sans-serif;color:'+(w?'var(--red2)':'var(--text)')+';">'+sn(p.name||'#'+p.jersey)+'</span>'
++'<span style="flex:1;font-size:10px;font-family:sans-serif;">'+( grouped||'<span style="color:var(--text3);">Not assigned</span>')+'</span>'
++'<span style="font-size:13px;font-family:sans-serif;font-weight:bold;color:'+(w?'var(--red2)':'var(--green2)')+';">'+c+'</span></div>';}).filter(Boolean).join('')||'<div class="empty">Add lineup first</div>';}
 function openPM(pos){$('mpos-t').textContent='Assign '+pos;var fa=G.fa[G.inn]||{},taken=Object.values(fa);
 $('mpos-list').innerHTML=olu().filter(p=>{var k=p.name||p.jersey;return k&&(taken.indexOf(k)<0||fa[pos]===k);}).map(function(p){var k=p.name||p.jersey,c=gfi(k),w=G.inn>=4&&c<2;
 return '<div class="pos-row" onclick="asgPos(\''+pos+'\',\''+esc(k).replace(/'/g,"\\'")+'\');cm(\'m-pos\')" style="cursor:pointer;"><div class="bat-jersey">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;color:'+(w?'var(--red2)':'var(--text)')+';">'+esc(p.name||'#'+p.jersey)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+c+'i</span></div>';}).join('')
@@ -1037,6 +1066,35 @@ pl.forEach(function(p){var nm=sn(p.name).substring(0,16).padEnd(16);var st=(p.sw
 pitLines(ourP(),ourName());ls.push('');pitLines(theirP(),theirName());
 if(G.notes)ls.push('\nNotes: '+G.notes);$('share-txt').textContent=ls.join('\n');}
 function cpShare(){var t=$('share-txt').textContent;if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast('Copied!'));else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied!');}}
+
+// END GAME (3.4)
+function endGame(){
+  mkShare();// refresh share text first
+  var usHome=isOH(),ourScore=usHome?G.hs:G.as,theirScore=usHome?G.as:G.hs;
+  var win=ourScore>theirScore,tie=ourScore===theirScore;
+  $('eg-title').textContent=(win?'✅ Win!':tie?'🤝 Tie':'❌ Loss')+' — Game Final';
+  $('eg-score').textContent=G.at+' '+G.as+'  –  '+G.hs+' '+G.ht;
+  $('eg-result').textContent=ourName()+': '+ourScore+' · '+theirName()+': '+theirScore;
+  // pitching summary lines
+  var lines='';
+  ourP().forEach(function(p){var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);lines+=sn(p.name)+' '+ip+' IP, '+(p.hits||0)+'H, '+(p.runs_allowed||0)+'R, '+(p.k_pitched||0)+'K, '+(p.bb_allowed||0)+'BB, PC:'+(p.total||0)+'\n';});
+  $('eg-lines').textContent=lines||'No pitching data';
+  om('m-endgame');
+}
+function confirmEndGame(){
+  cm('m-endgame');
+  // save final result, mark as complete
+  if(G.eid){
+    if(!A.gameResults[G.eid])A.gameResults[G.eid]={};
+    Object.assign(A.gameResults[G.eid],{hs:G.hs,as:G.as,final:true,
+      lineupOrder:(A.gameResults[G.eid].lineupOrder||[])});
+  }
+  syncP();sa();
+  G.eid=null;// clear active game
+  sg();
+  ss('screen-home');renderHome();
+  toast('Game saved!',3000);
+}
 
 // SETUP
 function openSetup(){$('s-h').value=G.ht;$('s-a').value=G.at;$('s-i').value=G.ti;$('s-ef').value=G.ef||'';om('m-setup');}
