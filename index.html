@@ -693,13 +693,13 @@ function fieldFirstName(fullName){if(!fullName)return'';return fullName.trim().s
 function renderFD(){
 var fa=G.fa[G.inn]||{},wf=theyBat();
 // auto 10-player: if our lineup has 10+ players, show 4OF
-var has4OF=olu().length>=10;
+var hasRCF=olu().length>=10;
 // position coords [x,y] — 1B/3B inside the lines, OF pulled closer
 var pc={
   P:[140,108],C:[140,162],
   '1B':[188,116],'2B':[170,84],SS:[110,84],'3B':[92,116],
   LF:[44,46],CF:[140,28],RF:[236,46],
-  '4OF':[has4OF?190:999,34]// right-center when 10 players
+  'RCF':[hasRCF?190:999,34]// right-center when 10 players
 };
 // runner circle offsets from base coords
 var rc=[[200,115],[140,70],[80,115]];
@@ -740,7 +740,7 @@ s+='<rect x="'+(b[0]-5)+'" y="'+(b[1]-5)+'" width="10" height="10" transform="ro
 s+='<polygon points="136,149 140,145 144,149 144,153 136,153" fill="white" stroke="rgba(200,200,200,0.4)" stroke-width="0.3"/>';
 // fielder labels (when we field) — show first name only
 if(wf){
-  var posToShow=POS.slice();if(has4OF)posToShow.push('4OF');
+  var posToShow=POS.slice();if(hasRCF)posToShow.push('RCF');
   posToShow.forEach(function(p){var c=pc[p];if(!c||c[0]>900)return;
   var assigned=fa[p];var nm=assigned?fieldFirstName(assigned):'';
   s+='<g><rect x="'+(c[0]-16)+'" y="'+(c[1]-8)+'" width="32" height="16" rx="4" fill="'+(nm?'rgba(13,27,42,0.88)':'rgba(13,27,42,0.45)')+'" stroke="'+(nm?'rgba(200,169,110,0.6)':'rgba(255,255,255,0.12)')+'" stroke-width="0.5"/>';
@@ -751,10 +751,15 @@ s+='<circle cx="'+(bc[0]+ox)+'" cy="'+(bc[1]+oy)+'" r="10" fill="#FFD700" stroke
 s+='<text x="'+(bc[0]+ox)+'" y="'+(bc[1]+oy+3)+'" text-anchor="middle" font-size="7" font-family="sans-serif" fill="#0d1b2a" font-weight="bold" style="pointer-events:none;">'+rn+'</text>';}}
 s+='</svg>';$('field-svg').innerHTML=s;}
 // also expose 4OF in field assignment tab
-function getActivePOS(){var p=POS.slice();if(olu().length>=10)p.push('4OF');if(G.ef&&p.indexOf(G.ef)<0)p.push(G.ef);return p;}
+function getActivePOS(){var p=POS.slice();if(olu().length>=10)p.push('RCF');if(G.ef&&p.indexOf(G.ef)<0)p.push(G.ef);return p;}
 
 function renderMU(){var lu=clu(),b=G.cbi>=0&&lu[G.cbi]?lu[G.cbi]:null;var pt=G.half==='top'?'home':'away',pl=pt==='home'?G.hp:G.ap,pi=pt==='home'?G.chp:G.cap,p=pi>=0&&pl[pi]?pl[pi]:null;
-var pName=p?sn(p.name)+'  '+(p.throws==='L'?'LHP':'RHP'):'⚠️ Set pitcher';var pPC=p?'PC: '+(p.total||0):'Tap to set →';
+// Look up pitcher jersey from opposing lineup if available
+var pitcherJersey='';if(p){var _weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());if(!_weField){var _plu=tlu();var _pmatch=_plu.find(function(q){return(q.name||'')===(p.name||'');});if(_pmatch&&_pmatch.jersey)pitcherJersey='#'+_pmatch.jersey+' ';}
+else{var _pmatch2=olu().find(function(q){return(q.name||'')===(p.name||'');});if(_pmatch2&&_pmatch2.jersey)pitcherJersey='#'+_pmatch2.jersey+' ';}}
+var pName=p?(pitcherJersey+sn(p.name)+'  '+(p.throws==='L'?'LHP':'RHP')):'⚠️ Set pitcher';
+var hbpPart=p&&(p.hbp||0)>0?' HBP:'+(p.hbp):'';
+var pPC=p?('PC:'+(p.total||0)+hbpPart):'Tap to set →';
 var pCol=p?(p.total>=65?'var(--red2)':p.total>=40?'var(--amber2)':'var(--green2)'):'var(--red2)';
 $('mu-p').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer;">'+esc(pName)+'</span>';
 $('mu-pd').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer;color:'+pCol+';">'+pPC+'</span>';
@@ -842,7 +847,7 @@ for(var i=0;i<3;i++)sd+='<div class="odot'+(i<G.strikes?' on':'')+'" style="'+(i
 for(var i=0;i<3;i++)od+='<div class="odot'+(i<G.outs?' on':'')+'" style="'+(i<G.outs?'background:var(--gold);border-color:var(--gold);':'')+'"></div>';
 $('cb-b').innerHTML=bd;$('cb-s').innerHTML=sd;$('cb-o').innerHTML=od;}
 
-function renderSeq(){$('cur-seq').innerHTML=G.cpitch.length?G.cpitch.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' '):'<span style="color:var(--text3);font-family:sans-serif;font-size:11px;">No pitches</span>';}
+function renderSeq(){if(G.cpitch.length){$('cur-seq').innerHTML=G.cpitch.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' ');}else if(!curPitcher()){$('cur-seq').innerHTML='<span style="color:var(--red2);font-family:sans-serif;font-size:11px;">⚠️ Tap pitcher name above to set</span>';}else{$('cur-seq').innerHTML='<span style="color:var(--text3);font-family:sans-serif;font-size:11px;">No pitches this AB</span>';}}
 
 function renderBL(){var lu=clu(),el=$('bat-list');if(!lu||!lu.length){el.innerHTML='<div class="empty">Add in Lineup tab</div>';return;}
 var _tni=isHB()?G.hbi:G.abi;var ni=_tni>=0?_tni:0;
@@ -859,10 +864,15 @@ function lp(c){if(G.cbi<0){toast('Select batter');return;}if(!curPitcher()){toas
 if(G.plb){om('m-plimit');return;}
 G.cpitch.push(c);pAdd(c);
 if(c==='X'){sv();renderSC();return;}
-if(c==='S'||c==='L'){G.strikes++;if(G.strikes>=3){toast('Strikeout!');endAB(c==='S'?'K':'KL');return;}}
+if(c==='S'||c==='L'){G.strikes++;if(G.strikes>=3){chkPW();toast('Strikeout!');endAB(c==='S'?'K':'KL');return;}}
 else if(c==='F'||c==='FT'){if(G.strikes<2)G.strikes++;}
-else if(c==='B'){G.balls++;if(G.balls>=4){toast('Walk!');endAB('BB');return;}}
-else if(c==='H'){G.hbp=(G.hbp||0)+1;if(G.hbp>=3)toast('⚠️ 3 HBP — remove pitcher!',4000);toast('HBP!');endAB('HBP');return;}
+else if(c==='B'){G.balls++;if(G.balls>=4){chkPW();toast('Walk!');endAB('BB');return;}}
+else if(c==='H'){
+  var _cp=curPitcher();var _hbpTot=_cp?(_cp.hbp||0):0;// already incremented by pAdd
+  if(_hbpTot>=3)toast('🚨 '+(_cp?sn(_cp.name):'Pitcher')+' — 3rd HBP! Must be removed.',5000);
+  else if(_hbpTot===2)toast('⚠️ '+(_cp?sn(_cp.name):'Pitcher')+' — 2nd HBP (remove on next HBP)',4000);
+  else toast('HBP #'+_hbpTot+' for '+(_cp?sn(_cp.name):'pitcher'));
+  chkPW();endAB('HBP');return;}
 sv();renderSC();chkPW();}
 function pAdd(c){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i<0||!l[i])return;var p=l[i];p.total=(p.total||0)+1;
 if(c==='S'){p.sw=(p.sw||0)+1;p.stk=(p.stk||0)+1;}
@@ -939,7 +949,7 @@ var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());$('err-sec').style
 var dp=r==='DP'||r==='GIDP';$('dp-sec').style.display=dp?'block':'none';
 if(dp){var db='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';db+='<button class="btn btn-sm" style="margin:3px;" onclick="G.dpout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('dp-btns').innerHTML=db||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
 om('m-play');}
-function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=APOS.map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
+function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePOS().map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
 function submitPlay(){var not=$('mp-not').value.trim(),et=$('err-t').value,ep=$('err-p').value;
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,type:et,play:not||G.pres});}
@@ -1165,7 +1175,7 @@ return '<div class="pos-row"><span class="pos-label">'+pos+'</span><span style="
 $('fi-sum').innerHTML=olu().map(function(p){if(!p.name&&!p.jersey)return'';var k=p.name||p.jersey,c=gfi(k),w=G.inn>=4&&c<2;
 // 4.2: group by position → POS (count; 1,2,6) · SS (1; 3)
 var byPos={};
-Object.keys(G.fa).forEach(function(i){APOS.forEach(function(pos){if((G.fa[i]||{})[pos]===k){if(!byPos[pos])byPos[pos]=[];byPos[pos].push(parseInt(i));}});});
+Object.keys(G.fa).forEach(function(i){getActivePOS().forEach(function(pos){if((G.fa[i]||{})[pos]===k){if(!byPos[pos])byPos[pos]=[];byPos[pos].push(parseInt(i));}});});
 var grouped=Object.keys(byPos).map(function(pos){var inns=byPos[pos].sort((a,b)=>a-b);return '<span style="color:var(--gold);font-weight:bold;">'+pos+'</span> <span style="color:var(--text3);">('+inns.length+'; '+inns.join(', ')+')</span>';}).join(' <span style="color:var(--border2);">·</span> ');
 return '<div class="pos-row"><span style="width:76px;font-size:11px;font-family:sans-serif;color:'+(w?'var(--red2)':'var(--text)')+';">'+sn(p.name||'#'+p.jersey)+'</span>'
 +'<span style="flex:1;font-size:10px;font-family:sans-serif;">'+( grouped||'<span style="color:var(--text3);">Not assigned</span>')+'</span>'
