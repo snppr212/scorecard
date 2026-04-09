@@ -328,10 +328,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 
 <!-- PITCH LIMIT BLOCK MODAL (3.1) -->
 <div class="modal-ov" id="m-plimit"><div class="modal" style="text-align:center;">
-<h3 style="color:var(--red2);">🛑 Pitcher Over Limit</h3>
+<h3 style="color:var(--red2);">🛑 Pitcher Must Be Removed</h3>
 <div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;" id="plimit-msg"></div>
-<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">You must make a pitching change before continuing.</div>
-<button class="btn btn-gold btn-full" onclick="cm('m-plimit');openPSwitch('us',true)">Make pitching change →</button>
+<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">A pitching change is required before the next batter.</div>
+<button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="cm('m-plimit');openPSwitch('us',true)">Make pitching change →</button>
+<button class="btn btn-red btn-full btn-sm" onclick="if(confirm('Override pitch limit? This violates Little League rules and will be noted.')){G.plb=false;sv();cm('m-plimit');toast('⚠️ Override recorded',3000);}">Override — accept rule violation</button>
 </div></div>
 
 <!-- 6-RUN LIMIT MODAL -->
@@ -481,7 +482,7 @@ $('avail-game-label').textContent='Mussels '+ev.title+' · '+ev.date;
 G.pp=A.roster.map(r=>r.id);// start with everyone present
 goToLineupBuild();ss('screen-avail');}
 function resetG(ev){var ih=ev.ha==='home',op=ev.opponent||'Visitors';
-G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false};APOS=POS.slice();sg();}
+G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false};APOS=POS.slice();sg();}
 function r2lu(){return A.roster.map(p=>({name:p.name||'',jersey:p.jersey||'',rid:p.id}));}
 
 // AVAILABILITY — Step 1: mark present/absent
@@ -843,7 +844,17 @@ for(var i=0;i<3;i++)sd+='<div class="odot'+(i<G.strikes?' on':'')+'" style="'+(i
 for(var i=0;i<3;i++)od+='<div class="odot'+(i<G.outs?' on':'')+'" style="'+(i<G.outs?'background:var(--gold);border-color:var(--gold);':'')+'"></div>';
 $('cb-b').innerHTML=bd;$('cb-s').innerHTML=sd;$('cb-o').innerHTML=od;}
 
-function renderSeq(){if(G.cpitch.length){$('cur-seq').innerHTML=G.cpitch.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' ');}else if(!curPitcher()){$('cur-seq').innerHTML='<span style="color:var(--red2);font-family:sans-serif;font-size:11px;">⚠️ Tap pitcher name above to set</span>';}else{$('cur-seq').innerHTML='<span style="color:var(--text3);font-family:sans-serif;font-size:11px;">No pitches this AB</span>';}}
+function renderSeq(){
+var lap=G.lastABPitches||[];
+if(G.cpitch.length){
+  $('cur-seq').innerHTML=G.cpitch.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' ');
+}else if(!curPitcher()){
+  $('cur-seq').innerHTML='<span style="color:var(--red2);font-family:sans-serif;font-size:11px;">⚠️ Tap pitcher name above to set</span>';
+}else if(lap.length){
+  $('cur-seq').innerHTML='<span style="color:var(--text3);font-size:9px;font-family:sans-serif;margin-right:3px;">prev:</span>'+lap.map(c=>'<span class="ps-'+c+'" style="opacity:.35;">'+c+'</span>').join(' ');
+}else{
+  $('cur-seq').innerHTML='<span style="color:var(--text3);font-family:sans-serif;font-size:11px;">No pitches yet</span>';
+}}
 
 function renderBL(){var lu=clu(),el=$('bat-list');if(!lu||!lu.length){el.innerHTML='<div class="empty">Add in Lineup tab</div>';return;}
 var _tni=isHB()?G.hbi:G.abi;var ni=_tni>=0?_tni:0;
@@ -871,9 +882,12 @@ else if(c==='F'||c==='FT'){if(G.strikes<2)G.strikes++;}
 else if(c==='B'){G.balls++;if(G.balls>=4){chkPW();toast('Walk!');endAB('BB');return;}}
 else if(c==='H'){
   var _cp=curPitcher();var _hbpTot=_cp?(_cp.hbp||0):0;// already incremented by pAdd
-  if(_hbpTot>=3){toast('🚨 '+(_cp?sn(_cp.name):'Pitcher')+' — 3rd HBP! Must be removed.',5000);chkPW();endAB('HBP');
-    G.plb=true;sv();$('plimit-msg').textContent=(_cp?sn(_cp.name):'Pitcher')+' hit 3 batters — must be removed before next batter.';om('m-plimit');return;}
-  else if(_hbpTot===2)toast('⚠️ '+(_cp?sn(_cp.name):'Pitcher')+' — 2nd HBP (remove on next HBP)',4000);
+  var _weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+  if(_hbpTot>=3){chkPW();endAB('HBP');
+    if(_weField){G.plb=true;sv();$('plimit-msg').textContent=(_cp?sn(_cp.name):'Pitcher')+' hit 3 batters — must be removed before next batter.';om('m-plimit');}
+    else{showPWarn(_cp?sn(_cp.name):'Opponent P','🚨 3rd HBP — Remove Pitcher','Opponent must remove this pitcher before the next batter.','Notify the umpire.');}
+    return;}
+  else if(_hbpTot===2)toast('⚠️ '+(_cp?sn(_cp.name):'Pitcher')+' — 2nd HBP (next HBP = remove)',4000);
   else toast('HBP #'+_hbpTot+' for '+(_cp?sn(_cp.name):'pitcher'));
   chkPW();endAB('HBP');return;}
 sv();renderSC();chkPW();}
@@ -885,15 +899,21 @@ else if(c==='B')p.ba=(p.ba||0)+1;
 else if(c==='X')p.bip=(p.bip||0)+1;
 else if(c==='H')p.hbp=(p.hbp||0)+1;}
 function showPWarn(nm,title,msg,sub){$('pwarn-title').textContent=title;$('pwarn-name').textContent=nm;$('pwarn-msg').textContent=msg;$('pwarn-sub').textContent=sub||'';om('m-pwarn');}
-function chkPW(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i<0||!l[i])return;
+function chkPW(){
+var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;
+if(i<0||!l[i])return;
 var p=l[i],c=p.total||0,nm=sn(p.name)||'Pitcher';
-if(c===21)showPWarn(nm,'⚠️ Rest Required — 21 pitches','Requires 1 calendar day rest before pitching again.','Can still pitch today until the inning ends.');
-else if(c===36)showPWarn(nm,'⚠️ Rest Required — 36 pitches','Requires 2 calendar days rest before pitching again.','Plan your substitution accordingly.');
-else if(c===40)showPWarn(nm,'⚠️ 40-Pitch Rule','Ineligible to pitch in the next game.','2 days rest required. Can continue today up to 75 pitches.');
-else if(c===51)showPWarn(nm,'⚠️ Rest Required — 51 pitches','Requires 3 calendar days rest before pitching again.','');
-else if(c===66)showPWarn(nm,'⚠️ Rest Required — 66 pitches','Requires 4 calendar days rest before pitching again.','Only 9 pitches remaining today.');
-else if(c===65)toast('⚠️ '+nm+' — 10 pitches left today!',3000);
-if(c>=75)toast('🛑 '+nm+' — at limit, must be removed!',4000);}
+var lastN=p._lastNotif||0;if(c<=lastN)return;// each threshold fires once per pitcher
+var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+if(c>=75&&lastN<75){p._lastNotif=75;
+  if(weField){G.plb=true;sv();$('plimit-msg').textContent=nm+' has thrown '+c+' pitches (limit: 75). Must be removed before next batter.';om('m-plimit');}
+  else showPWarn(nm,'🛑 Opponent at 75+ Pitches','Opponent pitcher must be removed. Notify the umpire.','Rule: pitcher may finish current batter only.');}
+else if(c===66&&lastN<66){p._lastNotif=66;showPWarn(nm,'⚠️ Rest Required — 66 pitches','Requires 4 calendar days rest after this game.','Only 9 pitches remaining today.');}
+else if(c===65&&lastN<65){p._lastNotif=65;showPWarn(nm,'⚠️ 65 Pitches — 10 Left','10 pitches remaining today before limit.','Rest: 3 days required.');}
+else if(c===51&&lastN<51){p._lastNotif=51;showPWarn(nm,'⚠️ Rest Required — 51 pitches','Requires 3 calendar days rest.','');}
+else if(c===40&&lastN<40){p._lastNotif=40;showPWarn(nm,'⚠️ 40-Pitch Rule','Ineligible to pitch in the next game.','2 days rest required. Can continue today up to 75 pitches.');}
+else if(c===36&&lastN<36){p._lastNotif=36;showPWarn(nm,'⚠️ Rest Required — 36 pitches','Requires 2 calendar days rest.','Plan your substitution.');}
+else if(c===21&&lastN<21){p._lastNotif=21;showPWarn(nm,'⚠️ Rest Required — 21 pitches','Requires 1 calendar day rest.','Can continue pitching today until the inning ends.');}}
 // 3.1: check pitch limit when WE start fielding a new half-inning
 function chkPitcherLimit(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
@@ -1010,11 +1030,8 @@ if(G.outs>=3)G.outs=3;
   var lup=isHB()?G.hlu:G.alu,n=Math.max(1,lup.length),start=(G.cbi+1)%n;
   for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(!lup[ni]||!lup[ni].dnp){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
 })();
-G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
+G.lastABPitches=G.cpitch.slice();G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
-// After AB: if fielding pitcher hit 75-pitch limit, block next batter
-var _weFieldNow=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
-if(_weFieldNow&&!G.plb){var _lp=ourP(),_li=ourPI();if(_li>=0&&_lp[_li]&&(_lp[_li].total||0)>=75){G.plb=true;sv();$('plimit-msg').textContent=sn(_lp[_li].name)+' has thrown '+(_lp[_li].total||0)+' pitches (limit: 75). Make change before next batter.';}}
 if(G.outs>=3)showIE();else{showNB(r);if(G.plb)om('m-plimit');}}
 
 // Advance runners — always move physically the full distance; rbi is stat-only
@@ -1111,7 +1128,7 @@ var batter=lu[ni];var bName=batter?(theyBat()?oppDisplay(batter):sn(batter.name|
 toast((rm[r]||r)+' — Now: '+bName,2500);}
 
 function showIE(){var d='';if(G.half==='top')d='Switch to '+G.ht+' batting';else d='Inning '+(G.inn+1)+' — '+G.at+' batting';$('ie-detail').textContent=d;om('m-innend');renderSC();}
-function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];G.isu=false;G.plb=false;
+function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];G.lastABPitches=[];G.isu=false;G.plb=false;
 // CS batter carry-over: the batter who was interrupted by CS leads off
 var _savedCsIdx=G._csBatterIdx;var _savedCsTeam=G._csTeam;
 G._csBatterIdx=undefined;G._csTeam=undefined;
