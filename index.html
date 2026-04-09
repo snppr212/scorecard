@@ -698,8 +698,8 @@ var hasRCF=olu().length>=10;
 var pc={
   P:[140,108],C:[140,162],
   '1B':[188,116],'2B':[170,84],SS:[110,84],'3B':[92,116],
-  LF:[44,46],CF:[140,28],RF:[236,46],
-  'RCF':[hasRCF?190:999,34]// right-center when 10 players
+  LF:[44,46],CF:[hasRCF?100:140,hasRCF?34:28],RF:[236,46],
+  'RCF':[hasRCF?180:999,34]// CF shifts left, RCF mirrors right when 10 players
 };
 // runner circle offsets from base coords
 var rc=[[200,115],[140,70],[80,115]];
@@ -860,7 +860,7 @@ function selBat(i){if(G.cbi===i)return;if(G.cbi>=0&&G.cpitch.length>0){if(!confi
 
 // PITCH
 function curPitcher(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;return(i>=0&&l[i])?l[i]:null;}
-function lp(c){if(G.cbi<0){toast('Select batter');return;}if(!curPitcher()){toast('⚠️ Set a pitcher first!');return;}
+function lp(c){if(G.cbi<0){toast('Select batter');return;}if(!curPitcher()){quickSwitchPitcher();return;}
 if(G.plb){om('m-plimit');return;}
 G.cpitch.push(c);pAdd(c);
 if(c==='X'){sv();renderSC();return;}
@@ -869,7 +869,8 @@ else if(c==='F'||c==='FT'){if(G.strikes<2)G.strikes++;}
 else if(c==='B'){G.balls++;if(G.balls>=4){chkPW();toast('Walk!');endAB('BB');return;}}
 else if(c==='H'){
   var _cp=curPitcher();var _hbpTot=_cp?(_cp.hbp||0):0;// already incremented by pAdd
-  if(_hbpTot>=3)toast('🚨 '+(_cp?sn(_cp.name):'Pitcher')+' — 3rd HBP! Must be removed.',5000);
+  if(_hbpTot>=3){toast('🚨 '+(_cp?sn(_cp.name):'Pitcher')+' — 3rd HBP! Must be removed.',5000);chkPW();endAB('HBP');
+    G.plb=true;sv();$('plimit-msg').textContent=(_cp?sn(_cp.name):'Pitcher')+' hit 3 batters — must be removed before next batter.';om('m-plimit');return;}
   else if(_hbpTot===2)toast('⚠️ '+(_cp?sn(_cp.name):'Pitcher')+' — 2nd HBP (remove on next HBP)',4000);
   else toast('HBP #'+_hbpTot+' for '+(_cp?sn(_cp.name):'pitcher'));
   chkPW();endAB('HBP');return;}
@@ -927,6 +928,7 @@ if(G.cpitch.length===0){
   else if(r==='BB'){G.cpitch.push('B');G.cpitch.push('B');G.cpitch.push('B');G.cpitch.push('B');pAdd('B');pAdd('B');pAdd('B');pAdd('B');}
   else if(r==='HBP'){G.cpitch.push('H');pAdd('H');}
   else{G.cpitch.push('X');pAdd('X');}// any BIP result
+  chkPW();// always check thresholds after auto-pitches
 }
 G.pres=r;G.prbi=0;G.dpout=null;
 // BB with bases loaded = auto 1 RBI
@@ -1007,7 +1009,10 @@ if(G.outs>=3)G.outs=3;
 })();
 G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
-if(G.outs>=3)showIE();else showNB(r);}
+// After AB: if fielding pitcher hit 75-pitch limit, block next batter
+var _weFieldNow=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+if(_weFieldNow&&!G.plb){var _lp=ourP(),_li=ourPI();if(_li>=0&&_lp[_li]&&(_lp[_li].total||0)>=75){G.plb=true;sv();$('plimit-msg').textContent=sn(_lp[_li].name)+' has thrown '+(_lp[_li].total||0)+' pitches (limit: 75). Make change before next batter.';}}
+if(G.outs>=3)showIE();else{showNB(r);if(G.plb)om('m-plimit');}}
 
 // Advance runners — always move physically the full distance; rbi is stat-only
 function advanceWithRBI(hit,team,rbi){
