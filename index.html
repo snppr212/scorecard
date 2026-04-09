@@ -960,6 +960,7 @@ if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',po
 cm('m-play');finAB(G.pres,not,G.prbi);}
 
 function finAB(r,not,rbi){
+chkPW();// check pitch thresholds for every AB outcome (1B,2B,GO,FO,etc.)
 saveSnap();// save state before any mutation so we can undo
 if($('undo-ab-btn'))$('undo-ab-btn').style.display='inline-flex';
 var lu=clu(),b=lu[G.cbi],t=isHB()?'home':'away';
