@@ -216,7 +216,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   </div>
   <div class="sb-team" style="min-width:72px;"><div class="sb-name" id="sb-home">HOME</div><div class="sb-score" style="font-size:26px;line-height:1.1;" id="sb-home-score">0</div></div>
 </div>
-<div class="tabs"><div class="tab active" onclick="stab('atbat',this)">At Bat</div><div class="tab" onclick="stab('field',this)">Field</div><div class="tab" onclick="stab('pitch',this)">Pitchers</div><div class="tab" onclick="stab('lineup',this)">Lineup</div><div class="tab" onclick="stab('stats',this)">Stats</div><div class="tab" onclick="stab('log',this)">Log</div><div class="tab" onclick="stab('box',this)">Box</div><div class="tab" onclick="stab('rules',this)">Rules</div></div>
+<div class="tabs"><div class="tab active" onclick="stab('atbat',this)">At Bat</div><div class="tab" onclick="stab('field',this)">Field</div><div class="tab" onclick="stab('pitch',this)">Pitchers</div><div class="tab" onclick="stab('lineup',this)">Lineup</div><div class="tab" onclick="stab('stats',this)">Box</div><div class="tab" onclick="stab('log',this)">Plays</div><div class="tab" onclick="stab('box',this)">Export</div><div class="tab" onclick="stab('rules',this)">Rules</div></div>
 <div class="scroll pad" id="sc-content">
 <!-- AT BAT -->
 <div id="tab-atbat">
@@ -224,8 +224,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="count-bar"><div class="cb-item"><span class="cb-label">Balls</span><span class="cb-dots" id="cb-b"></span></div><div class="cb-item"><span class="cb-label">Strikes</span><span class="cb-dots" id="cb-s"></span></div><div class="cb-item"><span class="cb-label">Outs</span><span class="cb-dots" id="cb-o"></span></div></div>
 <div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);padding:8px 0;"><div style="max-width:380px;margin:0 auto;" id="field-svg"></div></div>
 <div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Undo</button></div></div>
-<div class="panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button><button class="pbtn pb-x" onclick="lp('X')" style="grid-column:1/-1;">Ball in play</button></div></div>
-<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">Homer</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">DP</button><button class="rbtn" onclick="endAB('GIDP')">GIDP</button><button class="rbtn" onclick="endAB('HBP')">HBP</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="manualRun()">+ Run</button></div></div>
+<div class="panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div></div>
+<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">Homer</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">DP</button><button class="rbtn" onclick="endAB('GIDP')">GIDP</button><button class="rbtn" onclick="endAB('TP')" style="font-size:10px;">Triple<br>Play</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="manualRun()">+ Run</button></div></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
 <!-- FIELD -->
@@ -234,8 +234,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div></div></div>
 <!-- LINEUP -->
 <div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Our batting order</div><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Add</button></div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Opponent lineup</div><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div><div id="their-lu-list"></div></div></div>
-<!-- STATS -->
-<div id="tab-stats" style="display:none;"><div class="team-toggle"><div class="team-toggle-btn active" onclick="setST('us',this)">Our team</div><div class="team-toggle-btn" onclick="setST('them',this)">Opponent</div></div><div class="panel"><div class="ptitle" id="st-bt">Batting</div><div class="scroll-x"><table class="tbl" id="st-btbl"></table></div></div><div class="panel"><div class="ptitle" id="st-pt">Pitching</div><div class="scroll-x"><table class="tbl" id="st-ptbl"></table></div></div><div class="panel" id="st-err"><div class="ptitle">Fielding errors</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Pos</th><th>Inn</th><th>Type</th><th>Play</th></tr></thead><tbody id="err-body"></tbody></table></div></div></div>
+<!-- STATS / BOX -->
+<div id="tab-stats" style="display:none;"><div class="team-toggle"><div class="team-toggle-btn active" id="st-tog-us" onclick="setST('us',this)">Us</div><div class="team-toggle-btn" id="st-tog-them" onclick="setST('them',this)">Them</div></div><div class="panel"><div class="ptitle" id="st-bt">Batting</div><div class="scroll-x"><table class="tbl" id="st-btbl"></table></div></div><div class="panel"><div class="ptitle" id="st-pt">Pitching</div><div class="scroll-x"><table class="tbl" id="st-ptbl"></table></div></div><div class="panel" id="st-err"><div class="ptitle">Fielding errors</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Pos</th><th>Inn</th><th>Type</th><th>Play</th></tr></thead><tbody id="err-body"></tbody></table></div></div></div>
 <!-- LOG -->
 <div id="tab-log" style="display:none;"><div class="panel" id="log-panel"></div></div>
 <!-- BOX -->
@@ -550,58 +550,70 @@ for(var i=0;i<3;i++)sd+='<div style="'+DOT_S+(i<G.strikes?'var(--red2);backgroun
 for(var i=0;i<3;i++)od+='<div style="'+DOT_S+(i<G.outs?'var(--gold);background:var(--gold)':'var(--text3)')+'"></div>';
 $('sb-cb-b').innerHTML=bd;$('sb-cb-s').innerHTML=sd;$('sb-cb-o').innerHTML=od;}
 
-// ESPN FIELD SVG
+// FIELD SVG
+function fieldFirstName(fullName){if(!fullName)return'';return fullName.trim().split(' ')[0];}
 function renderFD(){
 var fa=G.fa[G.inn]||{},wf=G.half==='top';
-var pc={P:[140,105],C:[140,168],'1B':[208,122],'2B':[182,80],SS:[98,80],'3B':[72,122],LF:[38,36],CF:[140,16],RF:[242,36]};
-var rc=[[196,118],[140,70],[84,118]];
-var s='<svg viewBox="0 0 280 190" xmlns="http://www.w3.org/2000/svg">';
-// Defs
+// auto 10-player: if our lineup has 10+ players, show 4OF
+var has4OF=olu().length>=10;
+// position coords [x,y] — 1B/3B inside the lines, OF pulled closer
+var pc={
+  P:[140,108],C:[140,162],
+  '1B':[188,116],'2B':[170,84],SS:[110,84],'3B':[92,116],
+  LF:[44,46],CF:[140,28],RF:[236,46],
+  '4OF':[has4OF?190:999,34]// right-center when 10 players
+};
+// runner circle offsets from base coords
+var rc=[[200,115],[140,70],[80,115]];
+// canvas
+var s='<svg viewBox="0 0 280 185" xmlns="http://www.w3.org/2000/svg">';
 s+='<defs><radialGradient id="gf" cx="50%" cy="95%" r="65%"><stop offset="0%" stop-color="#2d8a4e"/><stop offset="60%" stop-color="#1e6838"/><stop offset="100%" stop-color="#165028"/></radialGradient>';
 s+='<radialGradient id="gd" cx="50%" cy="70%" r="50%"><stop offset="0%" stop-color="#8a7040"/><stop offset="100%" stop-color="#6b5530"/></radialGradient>';
 s+='<filter id="sh"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.3"/></filter></defs>';
-// Sky/bg
-s+='<rect width="280" height="190" fill="#0a1520"/>';
-// Outfield grass — lush arc
-s+='<path d="M 0,190 Q 0,8 140,2 Q 280,8 280,190 Z" fill="url(#gf)"/>';
-// Grass mowing pattern (subtle lines)
-for(var i=20;i<170;i+=12)s+='<line x1="0" y1="'+i+'" x2="280" y2="'+i+'" stroke="rgba(255,255,255,0.02)" stroke-width="4"/>';
-// Infield dirt diamond
-s+='<path d="M 140,152 L 210,112 L 140,70 L 70,112 Z" fill="url(#gd)" filter="url(#sh)"/>';
-// Infield grass cutout
-s+='<path d="M 140,142 L 198,109 L 140,78 L 82,109 Z" fill="#1a6030"/>';
-// Pitcher mound
-s+='<ellipse cx="140" cy="105" rx="7" ry="5" fill="#8a7040"/><rect x="138" y="104" width="4" height="1.5" rx="0.5" fill="white"/>';
-// Home plate area dirt circle
-s+='<ellipse cx="140" cy="155" rx="18" ry="12" fill="#6b5530"/>';
-// Batter boxes
-s+='<rect x="123" y="146" width="8" height="16" rx="1" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.4"/>';
-s+='<rect x="149" y="146" width="8" height="16" rx="1" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.4"/>';
-// Foul lines
-s+='<line x1="140" y1="152" x2="0" y2="30" stroke="white" stroke-width="0.7" opacity="0.6"/>';
-s+='<line x1="140" y1="152" x2="280" y2="30" stroke="white" stroke-width="0.7" opacity="0.6"/>';
-// Base paths
-s+='<line x1="140" y1="152" x2="210" y2="112" stroke="rgba(255,255,255,0.2)" stroke-width="0.5"/>';
-s+='<line x1="210" y1="112" x2="140" y2="70" stroke="rgba(255,255,255,0.2)" stroke-width="0.5"/>';
-s+='<line x1="140" y1="70" x2="70" y2="112" stroke="rgba(255,255,255,0.2)" stroke-width="0.5"/>';
-s+='<line x1="70" y1="112" x2="140" y2="152" stroke="rgba(255,255,255,0.2)" stroke-width="0.5"/>';
-// Bases
-var bases=[[200,115,'1st'],[140,70,'2nd'],[80,115,'3rd']];
-bases.forEach(function(b,i){var on=G.bases[i]!==null;
+s+='<rect width="280" height="185" fill="#0a1520"/>';
+// outfield grass arc
+s+='<path d="M 0,185 Q 0,10 140,4 Q 280,10 280,185 Z" fill="url(#gf)"/>';
+for(var i=20;i<165;i+=12)s+='<line x1="0" y1="'+i+'" x2="280" y2="'+i+'" stroke="rgba(255,255,255,0.02)" stroke-width="4"/>';
+// dirt diamond
+s+='<path d="M 140,148 L 208,110 L 140,70 L 72,110 Z" fill="url(#gd)" filter="url(#sh)"/>';
+// infield grass
+s+='<path d="M 140,138 L 196,107 L 140,78 L 84,107 Z" fill="#1a6030"/>';
+// mound
+s+='<ellipse cx="140" cy="108" rx="7" ry="5" fill="#8a7040"/><rect x="138" y="107" width="4" height="1.5" rx="0.5" fill="white"/>';
+// home plate dirt
+s+='<ellipse cx="140" cy="151" rx="18" ry="11" fill="#6b5530"/>';
+// batter boxes
+s+='<rect x="123" y="143" width="8" height="15" rx="1" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.4"/>';
+s+='<rect x="149" y="143" width="8" height="15" rx="1" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.4"/>';
+// foul lines (inside the outfield arc)
+s+='<line x1="140" y1="148" x2="4" y2="38" stroke="white" stroke-width="0.7" opacity="0.5"/>';
+s+='<line x1="140" y1="148" x2="276" y2="38" stroke="white" stroke-width="0.7" opacity="0.5"/>';
+// base paths
+s+='<line x1="140" y1="148" x2="208" y2="110" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>';
+s+='<line x1="208" y1="110" x2="140" y2="70" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>';
+s+='<line x1="140" y1="70" x2="72" y2="110" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>';
+s+='<line x1="72" y1="110" x2="140" y2="148" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>';
+// outfield wall
+s+='<path d="M 6,52 Q 6,6 140,4 Q 274,6 274,52" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="2"/>';
+// bases (clickable)
+[[208,110],[140,70],[72,110]].forEach(function(b,i){var on=G.bases[i]!==null;
 s+='<rect x="'+(b[0]-5)+'" y="'+(b[1]-5)+'" width="10" height="10" transform="rotate(45 '+b[0]+' '+b[1]+')" fill="'+(on?'#FFD700':'white')+'" stroke="'+(on?'#FFA500':'rgba(200,200,200,0.6)')+'" stroke-width="'+(on?'1':'0.5')+'" style="cursor:pointer;" onclick="runnerM('+(i+1)+')"/>';});
-// Home plate
-s+='<polygon points="136,152 140,148 144,152 144,156 136,156" fill="white" stroke="rgba(200,200,200,0.4)" stroke-width="0.3"/>';
-// Outfield wall arc
-s+='<path d="M 4,50 Q 4,4 140,2 Q 276,4 276,50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>';
-// Player labels at positions (when we field)
-if(wf)APOS.forEach(function(p){var c=pc[p];if(!c)return;var nm=fa[p]?ini(fa[p]):'';
-s+='<g><rect x="'+(c[0]-15)+'" y="'+(c[1]-8)+'" width="30" height="16" rx="4" fill="'+(nm?'rgba(13,27,42,0.85)':'rgba(13,27,42,0.5)')+'" stroke="'+(nm?'rgba(200,169,110,0.5)':'rgba(255,255,255,0.15)')+'" stroke-width="0.5"/>';
-s+='<text x="'+c[0]+'" y="'+(c[1]+4)+'" text-anchor="middle" font-size="8" font-family="sans-serif" fill="'+(nm?'#FFD700':'rgba(255,255,255,0.35)')+'" font-weight="bold">'+(nm||p)+'</text></g>';});
-// Runners
-for(var b=0;b<3;b++){if(G.bases[b]){var c=rc[b];var rn=ini(G.bases[b].name);var ox=b===0?14:b===2?-14:0,oy=b===1?-16:10;
-s+='<circle cx="'+(c[0]+ox)+'" cy="'+(c[1]+oy)+'" r="9" fill="#FFD700" stroke="#D4A017" stroke-width="1" filter="url(#sh)" style="cursor:pointer;" onclick="runnerM('+(b+1)+')"/>';
-s+='<text x="'+(c[0]+ox)+'" y="'+(c[1]+oy+3)+'" text-anchor="middle" font-size="7" font-family="sans-serif" fill="#0d1b2a" font-weight="bold" style="pointer-events:none;">'+rn+'</text>';}}
+// home plate
+s+='<polygon points="136,149 140,145 144,149 144,153 136,153" fill="white" stroke="rgba(200,200,200,0.4)" stroke-width="0.3"/>';
+// fielder labels (when we field) — show first name only
+if(wf){
+  var posToShow=POS.slice();if(has4OF)posToShow.push('4OF');
+  posToShow.forEach(function(p){var c=pc[p];if(!c||c[0]>900)return;
+  var assigned=fa[p];var nm=assigned?fieldFirstName(assigned):'';
+  s+='<g><rect x="'+(c[0]-16)+'" y="'+(c[1]-8)+'" width="32" height="16" rx="4" fill="'+(nm?'rgba(13,27,42,0.88)':'rgba(13,27,42,0.45)')+'" stroke="'+(nm?'rgba(200,169,110,0.6)':'rgba(255,255,255,0.12)')+'" stroke-width="0.5"/>';
+  s+='<text x="'+c[0]+'" y="'+(c[1]+4)+'" text-anchor="middle" font-size="8" font-family="sans-serif" fill="'+(nm?'#FFD700':'rgba(255,255,255,0.3)')+'" font-weight="bold">'+(nm||p)+'</text></g>';});}
+// runners (gold circles with first name)
+for(var b=0;b<3;b++){if(G.bases[b]){var bc=rc[b];var rn=fieldFirstName(G.bases[b].name)||'?';var ox=b===0?13:b===2?-13:0,oy=b===1?-14:8;
+s+='<circle cx="'+(bc[0]+ox)+'" cy="'+(bc[1]+oy)+'" r="10" fill="#FFD700" stroke="#D4A017" stroke-width="1.5" filter="url(#sh)" style="cursor:pointer;" onclick="runnerM('+(b+1)+')"/>';
+s+='<text x="'+(bc[0]+ox)+'" y="'+(bc[1]+oy+3)+'" text-anchor="middle" font-size="7" font-family="sans-serif" fill="#0d1b2a" font-weight="bold" style="pointer-events:none;">'+rn+'</text>';}}
 s+='</svg>';$('field-svg').innerHTML=s;}
+// also expose 4OF in field assignment tab
+function getActivePOS(){var p=POS.slice();if(olu().length>=10)p.push('4OF');if(G.ef&&p.indexOf(G.ef)<0)p.push(G.ef);return p;}
 
 function renderMU(){var lu=clu(),b=G.cbi>=0&&lu[G.cbi]?lu[G.cbi]:null;var pt=G.half==='top'?'home':'away',pl=pt==='home'?G.hp:G.ap,pi=pt==='home'?G.chp:G.cap,p=pi>=0&&pl[pi]?pl[pi]:null;
 var pName=p?sn(p.name)+'  '+(p.throws==='L'?'LHP':'RHP'):'⚠️ Set pitcher';var pPC=p?'PC: '+(p.total||0):'Tap to set →';
@@ -764,11 +776,22 @@ $('mp-t').textContent='Log play — '+r;$('mp-not').value=r==='1B'?'1B':r==='2B'
 G.pscored=[];
 var isHit=['1B','2B','3B'].includes(r);
 var hasRunners=G.bases.some(b=>b!==null);
-// For hits with runners: show "who scored?" picker instead of RBI count
+// For hits with runners: show "who scored?" picker with force-plays pre-selected
 if(isHit&&hasRunners){
   $('rbi-sec').style.display='none';$('scored-sec').style.display='block';
+  var adv=r==='1B'?1:r==='2B'?2:3;
   var sb='';var baseNames=['1st','2nd','3rd'];
-  for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'runner';sb+='<button class="btn btn-sm" data-bi="'+b+'" onclick="(function(el,bi){G.pscored.indexOf(bi)>=0?G.pscored.splice(G.pscored.indexOf(bi),1):G.pscored.push(bi);el.style.borderColor=G.pscored.indexOf(bi)>=0?\'var(--gold)\':\'\';})(this,'+b+')">'+baseNames[b]+': '+esc(rn)+'</button>';}  }
+  // pre-select any runner who is FORCED to score (base+adv >= 3)
+  for(var b=0;b<3;b++){if(G.bases[b]){var forced=(b+adv)>=3;if(forced)G.pscored.push(b);}}
+  for(var b=0;b<3;b++){if(G.bases[b]){
+    var rn=G.bases[b].name||'runner';
+    var forced=(b+adv)>=3;
+    var sel=G.pscored.indexOf(b)>=0;
+    // forced runners shown in gold, locked; optional runners are toggleable
+    sb+='<button class="btn btn-sm" data-bi="'+b+'" style="border-color:'+(sel?'var(--gold)':'')+';" '
+      +(forced?'title="Force play — must score"':'onclick="(function(el,bi){var idx=G.pscored.indexOf(bi);if(idx>=0)G.pscored.splice(idx,1);else G.pscored.push(bi);el.style.borderColor=G.pscored.indexOf(bi)>=0?\'var(--gold)\':\'\'; })(this,'+b+')"')
+      +'>'+baseNames[b]+': '+esc(rn)+(forced?' ✓forced':'')+'</button>';
+  }}
   $('scored-btns').innerHTML=sb;
 }else{
   $('scored-sec').style.display='none';$('rbi-sec').style.display=['1B','2B','3B','HR','FC','GO','FO','LO','SAC','DP','GIDP'].includes(r)?'block':'none';
@@ -788,7 +811,7 @@ cm('m-play');finAB(G.pres,not,G.prbi);}
 function finAB(r,not,rbi){
 var lu=clu(),b=lu[G.cbi],t=isHB()?'home':'away';
 G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0});
-var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP'].includes(r);
+var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
 // attribute result to fielding pitcher
 var _fp=curPitcher();
 if(_fp){
@@ -801,6 +824,7 @@ if(_fp){
 }
 if(isOut)G.outs++;
 if(r==='DP'||r==='GIDP'){if(G.dpout!==null&&G.bases[G.dpout])G.bases[G.dpout]=null;G.outs=Math.min(3,G.outs+1);}
+if(r==='TP'){G.bases=[null,null,null];G.outs=Math.min(3,G.outs+2);}// triple play: clear bases, +2 more outs (batter already counted)
 if(r==='HR'){
   for(var i=0;i<3;i++){if(G.bases[i])logRun(G.bases[i].bi,G.bases[i].team);}
   logRun(G.cbi,t);
@@ -876,18 +900,26 @@ function addR(n){if(n<=0)return;if(G.half==='top'){G.as+=n;if(G.inn<=G.ti)G.inns
 function logRun(bi,team){if(!G.runs)G.runs=[];G.runs.push({bi:bi,team:team,inn:G.inn});
 var _fp=curPitcher();if(_fp){_fp.runs_allowed=(_fp.runs_allowed||0)+1;_fp.er=(_fp.er||0)+1;}}
 
-function showNB(r){var lu=clu();
+function showNB(r){
+// auto-advance — no modal, just set batter and render
+var lu=clu();
 var ni=isHB()?G.hbi:G.abi;if(ni<0||ni>=lu.length)ni=0;
-var di=(ni+1)%Math.max(1,lu.length),hi=(ni+2)%Math.max(1,lu.length);
-var pn=function(i){var p=lu[i];return p?(p.name||'#'+p.jersey):'?';};
-var rm={'K':'K (swinging)','KL':'K (looking)','BB':'Walk','HBP':'HBP','1B':'Single','2B':'Double','3B':'Triple','HR':'Home run!','FO':'Fly out','GO':'Ground out','LO':'Line out','SAC':'Sac','FC':'FC','DP':'Double play','GIDP':'GIDP'};
-$('nb-res').textContent=rm[r]||r;$('nb-1').textContent=pn(ni);$('nb-2').textContent=pn(di);$('nb-3').textContent=pn(hi);
-G._nbi=ni;om('m-next');}
-function ackNext(){cm('m-next');var ni=isHB()?G.hbi:G.abi;G.cbi=(ni>=0?ni:0);sv();renderSC();}
+G.cbi=ni;sv();renderSC();
+// brief toast showing result + who's up
+var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','HR':'HR','FO':'F out','GO':'Grd out','LO':'L out','SAC':'SAC','FC':'FC','DP':'DP','GIDP':'GIDP','TP':'TP'};
+var batter=lu[ni];var bName=batter?(theyBat()?oppDisplay(batter):sn(batter.name||'#'+batter.jersey)):'?';
+toast((rm[r]||r)+' — Now: '+bName,2500);}
 
 function showIE(){var d='';if(G.half==='top')d='Switch to '+G.ht+' batting';else d='Inning '+(G.inn+1)+' — '+G.at+' batting';$('ie-detail').textContent=d;om('m-innend');renderSC();}
 function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];G.isu=false;G.plb=false;
+// CS batter carry-over: the batter who was interrupted by CS leads off
+var _savedCsIdx=G._csBatterIdx;var _savedCsTeam=G._csTeam;
+G._csBatterIdx=undefined;G._csTeam=undefined;
 if(G.half==='top')G.half='bottom';else{G.inn=Math.min(G.inn+1,G.ti+3);G.half='top';chkFW(G.inn);}
+// restore CS batter as leadoff for whichever team was at bat
+if(_savedCsIdx>=0&&_savedCsTeam){
+  if(_savedCsTeam==='home')G.hbi=_savedCsIdx;else G.abi=_savedCsIdx;
+}
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
 // 3.3: determine who fields in the new half
 var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
@@ -935,14 +967,19 @@ G.isu=true;G.steals.push({from:f,bi,inn:G.inn,half:G.half,name:r.name});
 if(f===3){if(G.bases[2])logRun(G.bases[2].bi,G.bases[2].team);G.bases[2]=null;addR(1);}else{G.bases[f]=r;G.bases[f-1]=null;}cm('m-steal');sv();renderSC();toast('SB logged');}
 function logCS(){if(!G.bases.some(b=>b!==null)){toast('No runners');return;}om('m-cs');}
 function confirmCS(){var at=$('cs-at').value;if(at==='2'&&G.bases[0])G.bases[0]=null;else if(at==='3'&&G.bases[1])G.bases[1]=null;
-G.css.push({at,inn:G.inn,half:G.half});G.outs=Math.min(3,G.outs+1);cm('m-cs');sv();if(G.outs>=3)showIE();else renderSC();toast('CS');}
+G.css.push({at,inn:G.inn,half:G.half});G.outs=Math.min(3,G.outs+1);cm('m-cs');sv();
+if(G.outs>=3){
+  // batter's AB was never completed — they lead off next time their team bats
+  G._csBatterIdx=G.cbi;G._csTeam=isHB()?'home':'away';
+  showIE();
+}else renderSC();toast('CS');}
 function addManualOut(){G.outs=Math.min(3,G.outs+1);sv();if(G.outs>=3)showIE();else renderSC();}
 function manualRun(){var t=prompt('h=home a=away');if(!t)return;if(t==='h'){G.hs++;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+1;}else{G.as++;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+1;}sv();renderSC();}
 
 // FIELD TAB
 function gfi(k){var c=0;Object.keys(G.fa).forEach(function(i){if(Object.values(G.fa[i]).indexOf(k)>=0)c++;});return c;}
 function renderFT(){$('fi-label').textContent=G.inn;var fa=G.fa[G.inn]||{};
-$('fa-list').innerHTML=APOS.map(function(pos){var a=fa[pos]||'',inns=a?gfi(a):0,w=G.inn>=4&&a&&inns<2;
+$('fa-list').innerHTML=getActivePOS().map(function(pos){var a=fa[pos]||'',inns=a?gfi(a):0,w=G.inn>=4&&a&&inns<2;
 return '<div class="pos-row"><span class="pos-label">'+pos+'</span><span style="flex:1;font-size:12px;color:'+(a?(w?'var(--red2)':'var(--text)'):'var(--text3)')+';">'+(a?sn(a):'— empty')+(a?' <span style="font-size:10px;color:var(--text3);">'+inns+'i</span>':'')+'</span><button class="btn btn-xs" onclick="openPM(\''+pos+'\')">'+( a?'Change':'Set')+'</button>'+(a?'<button class="btn btn-xs btn-red" style="margin-left:4px;" onclick="clrPos(\''+pos+'\')">✕</button>':'')+'</div>';}).join('');
 $('fi-sum').innerHTML=olu().map(function(p){if(!p.name&&!p.jersey)return'';var k=p.name||p.jersey,c=gfi(k),w=G.inn>=4&&c<2;
 // 4.2: group by position → POS (count; 1,2,6) · SS (1; 3)
@@ -952,7 +989,7 @@ var grouped=Object.keys(byPos).map(function(pos){var inns=byPos[pos].sort((a,b)=
 return '<div class="pos-row"><span style="width:76px;font-size:11px;font-family:sans-serif;color:'+(w?'var(--red2)':'var(--text)')+';">'+sn(p.name||'#'+p.jersey)+'</span>'
 +'<span style="flex:1;font-size:10px;font-family:sans-serif;">'+( grouped||'<span style="color:var(--text3);">Not assigned</span>')+'</span>'
 +'<span style="font-size:13px;font-family:sans-serif;font-weight:bold;color:'+(w?'var(--red2)':'var(--green2)')+';">'+c+'</span></div>';}).filter(Boolean).join('')||'<div class="empty">Add lineup first</div>';}
-function openPM(pos){$('mpos-t').textContent='Assign '+pos;var fa=G.fa[G.inn]||{},taken=Object.values(fa);
+function openPM(pos){$('mpos-t').textContent='Assign '+pos;var fa=G.fa[G.inn]||{},taken=Object.values(fa);var APOS=getActivePOS();
 $('mpos-list').innerHTML=olu().filter(p=>{var k=p.name||p.jersey;return k&&(taken.indexOf(k)<0||fa[pos]===k);}).map(function(p){var k=p.name||p.jersey,c=gfi(k),w=G.inn>=4&&c<2;
 return '<div class="pos-row" onclick="asgPos(\''+pos+'\',\''+esc(k).replace(/'/g,"\\'")+'\');cm(\'m-pos\')" style="cursor:pointer;"><div class="bat-jersey">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;color:'+(w?'var(--red2)':'var(--text)')+';">'+esc(p.name||'#'+p.jersey)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+c+'i</span></div>';}).join('')
 +'<div class="sep"></div><div class="pos-row" onclick="addTaxi(\''+pos+'\')" style="cursor:pointer;"><span style="font-size:12px;color:var(--amber2);font-family:sans-serif;">+ Taxi squad</span></div>';
@@ -1005,6 +1042,9 @@ if(G.runs)G.runs.forEach(function(r){if(r.bi===i&&r.team===t)s.r++;});
 s.obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;s.slg=s.ab>0?s.tb/s.ab:0;return s;}
 function setST(t,el){G.stv=t;document.querySelectorAll('#tab-stats .team-toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderStats();}
 function renderStats(){var who=G.stv||'us';var t=who==='us'?usT():themT();var lu=t==='home'?G.hlu:G.alu;var tn=who==='us'?ourName():theirName();
+// update toggle labels with real team names
+if($('st-tog-us'))$('st-tog-us').textContent=ourName();
+if($('st-tog-them'))$('st-tog-them').textContent=theirName();
 $('st-bt').textContent=tn+' batting';
 var h='<thead><tr><th>Player</th><th>AB</th><th>R</th><th>H</th><th>RBI</th><th>XBH</th><th>HR</th><th>BB</th><th>K</th><th>SB</th><th>OBP</th><th>SLG</th></tr></thead><tbody>';
 lu.forEach(function(p,i){var s=gps(i,t);h+='<tr><td>'+esc(sn(p.name)||'#'+p.jersey)+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.xbh+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.sb+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';});
@@ -1026,7 +1066,7 @@ function abNotation(ab){
   if(n&&n!==r)return n;
   // standard fallbacks
   var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR','1B':'1B','2B':'2B','3B':'3B',
-    FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP'};
+    FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP'};
   return map[r]||r;
 }
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
