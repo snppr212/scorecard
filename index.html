@@ -705,13 +705,11 @@ var pc={
 var rc=[[200,115],[140,70],[80,115]];
 // canvas
 var s='<svg viewBox="0 0 280 185" xmlns="http://www.w3.org/2000/svg">';
-s+='<defs><radialGradient id="gf" cx="50%" cy="5%" r="95%"><stop offset="0%" stop-color="#2d8a4e"/><stop offset="65%" stop-color="#1e6838"/><stop offset="100%" stop-color="#12401e"/></radialGradient>';
+s+='<defs>';
 s+='<radialGradient id="gd" cx="50%" cy="70%" r="50%"><stop offset="0%" stop-color="#8a7040"/><stop offset="100%" stop-color="#6b5530"/></radialGradient>';
 s+='<filter id="sh"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.3"/></filter></defs>';
-s+='<rect width="280" height="185" fill="#0a1520"/>';
-// outfield grass arc
-s+='<path d="M 0,185 Q 0,10 140,4 Q 280,10 280,185 Z" fill="url(#gf)"/>';
-for(var i=20;i<165;i+=12)s+='<line x1="0" y1="'+i+'" x2="280" y2="'+i+'" stroke="rgba(255,255,255,0.02)" stroke-width="4"/>';
+// solid green background (full rectangle)
+s+='<rect width="280" height="185" fill="#1e6838"/>';
 // dirt diamond
 s+='<path d="M 140,148 L 208,110 L 140,70 L 72,110 Z" fill="url(#gd)" filter="url(#sh)"/>';
 // infield grass
@@ -723,7 +721,7 @@ s+='<ellipse cx="140" cy="151" rx="18" ry="11" fill="#6b5530"/>';
 // batter boxes
 s+='<rect x="123" y="143" width="8" height="15" rx="1" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.4"/>';
 s+='<rect x="149" y="143" width="8" height="15" rx="1" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.4"/>';
-// foul lines (inside the outfield arc)
+// foul lines
 s+='<line x1="140" y1="148" x2="0" y2="70" stroke="white" stroke-width="0.7" opacity="0.5"/>';
 s+='<line x1="140" y1="148" x2="280" y2="70" stroke="white" stroke-width="0.7" opacity="0.5"/>';
 // base paths
@@ -731,8 +729,6 @@ s+='<line x1="140" y1="148" x2="208" y2="110" stroke="rgba(255,255,255,0.18)" st
 s+='<line x1="208" y1="110" x2="140" y2="70" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>';
 s+='<line x1="140" y1="70" x2="72" y2="110" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>';
 s+='<line x1="72" y1="110" x2="140" y2="148" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>';
-// outfield wall
-s+='<path d="M 6,52 Q 6,6 140,4 Q 274,6 274,52" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="2"/>';
 // bases (clickable)
 [[208,110],[140,70],[72,110]].forEach(function(b,i){var on=G.bases[i]!==null;
 s+='<rect x="'+(b[0]-5)+'" y="'+(b[1]-5)+'" width="10" height="10" transform="rotate(45 '+b[0]+' '+b[1]+')" fill="'+(on?'#FFD700':'white')+'" stroke="'+(on?'#FFA500':'rgba(200,200,200,0.6)')+'" stroke-width="'+(on?'1':'0.5')+'" style="cursor:pointer;" onclick="runnerM('+(i+1)+')"/>';});
@@ -860,7 +856,13 @@ function selBat(i){if(G.cbi===i)return;if(G.cbi>=0&&G.cpitch.length>0){if(!confi
 
 // PITCH
 function curPitcher(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;return(i>=0&&l[i])?l[i]:null;}
-function lp(c){if(G.cbi<0){toast('Select batter');return;}if(!curPitcher()){quickSwitchPitcher();return;}
+function ensurePitcher(){if(curPitcher())return;// auto-create placeholder so pitch logging always works
+var _t=G.half==='top'?'home':'away';var _ours=(_t==='home')===isOH();
+var _pl=_ours?ourP():theirP();var _nm=_ours?(A.roster[0]?sn(A.roster[0].name):'Our P'):'Opp. P';
+_pl.push({name:_nm,rn:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});
+if(_ours)setOurPI(_pl.length-1);else setTheirPI(_pl.length-1);
+toast('Pitcher auto-set. Tap name above to change.',2500);renderMU();}
+function lp(c){if(G.cbi<0){toast('Select batter');return;}ensurePitcher();
 if(G.plb){om('m-plimit');return;}
 G.cpitch.push(c);pAdd(c);
 if(c==='X'){sv();renderSC();return;}
@@ -920,7 +922,7 @@ G.balls=0;G.strikes=0;G.cpitch.forEach(function(c){if(c==='S'||c==='L')G.strikes
 
 // END AB
 function endAB(r){if(G.cbi<0){toast('Select batter');return;}
-if(!curPitcher()){toast('⚠️ Set a pitcher first!');return;}
+ensurePitcher();
 if(G.plb){om('m-plimit');return;}
 // Auto-add a pitch if none logged and it's a ball-in-play result
 if(G.cpitch.length===0){
