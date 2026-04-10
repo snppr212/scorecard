@@ -842,7 +842,7 @@ function renderCB(){var bd='',sd='',od='';
 for(var i=0;i<4;i++)bd+='<div class="odot'+(i<G.balls?' on':'')+'" style="'+(i<G.balls?'background:var(--green2);border-color:var(--green2);':'')+'"></div>';
 for(var i=0;i<3;i++)sd+='<div class="odot'+(i<G.strikes?' on':'')+'" style="'+(i<G.strikes?'background:var(--red2);border-color:var(--red2);':'')+'"></div>';
 for(var i=0;i<3;i++)od+='<div class="odot'+(i<G.outs?' on':'')+'" style="'+(i<G.outs?'background:var(--gold);border-color:var(--gold);':'')+'"></div>';
-$('cb-b').innerHTML=bd;$('cb-s').innerHTML=sd;$('cb-o').innerHTML=od;}
+$('sb-cb-b').innerHTML=bd;$('sb-cb-s').innerHTML=sd;$('sb-cb-o').innerHTML=od;}
 
 function renderSeq(){
 var lap=G.lastABPitches||[];
