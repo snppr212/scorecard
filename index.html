@@ -52,7 +52,7 @@ body{display:flex;flex-direction:column;height:100dvh;}
 .bK,.bKL{background:rgba(184,50,40,.25);color:#e08080;}
 .bBB,.bHBP{background:rgba(42,125,82,.25);color:#80c8a0;}
 .b1B,.b2B,.b3B{background:rgba(31,95,160,.25);color:#80b8e8;}
-.bHR{background:rgba(184,112,32,.35);color:var(--amber2);}
+.bHR,.bLLHR{background:rgba(184,112,32,.35);color:var(--amber2);}
 .bFO,.bGO,.bLO,.bSAC,.bFC,.bDP,.bGIDP{background:rgba(255,255,255,.06);color:var(--text2);}
 input[type=text],input[type=number],select,textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:sans-serif;font-size:13px;padding:7px 9px;width:100%;}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);}
@@ -239,7 +239,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);padding:8px 0;"><div style="max-width:380px;margin:0 auto;" id="field-svg"></div></div>
 <div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><div style="display:flex;gap:5px;"><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Pitch</button><button class="btn btn-xs btn-red" onclick="undoAB()" id="undo-ab-btn" style="display:none;">↩ AB</button></div></div></div>
 <div class="panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div></div>
-<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">Homer</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">DP</button><button class="rbtn" onclick="endAB('GIDP')">GIDP</button><button class="rbtn" onclick="endAB('TP')" style="font-size:10px;">Triple<br>Play</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button></div></div>
+<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button></div></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
 <!-- FIELD -->
@@ -270,7 +270,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><button class="btn btn-red btn-full" onclick="cm('m-setup');endGame()">🏁 End Game</button></div></div>
 <div class="modal-ov" id="m-play"><div class="modal"><h3 id="mp-t">Log play</h3><div class="mrow"><label>Scorecard notation (4-3, L9, F8)</label><input type="text" id="mp-not"></div><div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
-<div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cm('m-play')">Cancel</button></div></div></div>
+<div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cm('m-play')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-steal"><div class="modal"><h3>Stolen base</h3><div class="mrow"><label>From</label><select id="st-from"></select></div><div class="mrow"><label>Player</label><select id="st-who"></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmSB()">Log SB</button><button class="btn btn-full" onclick="cm('m-steal')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-pos"><div class="modal"><h3 id="mpos-t">Assign</h3><div id="mpos-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-pos')">Cancel</button></div></div></div>
@@ -331,6 +331,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <h3 style="color:var(--red2);">🛑 Pitcher Must Be Removed</h3>
 <div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;" id="plimit-msg"></div>
 <div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">A pitching change is required before the next batter.</div>
+<button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="G.finishBatter=true;G.plb=false;sv();cm('m-plimit');toast('Finish this batter, then pitcher must be removed.',3000);">Finish batter →</button>
 <button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="cm('m-plimit');openPSwitch('us',true)">Make pitching change →</button>
 <button class="btn btn-red btn-full btn-sm" onclick="if(confirm('Override pitch limit? This violates Little League rules and will be noted.')){G.plb=false;sv();cm('m-plimit');toast('⚠️ Override recorded',3000);}">Override — accept rule violation</button>
 </div></div>
@@ -384,7 +385,7 @@ var A={roster:[],schedule:[],gameResults:{},pitchLog:{},filter:'all',epId:null,e
 var G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
 inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
 cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
-fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false};
+fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false};
 
 function $(id){return document.getElementById(id);}
 function sa(){try{localStorage.setItem('mm_a',JSON.stringify(A));}catch(e){}}
@@ -819,6 +820,9 @@ function selectPSwitcher(idx){
   else setTheirPI(idx);
   cm('m-pswitch');sv();renderSC();
   toast('Pitcher: '+sn(pl[idx].name));
+  if(_pswWho==='us'){
+    if(confirm('Pitching change made.\n\nSwitch to Field tab to update other fielding positions?\n\nOK = Go to Field tab\nCancel = Stay here (P slot already updated)')){
+      stab('field',document.querySelector('#screen-sc .tab:nth-child(2)'));}}
   // 3.1: if forced change clears the block, re-check fielding warning
   if(_pswForced)chkFieldingWarnOnly();
 }
@@ -873,7 +877,10 @@ var _pl=_ours?ourP():theirP();var _nm=_ours?(A.roster[0]?sn(A.roster[0].name):'O
 _pl.push({name:_nm,rn:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});
 if(_ours)setOurPI(_pl.length-1);else setTheirPI(_pl.length-1);
 toast('Pitcher auto-set. Tap name above to change.',2500);renderMU();}
-function lp(c){if(G.cbi<0){toast('Select batter');return;}ensurePitcher();
+function lp(c){if(G.cbi<0){toast('Select batter');return;}
+var _weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+if(_weField&&!(G.fa[G.inn]&&G.fa[G.inn]['P'])){toast('Assign your pitcher in the Field tab first');return;}
+ensurePitcher();
 if(G.plb){om('m-plimit');return;}
 G.cpitch.push(c);pAdd(c);
 if(c==='X'){sv();renderSC();return;}
@@ -958,7 +965,7 @@ if((r==='BB'||r==='HBP')&&G.bases[0]&&G.bases[1]&&G.bases[2]){
   var not=r==='BB'?'BB':'HBP';finAB(r,not,1);return;
 }
 if(r==='K'||r==='KL'||r==='BB'||r==='HBP'){var not=r==='K'?'K':r==='KL'?'Ⓚ':r==='BB'?'BB':'HBP';finAB(r,not,0);return;}
-if(r==='HR'){G.prbi=1+G.bases.filter(b=>b!==null).length;}
+if(r==='HR'||r==='LLHR'){G.prbi=1+G.bases.filter(b=>b!==null).length;}
 else if(['1B','2B','3B'].includes(r)){var _adv=r==='1B'?1:r==='2B'?2:3;G.prbi=0;for(var _b=0;_b<3;_b++)if(G.bases[_b]&&(_b+_adv)>=3)G.prbi++;}
 $('mp-t').textContent='Log play — '+r;$('mp-not').value=r==='1B'?'1B':r==='2B'?'2B':r==='3B'?'3B':r==='HR'?'HR':'';
 G.pscored=[];
@@ -966,18 +973,22 @@ var isHit=['1B','2B','3B'].includes(r);
 var hasRunners=G.bases.some(b=>b!==null);
 // For hits with runners: show "who scored?" picker with force-plays pre-selected
 $('scored-sec').style.display='none';
-$('rbi-sec').style.display=['1B','2B','3B','HR','FC','GO','FO','LO','SAC','DP','GIDP'].includes(r)?'block':'none';
-var rb='';for(var i=0;i<=4;i++)rb+='<button class="btn btn-xs" style="margin:0 2px;'+(i===G.prbi?'border-color:var(--gold);':'')+'" onclick="G.prbi='+i+';this.parentNode.querySelectorAll(\'.btn\').forEach(b=>b.style.borderColor=\'\');this.style.borderColor=\'var(--gold)\';">'+i+'</button>';
+$('rbi-sec').style.display=['1B','2B','3B','HR','LLHR','FC','GO','FO','LO','SAC','DP','GIDP'].includes(r)?'block':'none';
+var _runCt=G.bases.filter(function(b){return b!==null;}).length;
+var _maxRBI=_runCt+1;// runners + batter as potential scorer
+var rb='';for(var i=0;i<=4;i++){var _dis=i>_maxRBI;rb+='<button class="btn btn-xs" style="margin:0 2px;'+(_dis?'opacity:.35;pointer-events:none;':'')+(i===G.prbi?'border-color:var(--gold);':'')+'" '+(i===G.prbi||!_dis?'onclick="G.prbi='+i+';this.parentNode.querySelectorAll(\'.btn\').forEach(b=>b.style.borderColor=\'\');this.style.borderColor=\'var(--gold)\';"':'')+'>'+i+'</button>';}
 $('rbi-btns').innerHTML=rb;
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());$('err-sec').style.display=wf?'block':'none';if(wf){$('err-t').value='';$('err-pr').style.display='none';}
-var dp=r==='DP'||r==='GIDP';$('dp-sec').style.display=dp?'block':'none';
+var dp=r==='DP';$('dp-sec').style.display=dp?'block':'none';
+if($('gidp-chk'))$('gidp-chk').checked=false;
 if(dp){var db='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';db+='<button class="btn btn-sm" style="margin:3px;" onclick="G.dpout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('dp-btns').innerHTML=db||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
 om('m-play');}
 function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePOS().map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
 function submitPlay(){var not=$('mp-not').value.trim(),et=$('err-t').value,ep=$('err-p').value;
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,type:et,play:not||G.pres});}
-cm('m-play');finAB(G.pres,not,G.prbi);}
+var res=G.pres;if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
+cm('m-play');finAB(res,not,G.prbi);}
 
 function finAB(r,not,rbi){
 chkPW();// check pitch thresholds for every AB outcome (1B,2B,GO,FO,etc.)
@@ -991,7 +1002,7 @@ var _fp=curPitcher();
 if(_fp){
   if(isOut)_fp.ip_outs=(_fp.ip_outs||0)+1;
   if(r==='DP'||r==='GIDP')_fp.ip_outs=(_fp.ip_outs||0)+1;// second out
-  if(['1B','2B','3B','HR'].includes(r))_fp.hits=(_fp.hits||0)+1;
+  if(['1B','2B','3B','HR','LLHR'].includes(r))_fp.hits=(_fp.hits||0)+1;
   if(r==='BB')_fp.bb_allowed=(_fp.bb_allowed||0)+1;
   if(r==='K'||r==='KL')_fp.k_pitched=(_fp.k_pitched||0)+1;
   if(r==='HBP')_fp.hbp_allowed=(_fp.hbp_allowed||0)+1;
@@ -999,7 +1010,7 @@ if(_fp){
 if(isOut)G.outs++;
 if(r==='DP'||r==='GIDP'){if(G.dpout!==null&&G.bases[G.dpout])G.bases[G.dpout]=null;G.outs=Math.min(3,G.outs+1);}
 if(r==='TP'){G.bases=[null,null,null];G.outs=Math.min(3,G.outs+2);}// triple play: clear bases, +2 more outs (batter already counted)
-if(r==='HR'){
+if(r==='HR'||r==='LLHR'){
   for(var i=0;i<3;i++){if(G.bases[i])logRun(G.bases[i].bi,G.bases[i].team);}
   logRun(G.cbi,t);
   addR(1+G.bases.filter(x=>x!==null).length);G.bases=[null,null,null];
@@ -1032,6 +1043,9 @@ if(G.outs>=3)G.outs=3;
 })();
 G.lastABPitches=G.cpitch.slice();G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
+if(G.finishBatter){G.finishBatter=false;G.plb=true;sv();
+  var _fb=curPitcher();$('plimit-msg').textContent=(_fb?sn(_fb.name):'Pitcher')+' has reached the pitch limit — make a pitching change before the next batter.';
+  if(G.outs>=3)showIE();else{showNB(r);setTimeout(function(){om('m-plimit');},600);}return;}
 if(G.outs>=3)showIE();else{showNB(r);if(G.plb)om('m-plimit');}}
 
 // Advance runners — always move physically the full distance; rbi is stat-only
@@ -1123,7 +1137,7 @@ var lu=clu();
 var ni=isHB()?G.hbi:G.abi;if(ni<0||ni>=lu.length)ni=0;
 G.cbi=ni;sv();renderSC();
 // brief toast showing result + who's up
-var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','HR':'HR','FO':'F out','GO':'Grd out','LO':'L out','SAC':'SAC','FC':'FC','DP':'DP','GIDP':'GIDP','TP':'TP'};
+var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','HR':'HR','LLHR':'LLHR','FO':'F out','GO':'Grd out','LO':'L out','SAC':'SAC','FC':'FC','DP':'DP','GIDP':'GIDP','TP':'TP'};
 var batter=lu[ni];var bName=batter?(theyBat()?oppDisplay(batter):sn(batter.name||'#'+batter.jersey)):'?';
 toast((rm[r]||r)+' — Now: '+bName,2500);}
 
@@ -1211,7 +1225,10 @@ return '<div class="pos-row" onclick="asgPos(\''+pos+'\',\''+esc(k).replace(/'/g
 +'<div class="sep"></div><div class="pos-row" onclick="addTaxi(\''+pos+'\')" style="cursor:pointer;"><span style="font-size:12px;color:var(--amber2);font-family:sans-serif;">+ Taxi squad</span></div>';
 om('m-pos');}
 function addTaxi(pos){var n=prompt('Name:');if(!n)return;cm('m-pos');olu().push({name:n,jersey:'',rid:null});asgPos(pos,n);}
-function asgPos(pos,k){if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn][pos]=k;
+function asgPos(pos,k){
+if(pos==='P'){var _ic=getInningsCaught(k);if(_ic>=4&&!confirm(sn(k)+' has caught '+_ic+' innings this game.\n\nLL Rule: 4+ innings catching = cannot pitch.\n\nAssign as pitcher anyway?'))return;}
+if(pos==='C'){var _cp=ourP().find(function(p){return p.name===k;});if(_cp&&(_cp.total||0)>=41&&!confirm(sn(k)+' has thrown '+_cp.total+' pitches this game.\n\nLL Rule: 41+ pitches = cannot catch.\n\nAssign as catcher anyway?'))return;}
+if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn][pos]=k;
 // If assigning pitcher position, sync active pitcher
 if(pos==='P'){var pl=ourP(),idx=pl.findIndex(p=>p.name===k);
 if(idx>=0){setOurPI(idx);}else{ourP().push({name:k,rn:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});setOurPI(ourP().length-1);}}
@@ -1232,7 +1249,7 @@ var st=p.stk||0;var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);
 el.innerHTML='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;"><span style="font-size:24px;font-weight:bold;color:'+col+';">'+c+'</span><span style="font-size:12px;color:var(--text2);font-family:sans-serif;">/ 75</span><span style="font-size:12px;font-family:sans-serif;margin-left:auto;">'+sn(p.name)+'</span></div><div class="pitcher-limit-bar"><div class="pitcher-limit-fill" style="width:'+pct+'%;background:'+col+';"></div></div><div style="font-size:10px;font-family:sans-serif;color:var(--text3);margin-top:4px;">PC:'+c+' St:'+st+' Ba:'+(p.ba||0)+' BIP:'+(p.bip||0)+' HBP:'+(p.hbp||0)+' IP:'+ip+'</div>';}
 function renderPS(who){var l=who==='us'?ourP():theirP(),c=who==='us'?ourPI():theirPI();$(who==='us'?'hp-sel':'ap-sel').innerHTML=l.map(function(p,i){var st=p.stk||0;var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);return '<div class="row-b" style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:'+(i===c?'var(--gold)':'var(--text)')+';">'+(i===c?'▶ ':'')+esc(sn(p.name))+' PC:'+(p.total||0)+' St:'+st+' Ba:'+(p.ba||0)+' IP:'+ip+'</span><button class="btn btn-xs" onclick="setAP(\''+who+'\','+i+')">'+(i===c?'Active':'Set')+'</button></div>';}).join('');}
 function renderSPT(){var td=new Date();$('sp-body').innerHTML=A.roster.map(function(p){var log=pSeason(p.name),cp=ourP().find(h=>h.name===p.name),cur=cp?cp.total||0:0;if(!log.length&&cur===0)return'';var s=pStatus(p.name,td),ok=s.ok&&!s.over40;return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+cur+'</td><td class="'+(s.rest>0?'warn':'ok')+'">'+s.rest+'d</td><td class="'+(ok?'ok':'warn')+'">'+(ok?'✓':'✗')+'</td><td class="'+(s.over40?'warn':'ok')+'">'+(s.over40?'⚠':'—')+'</td></tr>';}).filter(Boolean).join('')||'<tr><td colspan="5" class="empty">No data</td></tr>';}
-function addP(who){if(who==='us'){var v=$('hp-inp').value;if(!v)return;var rp=A.roster.find(r=>r.name===v);ourP().push({name:rp?rp.name:v,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(ourPI()<0)setOurPI(0);$('hp-inp').value='';}else{var v=$('ap-inp').value;if(!v)return;if(v==='__custom__'){v=prompt('Enter pitcher name:');if(!v)return;}theirP().push({name:v,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(theirPI()<0)setTheirPI(0);$('ap-inp').value='';}sv();renderPT();}
+function addP(who){if(who==='us'){var v=$('hp-inp').value;if(!v)return;var _ic2=getInningsCaught(v);if(_ic2>=4&&!confirm(sn(v)+' has caught '+_ic2+' innings this game.\n\nLL Rule: 4+ innings catching = cannot pitch.\n\nAdd as pitcher anyway?'))return;var rp=A.roster.find(r=>r.name===v);ourP().push({name:rp?rp.name:v,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(ourPI()<0)setOurPI(0);$('hp-inp').value='';}else{var v=$('ap-inp').value;if(!v)return;if(v==='__custom__'){v=prompt('Enter pitcher name:');if(!v)return;}theirP().push({name:v,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(theirPI()<0)setTheirPI(0);$('ap-inp').value='';}sv();renderPT();}
 function setAP(who,i){if(who==='us'){setOurPI(i);var p=ourP()[i];if(p&&p.name){if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=p.name;}}else setTheirPI(i);sv();renderPT();renderMU();}
 
 // LINEUP TAB — in-game editor
@@ -1252,7 +1269,7 @@ active.forEach(function(p,i){
   +'<div class="bat-jersey" style="width:28px;height:28px;font-size:11px;">'+(p.jersey||'?')+'</div>'
   +'<span style="flex:1;font-size:13px;">'+(p.name||'Player')+'</span>'
   +(m?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+m+'</span>':'')
-  +'<button class="btn btn-xs btn-red" onclick="markDNP('+realIdx+')">DNP</button>'
+  +'<button class="btn btn-xs btn-red" onclick="markDNP('+realIdx+')">Remove</button>'
   +'</div>';
 });
 // DNP section
@@ -1312,13 +1329,20 @@ if($('st-tog-us'))$('st-tog-us').textContent=ourName();
 if($('st-tog-them'))$('st-tog-them').textContent=theirName();
 $('st-bt').textContent=tn+' batting';
 var h='<thead><tr><th>Player</th><th>AB</th><th>R</th><th>H</th><th>RBI</th><th>XBH</th><th>HR</th><th>BB</th><th>K</th><th>SB</th><th>OBP</th><th>SLG</th></tr></thead><tbody>';
-lu.forEach(function(p,i){var s=gps(i,t);h+='<tr><td>'+esc(sn(p.name)||'#'+p.jersey)+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.xbh+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.sb+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';});
-$('st-btbl').innerHTML=h+'</tbody>';
+var bt={ab:0,r:0,h:0,rbi:0,xbh:0,hr:0,bb:0,k:0,sb:0};
+lu.forEach(function(p,i){var s=gps(i,t);h+='<tr><td>'+esc(sn(p.name)||'#'+p.jersey)+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.xbh+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.sb+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
+bt.ab+=s.ab;bt.r+=s.r;bt.h+=s.h;bt.rbi+=s.rbi;bt.xbh+=s.xbh;bt.hr+=s.hr;bt.bb+=s.bb;bt.k+=s.k;bt.sb+=s.sb;});
+h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TOTAL</td><td>'+bt.ab+'</td><td>'+bt.r+'</td><td>'+bt.h+'</td><td>'+bt.rbi+'</td><td>'+bt.xbh+'</td><td>'+bt.hr+'</td><td>'+bt.bb+'</td><td>'+bt.k+'</td><td>'+bt.sb+'</td><td>—</td><td>—</td></tr></tfoot>';
+$('st-btbl').innerHTML=h;
 $('st-pt').textContent=tn+' pitching';var pl=who==='us'?ourP():theirP();
 var ph='<thead><tr><th>Pitcher</th><th>IP</th><th>PC</th><th>St</th><th>Ba</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>ERA</th></tr></thead><tbody>';
+var pt={ip_o:0,pc:0,st:0,ba:0,h:0,r:0,er:0,bb:0,k:0};
 pl.forEach(function(p){var ip_o=p.ip_outs||0;var ip=Math.floor(ip_o/3)+'.'+(ip_o%3);var era=ip_o>0?fmt3((p.er||0)/(ip_o/3)*6):'—';
-ph+='<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+ip+'</td><td>'+(p.total||0)+'</td><td>'+(p.stk||0)+'</td><td>'+(p.ba||0)+'</td><td>'+(p.hits||0)+'</td><td>'+(p.runs_allowed||0)+'</td><td>'+(p.er||0)+'</td><td>'+(p.bb_allowed||0)+'</td><td>'+(p.k_pitched||0)+'</td><td class="hi">'+era+'</td></tr>';});
-$('st-ptbl').innerHTML=ph+'</tbody>';
+ph+='<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+ip+'</td><td>'+(p.total||0)+'</td><td>'+(p.stk||0)+'</td><td>'+(p.ba||0)+'</td><td>'+(p.hits||0)+'</td><td>'+(p.runs_allowed||0)+'</td><td>'+(p.er||0)+'</td><td>'+(p.bb_allowed||0)+'</td><td>'+(p.k_pitched||0)+'</td><td class="hi">'+era+'</td></tr>';
+pt.ip_o+=ip_o;pt.pc+=(p.total||0);pt.st+=(p.stk||0);pt.ba+=(p.ba||0);pt.h+=(p.hits||0);pt.r+=(p.runs_allowed||0);pt.er+=(p.er||0);pt.bb+=(p.bb_allowed||0);pt.k+=(p.k_pitched||0);});
+var tip=Math.floor(pt.ip_o/3)+'.'+(pt.ip_o%3);var tera=pt.ip_o>0?fmt3(pt.er/(pt.ip_o/3)*6):'—';
+ph+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TOTAL</td><td class="hi">'+tip+'</td><td>'+pt.pc+'</td><td>'+pt.st+'</td><td>'+pt.ba+'</td><td>'+pt.h+'</td><td>'+pt.r+'</td><td>'+pt.er+'</td><td>'+pt.bb+'</td><td>'+pt.k+'</td><td class="hi">'+tera+'</td></tr></tfoot>';
+$('st-ptbl').innerHTML=ph;
 $('err-body').innerHTML=G.errs.map(function(e){return '<tr><td>'+esc(e.player)+'</td><td>'+e.pos+'</td><td>'+e.inn+'</td><td>'+({F:'Field',T:'Throw',M:'Mental',C:'Catch'}[e.type]||e.type)+'</td><td>'+esc(e.play)+'</td></tr>';}).join('')||'<tr><td colspan="5" class="empty">None</td></tr>';
 $('st-err').style.display=who==='us'?'block':'none';}
 
@@ -1330,26 +1354,39 @@ function abNotation(ab){
   // if user typed something meaningful, use it
   if(n&&n!==r)return n;
   // standard fallbacks
-  var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR','1B':'1B','2B':'2B','3B':'3B',
+  var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',
     FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP'};
   return map[r]||r;
 }
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
-var ha=G.abs.filter(a=>a.team==='home'),aa=G.abs.filter(a=>a.team==='away');
-function mkTbl(abs){return '<div class="scroll-x"><table class="tbl"><thead><tr><th>#</th><th>Batter</th><th>Inn</th><th>Pitches</th><th>PC</th><th>Play</th><th>RBI</th></tr></thead><tbody>'+[...abs].reverse().map(function(ab){
-  var seq=ab.pitches.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' ');
-  var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
-  var notation=abNotation(ab);
-  return '<tr>'
-  +'<td style="color:var(--text3);">'+ab.num+'</td>'
-  +'<td>'+esc(abBatterDisplay(ab))+'</td>'
-  +'<td>'+ab.inn+(ab.half==='top'?'▲':'▼')+'</td>'
-  +'<td style="font-family:monospace;font-size:10px;">'+seq+'</td>'
-  +'<td>'+ab.pc+'</td>'
-  +'<td><span class="badge '+bc+'" style="font-size:11px;letter-spacing:.02em;">'+esc(notation)+'</span></td>'
-  +'<td style="color:var(--text2);">'+(ab.rbi>0?'+'+ab.rbi:'')+'</td>'
-  +'</tr>';}).join('')+'</tbody></table></div>';}
-p.innerHTML='<div class="log-team-hdr">'+esc(G.ht)+' — '+ha.length+' AB</div>'+mkTbl(ha)+'<div class="log-team-hdr" style="margin-top:12px;">'+esc(G.at)+' — '+aa.length+' AB</div>'+mkTbl(aa);}
+var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
+var html='';
+function mkHalf(abs,label){
+  if(!abs.length)return'';
+  var rows=abs.map(function(ab){
+    var seq=ab.pitches.map(function(c){return'<span class="ps-'+c+'">'+c+'</span>';}).join(' ');
+    var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
+    var notation=abNotation(ab);
+    var isRun=ab.rbi>0||ab.result==='HR'||ab.result==='LLHR';
+    var runStyle=isRun?'font-style:italic;color:var(--amber2);':'';
+    return '<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;'+runStyle+'">'
+    +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;min-width:18px;">'+ab.num+'</span>'
+    +'<span style="font-size:13px;flex:1;min-width:80px;">'+esc(abBatterDisplay(ab))+'</span>'
+    +'<span class="badge '+bc+'" style="font-size:11px;">'+esc(notation)+'</span>'
+    +(ab.rbi>0?'<span style="font-size:11px;color:var(--amber2);font-family:sans-serif;">+'+ab.rbi+'R</span>':'')
+    +'<span style="font-size:10px;color:var(--text3);font-family:monospace;">'+seq+'</span>'
+    +'</div>';
+  });
+  return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:5px 0 3px;border-top:2px solid var(--border2);margin-top:4px;">'+esc(label)+'</div>'+rows.join('');
+}
+for(var inn=maxInn;inn>=1;inn--){
+  var topABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='top';});
+  var botABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='bottom';});
+  if(!topABs.length&&!botABs.length)continue;
+  html+=mkHalf(botABs,'Inning '+inn+' ▼ — '+esc(G.ht));
+  html+=mkHalf(topABs,'Inning '+inn+' ▲ — '+esc(G.at));
+}
+p.innerHTML=html||'<div class="empty">No at-bats</div>';}
 
 // BOX
 function renderBox(){var n=G.ti;var hd='<tr><th></th>'+Array.from({length:n},(_,i)=>'<th'+(i+1===G.inn?' style="color:var(--gold);"':'')+'>'+( i+1)+'</th>').join('')+'<th style="color:var(--gold);">R</th><th>H</th></tr>';

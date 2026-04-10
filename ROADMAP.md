@@ -42,6 +42,11 @@
 | **3-HBP forced removal (opponent)** | ✅ | v14 — notify umpire modal |
 | Threshold checks on ALL AB outcomes | ✅ | v13/v14 — chkPW in finAB |
 | Override rule violation option | ✅ | v14 — red button with confirm dialog |
+| 75-pitch "Finish Batter" flow | ✅ | v16 — auto-reopens removal modal after AB |
+| RBI buttons capped to runners+1 | ✅ | v16 |
+| LLHR result (Little League HR) | ✅ | v16 |
+| Catcher 4+ innings → cannot pitch warning | ✅ | v16 |
+| Pitcher 41+ pitches → cannot catch warning | ✅ | v16 |
 | Pitching change UI | ✅ | |
 | Innings pitched tracking | ✅ | |
 
@@ -59,6 +64,9 @@
 | Minimum play rule warnings | ✅ | |
 | Catcher pitch-count limit | ✅ | |
 | DNP / availability tracking | ✅ | |
+| "Remove" button (renamed from DNP) | ✅ | v16 |
+| Pitching change → prompt fielder update | ✅ | v16 |
+| Block pitch logging until pitcher assigned | ✅ | v16 |
 
 ---
 
@@ -92,7 +100,8 @@
 | Home/Away team setup | ✅ | |
 | Inning-by-inning scoring | ✅ | |
 | Box score | ✅ | |
-| Play log | ✅ | |
+| Play log — inning-by-inning, runs highlighted | ✅ | v16 |
+| Box score batting + pitching totals row | ✅ | v16 |
 | Mercy rule (10-run) | ✅ | |
 | 6-run half-inning rule | ✅ | |
 | End game | ✅ | |
@@ -105,7 +114,7 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Installable PWA | ✅ | |
-| Service worker cache (v15) | ✅ | |
+| Service worker cache (v16) | ✅ | |
 | Offline play | ✅ | |
 | localStorage persistence | ✅ | |
 | GitHub Pages deployment | ✅ | snppr212/scorecard |

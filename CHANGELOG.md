@@ -1,5 +1,18 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v16 (2026-04-10)
+**Plays log, box totals, lineup UX, pitch enforcement, result buttons, catcher/pitcher rules**
+
+- **Plays screen**: Rewritten inning-by-inning (newest first), alternating top▲/bottom▼ with bold divider; ABs that score runs shown in italic amber
+- **Box score**: Totals row added to bottom of both batting (AB/R/H/RBI/XBH/HR/BB/K) and pitching (IP/PC/St/Ba/H/R/ER/BB/K/ERA) tables
+- **Lineup tab**: "DNP" button renamed to "Remove"
+- **Pitching change**: After switching pitcher, confirm dialog offers to jump to Field tab to update all fielding positions
+- **75-pitch modal**: Now shows "Finish Batter" (allows current AB, then auto-reopens removal modal) / "Make Pitching Change" / "Override"
+- **Pitch logging block**: Cannot log pitches when fielding unless pitcher is assigned in Field tab
+- **RBI buttons**: Options greyed out above runners-on-base + 1; impossible RBIs disabled
+- **Result buttons**: Homer → HR; DP/GIDP merged into "Dou Play" with GIDP checkbox in popup; "Trip Play" simplified; LLHR added (Little League HR — same scoring as HR, tracks errors/misplays)
+- **Catcher/pitcher warnings**: Warning when assigning P to player with 4+ innings caught; warning when assigning C to player with 41+ pitches thrown
+
 ## v15 (2026-04-09) — d3f7572
 **Fix pitch bar and ALL threshold popups**
 - Root cause found: `renderCB()` referenced `cb-b/s/o` but HTML element IDs are `sb-cb-b/s/o`
