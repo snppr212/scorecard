@@ -45,6 +45,16 @@ body{display:flex;flex-direction:column;height:100dvh;}
 .tbl th:first-child{text-align:left;}
 .tbl td{padding:5px;border-bottom:1px solid var(--border);color:var(--text);text-align:center;}
 .tbl td:first-child{text-align:left;}
+.ls-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.ls-tbl{border-collapse:collapse;font-family:sans-serif;font-size:12px;width:100%;}
+.ls-tbl th{padding:4px 8px;color:var(--text3);font-weight:600;text-align:center;border-bottom:2px solid var(--border2);white-space:nowrap;}
+.ls-tbl th:first-child{text-align:left;min-width:72px;}
+.ls-tbl td{padding:5px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap;}
+.ls-tbl td:first-child{text-align:left;font-weight:600;color:var(--text);}
+.ls-tbl .ls-cur{color:var(--gold);font-weight:700;}
+.ls-tbl .ls-r{font-weight:700;color:var(--text);border-left:2px solid var(--border2);}
+.ls-tbl .ls-h{color:var(--text2);}
+.ls-tbl tr:last-child td{border-bottom:none;}
 .tbl .hi{color:var(--gold);font-weight:bold;}
 .tbl .warn{color:var(--red2);}
 .tbl .ok{color:var(--green2);}
@@ -240,6 +250,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><div style="display:flex;gap:5px;"><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Pitch</button><button class="btn btn-xs btn-red" onclick="undoAB()" id="undo-ab-btn" style="display:none;">↩ AB</button></div></div></div>
 <div class="panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div></div>
 <div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button></div></div>
+<div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
 <!-- FIELD -->
@@ -249,9 +260,9 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- LINEUP -->
 <div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div><div id="their-lu-list"></div></div></div>
 <!-- STATS / BOX -->
-<div id="tab-stats" style="display:none;"><div class="team-toggle"><div class="team-toggle-btn active" id="st-tog-us" onclick="setST('us',this)">Us</div><div class="team-toggle-btn" id="st-tog-them" onclick="setST('them',this)">Them</div></div><div class="panel"><div class="ptitle" id="st-bt">Batting</div><div class="scroll-x"><table class="tbl" id="st-btbl"></table></div></div><div class="panel"><div class="ptitle" id="st-pt">Pitching</div><div class="scroll-x"><table class="tbl" id="st-ptbl"></table></div></div><div class="panel" id="st-err"><div class="ptitle">Fielding errors</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Pos</th><th>Inn</th><th>Type</th><th>Play</th></tr></thead><tbody id="err-body"></tbody></table></div></div></div>
+<div id="tab-stats" style="display:none;"><div class="panel" id="ls-stats-panel" style="padding:8px 10px;"></div><div class="team-toggle"><div class="team-toggle-btn active" id="st-tog-us" onclick="setST('us',this)">Us</div><div class="team-toggle-btn" id="st-tog-them" onclick="setST('them',this)">Them</div></div><div class="panel"><div class="ptitle" id="st-bt">Batting</div><div class="scroll-x"><table class="tbl" id="st-btbl"></table></div></div><div class="panel"><div class="ptitle" id="st-pt">Pitching</div><div class="scroll-x"><table class="tbl" id="st-ptbl"></table></div></div><div class="panel" id="st-err"><div class="ptitle">Fielding errors</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Pos</th><th>Inn</th><th>Type</th><th>Play</th></tr></thead><tbody id="err-body"></tbody></table></div></div></div>
 <!-- LOG -->
-<div id="tab-log" style="display:none;"><div class="panel" id="log-panel"></div></div>
+<div id="tab-log" style="display:none;"><div class="panel" id="ls-log-panel" style="padding:8px 10px;"></div><div class="panel" id="log-panel"></div></div>
 <!-- BOX -->
 <div id="tab-box" style="display:none;"><div class="panel"><div class="ptitle">Line score</div><div class="scroll-x"><table class="tbl" id="ls-tbl"></table></div></div><div class="panel"><div class="ptitle">Share</div><div id="share-txt" style="background:var(--bg3);border-radius:var(--rs);padding:9px;font-family:monospace;font-size:11px;color:var(--text2);white-space:pre-wrap;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div><div class="g2"><button class="btn btn-full btn-gold" onclick="cpShare()">Copy</button><button class="btn btn-full" onclick="mkShare()">Refresh</button></div></div><div class="panel"><div class="ptitle">Notes</div><textarea id="gm-notes" style="min-height:80px;" placeholder="Notes..."></textarea></div>
 <div style="margin-top:10px;"><button class="btn btn-full btn-red" onclick="endGame()" style="font-size:14px;padding:12px;">🏁 End Game</button></div></div>
@@ -676,11 +687,40 @@ if(G.cbi<0&&clu().length>0){var _ini=isHB()?G.hbi:G.abi;G.cbi=_ini>=0?_ini:0;}
 chkPitcherRest();// warn about any player who can't pitch today
 renderSC();}
 
+// COMPACT LINE SCORE
+function renderLS(){
+var n=G.ti||6;
+// Calculate hits per team from abs
+var aH=0,hH=0;
+(G.hlu||[]).forEach(function(_,i){hH+=gps(i,'home').h;});
+(G.alu||[]).forEach(function(_,i){aH+=gps(i,'away').h;});
+// Header row
+var h='<table class="ls-tbl"><thead><tr><th></th>';
+for(var i=1;i<=n;i++)h+='<th class="'+(i===G.inn?'ls-cur':'')+'">'+(i===G.inn?'<u>'+i+'</u>':i)+'</th>';
+h+='<th class="ls-r">R</th><th class="ls-h">H</th></tr></thead><tbody>';
+// Away row
+h+='<tr><td>'+esc(G.at.substring(0,10))+'</td>';
+for(var i=1;i<=n;i++){var v=(G.inns.a[i-1]!==undefined&&G.inns.a[i-1]!==null)?G.inns.a[i-1]:null;
+var isCur=i===G.inn;
+h+='<td class="'+(isCur?'ls-cur':'')+'">'+(v!==null?v:'<span style="color:var(--text3)">—</span>')+'</td>';}
+h+='<td class="ls-r">'+G.as+'</td><td class="ls-h">'+aH+'</td></tr>';
+// Home row
+h+='<tr><td>'+esc(G.ht.substring(0,10))+'</td>';
+for(var i=1;i<=n;i++){var v=(G.inns.h[i-1]!==undefined&&G.inns.h[i-1]!==null)?G.inns.h[i-1]:null;
+var isCur=i===G.inn;
+h+='<td class="'+(isCur?'ls-cur':'')+'">'+(v!==null?v:'<span style="color:var(--text3)">—</span>')+'</td>';}
+h+='<td class="ls-r">'+G.hs+'</td><td class="ls-h">'+hH+'</td></tr>';
+h+='</tbody></table>';
+var wrap='<div class="ls-wrap">'+h+'</div>';
+if($('ls-ab-panel'))$('ls-ab-panel').innerHTML=wrap;
+if($('ls-stats-panel'))$('ls-stats-panel').innerHTML=wrap;
+if($('ls-log-panel'))$('ls-log-panel').innerHTML=wrap;}
+
 // SCORECARD
-function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();}
+function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();renderLS();}
 function stab(name,el){['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');document.querySelectorAll('#screen-sc .tab').forEach(t=>t.classList.remove('active'));$('tab-'+name).style.display='block';el.classList.add('active');
 renderSB();// always keep scorebar current
-if(name==='stats')renderStats();if(name==='log')renderLog();if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat')renderSC();}
+if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat')renderSC();}
 
 function renderSB(){$('sb-away').textContent=G.at;$('sb-home').textContent=G.ht;$('sb-away-score').textContent=G.as;$('sb-home-score').textContent=G.hs;$('sb-inn').textContent=ord(G.inn);$('sb-half').textContent=G.half==='top'?'▲ Top':'▼ Bot';for(var b=1;b<=3;b++)$('sbb-'+b).className='sb-base b'+b+(G.bases[b-1]?' on':'');
 var DOT_S='width:7px;height:7px;border-radius:50%;border:1.5px solid ';
