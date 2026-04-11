@@ -264,7 +264,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- LOG -->
 <div id="tab-log" style="display:none;"><div class="panel" id="ls-log-panel" style="padding:8px 10px;"></div><div class="panel" id="log-panel"></div></div>
 <!-- BOX -->
-<div id="tab-box" style="display:none;"><div class="panel"><div class="ptitle">Line score</div><div class="scroll-x"><table class="tbl" id="ls-tbl"></table></div></div><div class="panel"><div class="ptitle">Share</div><div id="share-txt" style="background:var(--bg3);border-radius:var(--rs);padding:9px;font-family:monospace;font-size:11px;color:var(--text2);white-space:pre-wrap;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div><div class="g2"><button class="btn btn-full btn-gold" onclick="cpShare()">Copy</button><button class="btn btn-full" onclick="mkShare()">Refresh</button></div></div><div class="panel"><div class="ptitle">Notes</div><textarea id="gm-notes" style="min-height:80px;" placeholder="Notes..."></textarea></div>
+<div id="tab-box" style="display:none;"><div class="panel"><div class="ptitle">Line score</div><div class="scroll-x"><table class="tbl" id="ls-tbl"></table></div></div><div class="panel" id="game-summary" style="font-size:11px;"></div><div class="panel"><div class="ptitle">Share</div><div id="share-txt" style="background:var(--bg3);border-radius:var(--rs);padding:9px;font-family:monospace;font-size:11px;color:var(--text2);white-space:pre-wrap;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div><div class="g2"><button class="btn btn-full btn-gold" onclick="cpShare()">Copy</button><button class="btn btn-full" onclick="mkShare()">Refresh</button></div></div><div class="panel"><div class="ptitle">Notes</div><textarea id="gm-notes" style="min-height:80px;" placeholder="Notes..."></textarea></div>
 <div style="margin-top:10px;"><button class="btn btn-full btn-red" onclick="endGame()" style="font-size:14px;padding:12px;">🏁 End Game</button></div></div>
 <!-- RULES -->
 <div id="tab-rules" style="display:none;"><div class="panel">
@@ -281,7 +281,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><button class="btn btn-red btn-full" onclick="cm('m-setup');endGame()">🏁 End Game</button></div></div>
 <div class="modal-ov" id="m-play"><div class="modal"><h3 id="mp-t">Log play</h3><div class="mrow"><label>Scorecard notation (4-3, L9, F8)</label><input type="text" id="mp-not"></div><div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
-<div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cm('m-play')">Cancel</button></div></div></div>
+<div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cancelPlay()">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-steal"><div class="modal"><h3>Stolen base</h3><div class="mrow"><label>From</label><select id="st-from"></select></div><div class="mrow"><label>Player</label><select id="st-who"></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmSB()">Log SB</button><button class="btn btn-full" onclick="cm('m-steal')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-pos"><div class="modal"><h3 id="mpos-t">Assign</h3><div id="mpos-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-pos')">Cancel</button></div></div></div>
@@ -688,6 +688,7 @@ chkPitcherRest();// warn about any player who can't pitch today
 renderSC();}
 
 // COMPACT LINE SCORE
+// Line score display
 function renderLS(){
 var n=G.ti||6;
 // Calculate hits per team from abs
@@ -714,13 +715,43 @@ h+='</tbody></table>';
 var wrap='<div class="ls-wrap">'+h+'</div>';
 if($('ls-ab-panel'))$('ls-ab-panel').innerHTML=wrap;
 if($('ls-stats-panel'))$('ls-stats-panel').innerHTML=wrap;
-if($('ls-log-panel'))$('ls-log-panel').innerHTML=wrap;}
+if($('ls-log-panel'))$('ls-log-panel').innerHTML=wrap;
+}
+
+// At-bat detail display (pitches | result | RBI)
+function renderABDetail(){
+  var currInnABs=G.abs.filter(a=>a.inn===G.inn);
+  if(!currInnABs.length){if($('ab-detail'))$('ab-detail').innerHTML='<div class="empty">No at-bats this inning</div>';return;}
+  // Group by half and team
+  var topABs=currInnABs.filter(a=>a.half==='top');
+  var botABs=currInnABs.filter(a=>a.half==='bottom');
+  var html='<div style="font-size:11px;font-family:sans-serif;color:var(--text2);margin:10px 0 6px;">';
+  function renderHalf(abs,label){
+    if(!abs.length)return'';
+    var h='<div style="margin-bottom:10px;"><div style="font-weight:bold;padding:4px 0;border-bottom:1px solid var(--border);">'+label+'</div>';
+    // Sort by index (leadoff 0 = top, so reverse for display)
+    abs.reverse().forEach(function(ab){
+      var pSeq=ab.pitches.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' ');
+      var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
+      h+='<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);align-items:baseline;">';
+      h+='<span style="min-width:70px;font-size:12px;">'+esc(abBatterDisplay(ab))+'</span>';
+      h+='<span style="flex:1;font-size:10px;color:var(--text3);font-family:monospace;">'+pSeq+'</span>';
+      h+='<span class="badge '+bc+'" style="min-width:50px;text-align:center;">'+esc(abNotation(ab))+'</span>';
+      h+='<span style="min-width:30px;text-align:center;font-weight:bold;color:var(--amber2);">'+ab.rbi+'</span>';
+      h+='</div>';
+    });
+    h+='</div>';
+    return h;
+  }
+  html+=renderHalf(topABs,'▲ '+G.at)+renderHalf(botABs,'▼ '+G.ht)+'</div>';
+  if($('ab-detail'))$('ab-detail').innerHTML=html;
+}
 
 // SCORECARD
 function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();renderLS();}
 function stab(name,el){['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');document.querySelectorAll('#screen-sc .tab').forEach(t=>t.classList.remove('active'));$('tab-'+name).style.display='block';el.classList.add('active');
 renderSB();// always keep scorebar current
-if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat')renderSC();}
+if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat'){renderSC();renderABDetail();renderSummary();}}
 
 function renderSB(){$('sb-away').textContent=G.at;$('sb-home').textContent=G.ht;$('sb-away-score').textContent=G.as;$('sb-home-score').textContent=G.hs;$('sb-inn').textContent=ord(G.inn);$('sb-half').textContent=G.half==='top'?'▲ Top':'▼ Bot';for(var b=1;b<=3;b++)$('sbb-'+b).className='sb-base b'+b+(G.bases[b-1]?' on':'');
 var DOT_S='width:7px;height:7px;border-radius:50%;border:1.5px solid ';
@@ -1024,10 +1055,25 @@ if($('gidp-chk'))$('gidp-chk').checked=false;
 if(dp){var db='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';db+='<button class="btn btn-sm" style="margin:3px;" onclick="G.dpout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('dp-btns').innerHTML=db||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
 om('m-play');}
 function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePOS().map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
+function cancelPlay(){
+  // Remove the auto-added pitch if it's an X
+  if(G.cpitch.length>0&&G.cpitch[G.cpitch.length-1]==='X'){
+    G.cpitch.pop();
+  }
+  G.pres=null;G.prbi=0;G.dpout=null;
+  cm('m-play');sv();renderSC();
+}
 function submitPlay(){var not=$('mp-not').value.trim(),et=$('err-t').value,ep=$('err-p').value;
+var res=G.pres;var hasRunners=G.bases.some(b=>b!==null);
+// Validation: DP/GIDP requires runners on base
+if((res==='DP'||res==='GIDP'||($('gidp-chk')&&$('gidp-chk').checked))&&!hasRunners){toast('Double play requires runner(s) on base');return;}
+// Validation: SAC requires runners on base
+if(res==='SAC'&&!hasRunners){toast('Sacrifice requires runner(s) on base');return;}
+// Validation: RBI on lineout (LO) requires runners on base
+if(res==='LO'&&G.prbi>0&&!hasRunners){toast('RBI requires runner(s) on base');return;}
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,type:et,play:not||G.pres});}
-var res=G.pres;if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
+if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
 cm('m-play');finAB(res,not,G.prbi);}
 
 function finAB(r,not,rbi){
@@ -1181,7 +1227,23 @@ var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','
 var batter=lu[ni];var bName=batter?(theyBat()?oppDisplay(batter):sn(batter.name||'#'+batter.jersey)):'?';
 toast((rm[r]||r)+' — Now: '+bName,2500);}
 
-function showIE(){var d='';if(G.half==='top')d='Switch to '+G.ht+' batting';else d='Inning '+(G.inn+1)+' — '+G.at+' batting';$('ie-detail').textContent=d;om('m-innend');renderSC();}
+function showIE(){
+  var d='';
+  if(G.half==='top'){
+    d='Switch to '+G.ht+' batting';
+  }else{
+    // Bottom of inning — check if game should end
+    var minInn=5; // Minimum innings for valid game
+    var oneAhead=(G.hs>G.as)||(G.as>G.hs); // One team winning
+    if(G.inn>=minInn&&oneAhead){
+      // Game is over — show final summary
+      endGame();
+      return;
+    }
+    d='Inning '+(G.inn+1)+' — '+G.at+' batting';
+  }
+  $('ie-detail').textContent=d;om('m-innend');renderSC();
+}
 function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];G.lastABPitches=[];G.isu=false;G.plb=false;
 // CS batter carry-over: the batter who was interrupted by CS leads off
 var _savedCsIdx=G._csBatterIdx;var _savedCsTeam=G._csTeam;
@@ -1266,9 +1328,15 @@ return '<div class="pos-row" onclick="asgPos(\''+pos+'\',\''+esc(k).replace(/'/g
 om('m-pos');}
 function addTaxi(pos){var n=prompt('Name:');if(!n)return;cm('m-pos');olu().push({name:n,jersey:'',rid:null});asgPos(pos,n);}
 function asgPos(pos,k){
+// Check for position conflicts
+if(!G.fa[G.inn])G.fa[G.inn]={};
+var fa=G.fa[G.inn];
+var currentPos=null;
+for(var p in fa){if(fa[p]===k&&p!==pos){currentPos=p;break;}}
+if(currentPos){toast('⚠️ '+sn(k)+' already assigned to '+currentPos+'. Remove that first.');return;}
 if(pos==='P'){var _ic=getInningsCaught(k);if(_ic>=4&&!confirm(sn(k)+' has caught '+_ic+' innings this game.\n\nLL Rule: 4+ innings catching = cannot pitch.\n\nAssign as pitcher anyway?'))return;}
 if(pos==='C'){var _cp=ourP().find(function(p){return p.name===k;});if(_cp&&(_cp.total||0)>=41&&!confirm(sn(k)+' has thrown '+_cp.total+' pitches this game.\n\nLL Rule: 41+ pitches = cannot catch.\n\nAssign as catcher anyway?'))return;}
-if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn][pos]=k;
+G.fa[G.inn][pos]=k;
 // If assigning pitcher position, sync active pitcher
 if(pos==='P'){var pl=ourP(),idx=pl.findIndex(p=>p.name===k);
 if(idx>=0){setOurPI(idx);}else{ourP().push({name:k,rn:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});setOurPI(ourP().length-1);}}
@@ -1358,7 +1426,7 @@ function addOppInGame(){tlu().push({name:'',jersey:''});sv();renderLT();}
 
 // STATS
 function gps(i,t){var s={ab:0,h:0,r:0,xbh:0,hr:0,rbi:0,bb:0,k:0,hbp:0,sf:0,tb:0,sb:0,cs:0};
-G.abs.forEach(function(ab){if(ab.bi!==i||ab.team!==t)return;var r=ab.result;if(!['BB','HBP','SAC'].includes(r))s.ab++;if(['1B','2B','3B','HR'].includes(r))s.h++;if(['2B','3B','HR'].includes(r))s.xbh++;if(r==='HR')s.hr++;if(r==='BB')s.bb++;if(r==='K'||r==='KL')s.k++;if(r==='HBP')s.hbp++;if(r==='SAC')s.sf++;s.rbi+=(ab.rbi||0);if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR')s.tb+=4;});
+G.abs.forEach(function(ab){if(ab.bi!==i||ab.team!==t)return;var r=ab.result;if(!['BB','HBP','SAC'].includes(r))s.ab++;if(['1B','2B','3B','HR','LLHR'].includes(r))s.h++;if(['2B','3B','HR','LLHR'].includes(r))s.xbh++;if(r==='HR'||r==='LLHR')s.hr++;if(r==='BB')s.bb++;if(r==='K'||r==='KL')s.k++;if(r==='HBP')s.hbp++;if(r==='SAC')s.sf++;s.rbi+=(ab.rbi||0);if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;});
 G.steals.forEach(e=>{if(e.bi==i)s.sb++;});G.css.forEach(e=>{if(e.bi==i)s.cs++;});
 if(G.runs)G.runs.forEach(function(r){if(r.bi===i&&r.team===t)s.r++;});
 s.obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;s.slg=s.ab>0?s.tb/s.ab:0;return s;}
@@ -1428,10 +1496,38 @@ for(var inn=maxInn;inn>=1;inn--){
 }
 p.innerHTML=html||'<div class="empty">No at-bats</div>';}
 
+// SUMMARY STATS (without pitcher attribution)
+function renderSummary(){
+  var h='<h4 style="font-size:12px;color:var(--gold);font-family:sans-serif;margin:10px 0 6px;font-weight:bold;">BATTING</h4>';
+  var dbs=[],rbis=[],shs=[];
+  G.abs.forEach(ab=>{
+    if(ab.result==='2B')dbs.push(abBatterDisplay(ab));
+    if(ab.rbi>0)rbis.push(abBatterDisplay(ab)+' '+ab.rbi);
+    if(ab.result==='SAC'||ab.result==='SF')shs.push(abBatterDisplay(ab));
+  });
+  if(dbs.length)h+='<div style="font-size:11px;margin:4px 0;"><strong>2B:</strong> '+dbs.join(', ')+'</div>';
+  if(rbis.length)h+='<div style="font-size:11px;margin:4px 0;"><strong>RBI:</strong> '+rbis.join(', ')+'</div>';
+  if(shs.length)h+='<div style="font-size:11px;margin:4px 0;"><strong>SAC:</strong> '+shs.join(', ')+'</div>';
+
+  var lob=0;
+  G.abs.forEach(ab=>{if(['K','KL','FO','GO','LO','DP','GIDP'].includes(ab.result)){
+    if(ab.half===G.half){var r=G.bases.filter(b=>b).length;lob+=r;}}});
+  h+='<div style="font-size:11px;margin:4px 0;color:var(--text3);">Team LOB: '+lob+'</div>';
+
+  h+='<h4 style="font-size:12px;color:var(--gold);font-family:sans-serif;margin:10px 0 6px;font-weight:bold;">PITCHING</h4>';
+  var cp=curPitcher();
+  if(cp){
+    var ip=Math.floor((cp.ip_outs||0)/3)+'.'+(( cp.ip_outs||0)%3);
+    h+='<div style="font-size:11px;"><strong>'+esc(sn(cp.name))+'</strong><br/>IP:'+ip+' PC:'+(cp.total||0)+' H:'+(cp.hits||0)+' R:'+(cp.runs_allowed||0)+' BB:'+(cp.bb_allowed||0)+' K:'+(cp.k_pitched||0)+'</div>';
+  }
+  if($('game-summary'))$('game-summary').innerHTML=h;
+}
+
 // BOX
 function renderBox(){var n=G.ti;var hd='<tr><th></th>'+Array.from({length:n},(_,i)=>'<th'+(i+1===G.inn?' style="color:var(--gold);"':'')+'>'+( i+1)+'</th>').join('')+'<th style="color:var(--gold);">R</th><th>H</th></tr>';
 function tr(t,l){var sc=t==='home'?G.hs:G.as,lu=t==='home'?G.hlu:G.alu,h=0;lu.forEach((_,i)=>{h+=gps(i,t).h;});var c='<td style="font-weight:bold;">'+esc(l)+'</td>';for(var i=0;i<n;i++){var v=(t==='home'?G.inns.h:G.inns.a)[i]||0;c+='<td>'+(v||'—')+'</td>';}c+='<td style="color:var(--gold);font-weight:bold;">'+sc+'</td><td>'+h+'</td>';return '<tr>'+c+'</tr>';}
 $('ls-tbl').innerHTML='<thead>'+hd+'</thead><tbody>'+tr('away',G.at)+tr('home',G.ht)+'</tbody>';
+renderSummary();
 var nt=$('gm-notes');if(!nt._b){nt.value=G.notes||'';nt.addEventListener('input',function(){G.notes=this.value;sv();});nt._b=true;}}
 function mkShare(){var n=G.ti,ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;var ls=[G.at+' @ '+G.ht];if(ev)ls.push(ev.date+(ev.loc?' · '+ev.loc:''));ls.push('');
 var hd='          |'+Array.from({length:n},(_,i)=>' '+(i+1)+' ').join('')+'|  R  H';ls.push(hd);ls.push('-'.repeat(hd.length));
@@ -1485,6 +1581,70 @@ function saveSetup(){G.ht=$('s-h').value||'Home';G.at=$('s-a').value||'Visitors'
 // BOOT
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
+</script>
+<!-- Firebase SDK - must load before app -->
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"></script>
+<script>
+// FIREBASE INIT
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+var db=null,fbReady=false,saOrig=sa,sgOrig=sg;
+firebase.initializeApp(firebaseConfig);
+db=firebase.firestore();
+db.enablePersistence().catch(err=>{if(err.code!=='failed-precondition'&&err.code!=='unimplemented')console.log('Persistence init:',err)});
+fbReady=true;
+
+async function fbSaveGame(){
+  if(!fbReady||!G.eid)return;
+  try{
+    await db.collection('games').doc(G.eid).set({gdata:G,updated:new Date()},{merge:true});
+  }catch(e){console.log('fbSaveGame error:',e);}
+}
+async function fbSaveRoster(){
+  if(!fbReady)return;
+  try{
+    await db.collection('appdata').doc('roster').set({adata:A,updated:new Date()},{merge:true});
+  }catch(e){console.log('fbSaveRoster error:',e);}
+}
+
+var unsubGame=null,unsubRoster=null;
+function setupSyncListeners(){
+  if(!fbReady)return;
+  if(G.eid){
+    if(unsubGame)unsubGame();
+    unsubGame=db.collection('games').doc(G.eid).onSnapshot(snap=>{
+      if(!snap.exists||!snap.data()||!snap.data().gdata)return;
+      var remoteG=snap.data().gdata;
+      if(JSON.stringify(remoteG)!==JSON.stringify(G)){
+        Object.assign(G,remoteG);
+        renderSC();
+        toast('Game synced',1000);
+      }
+    },err=>console.log('Game listener error:',err));
+  }
+  if(unsubRoster)unsubRoster();
+  unsubRoster=db.collection('appdata').doc('roster').onSnapshot(snap=>{
+    if(!snap.exists||!snap.data()||!snap.data().adata)return;
+    var remoteA=snap.data().adata;
+    if(JSON.stringify(remoteA)!==JSON.stringify(A)){
+      Object.assign(A,remoteA);
+      renderHome();
+    }
+  },err=>console.log('Roster listener error:',err));
+}
+
+function sa(){saOrig();fbSaveRoster();}
+function sg(){sgOrig();fbSaveGame();}
+
+setupSyncListeners();
+console.log('Firebase initialized');
 </script>
 </body>
 </html>
