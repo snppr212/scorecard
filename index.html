@@ -1674,7 +1674,10 @@ const firebaseConfig = {
   messagingSenderId: "1012444904664",
   appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
 };
-var db=null,fbReady=false,saOrig=sa,sgOrig=sg;
+var db=null,fbReady=false;
+// Capture originals BEFORE wrapping. Must use assignments (not function decls)
+// for the wrappers below, otherwise hoisting captures the wrapper and recurses.
+var saOrig=sa,sgOrig=sg;
 firebase.initializeApp(firebaseConfig);
 db=firebase.firestore();
 db.enablePersistence().catch(err=>{if(err.code!=='failed-precondition'&&err.code!=='unimplemented')console.log('Persistence init:',err)});
@@ -1726,8 +1729,9 @@ function setupSyncListeners(){
   },err=>console.log('Roster listener error:',err));
 }
 
-function sa(){saOrig();fbSaveRoster();}
-function sg(){sgOrig();fbSaveGame();}
+// Assignment (not declaration) — avoids hoisting so saOrig/sgOrig capture originals
+sa=function(){saOrig();fbSaveRoster();};
+sg=function(){sgOrig();fbSaveGame();};
 
 setupSyncListeners();
 // If cleanup v21 just ran this boot, push cleaned state up so other devices clear too
