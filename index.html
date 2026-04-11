@@ -182,6 +182,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026</div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
 <div class="scroll pad">
 <div class="season-banner"><div class="banner-team">Mighty Mussels</div><div class="banner-sub" id="home-record">LMLL · Spring 2026</div></div>
+<div class="row" style="gap:5px;margin-bottom:8px;"><button class="btn btn-xs btn-gold" onclick="startTestGame()" style="flex:1;">🧪 Test Sandbox</button><button class="btn btn-xs btn-red" id="btn-wipe-test" onclick="clearTestData()" style="flex:1;display:none;">Wipe test data</button></div>
 <div class="row-b" style="margin-bottom:8px;"><div style="font-size:10px;color:var(--text2);font-family:sans-serif;text-transform:uppercase;letter-spacing:.07em;">Schedule</div><div class="row" style="gap:5px;"><button class="btn btn-xs" id="f-all" onclick="setFilter('all',this)" style="border-color:var(--gold);color:var(--gold);">All</button><button class="btn btn-xs" id="f-game" onclick="setFilter('game',this)">Games</button><button class="btn btn-xs" id="f-up" onclick="setFilter('upcoming',this)">Upcoming</button></div></div>
 <div id="schedule-list"></div>
 </div></div>
@@ -480,7 +481,7 @@ function goHome(){syncP();if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};sa();s
 function renderHome(){renderSched();renderRec();}
 function setFilter(f,el){A.filter=f;document.querySelectorAll('#screen-home .btn-xs').forEach(b=>{b.style.borderColor='';b.style.color='';});el.style.borderColor='var(--gold)';el.style.color='var(--gold)';renderSched();}
 function renderSched(){
-var list=A.schedule.slice(),f=A.filter;if(f==='game')list=list.filter(e=>e.type==='game');if(f==='upcoming')list=list.filter(e=>!isPast(e));
+var list=A.schedule.slice().filter(e=>e.id!=='test-sandbox'),f=A.filter;if(f==='game')list=list.filter(e=>e.type==='game');if(f==='upcoming')list=list.filter(e=>!isPast(e));
 $('schedule-list').innerHTML=list.map(function(ev){var d=new Date(ev.date);var mo=isNaN(d)?'':d.toLocaleString('default',{month:'short'}),dy=isNaN(d)?'?':d.getDate(),dow=isNaN(d)?'':['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
 var past=isPast(ev);var res=ev.type==='game'?A.gameResults[ev.id]:null;var rh='';
 if(res&&res.final){var m=ev.ha==='home'?res.hs:res.as,o=ev.ha==='home'?res.as:res.hs;rh='<div style="font-size:12px;font-weight:bold;color:'+(m>o?'var(--green2)':(m<o?'var(--red2)':'var(--text2)'))+';">'+(m>o?'W':(m<o?'L':'T'))+' '+m+'-'+o+'</div>';}
@@ -488,7 +489,30 @@ return '<div class="sched-item'+(past?' past':'')+'" onclick="'+(ev.type==='game
 +'<div class="sdate"><div class="sdate-mo">'+mo+'</div><div class="sdate-d">'+dy+'</div><div class="sdate-dow">'+dow+'</div></div>'
 +'<div class="sinfo"><span class="stype '+ev.type+'">'+ev.type+'</span><div class="smatch">Mussels '+esc(ev.title)+'</div><div class="sloc">'+esc(ev.loc||'')+'</div></div>'
 +'<div style="text-align:right;flex-shrink:0;"><div class="stime">'+esc(ev.time||'')+'</div>'+rh+'<button class="btn btn-xs" style="margin-top:4px;" onclick="event.stopPropagation();editEv(\''+ev.id+'\')">Edit</button></div></div>';}).join('')||'<div class="empty">No events</div>';}
-function renderRec(){var w=0,l=0,t=0,g=A.schedule.filter(e=>e.type==='game').length;A.schedule.filter(e=>e.type==='game').forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';}
+function renderRec(){var games=A.schedule.filter(e=>e.type==='game'&&e.id!=='test-sandbox');var w=0,l=0,t=0,g=games.length;games.forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';var hasTest=!!A.gameResults['test-sandbox']||A.schedule.some(e=>e.id==='test-sandbox')||G.eid==='test-sandbox';var btn=$('btn-wipe-test');if(btn)btn.style.display=hasTest?'':'none';}
+function startTestGame(){
+  var existing=A.schedule.find(e=>e.id==='test-sandbox');
+  var today=new Date();var dstr=today.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  if(!existing){
+    A.schedule.push({id:'test-sandbox',type:'game',ha:'home',opponent:'TEST OPPONENT',title:'vs TEST OPPONENT',date:dstr,time:'12:00 pm',loc:'Sandbox'});
+    sa();
+  }
+  startG('test-sandbox');
+}
+function clearTestData(){
+  if(!confirm('Wipe all test sandbox data? (roster, schedule, and real game data are untouched)'))return;
+  if(G.eid==='test-sandbox'){
+    G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
+       inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
+       cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
+       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false};
+  }
+  if(A.gameResults)delete A.gameResults['test-sandbox'];
+  if(A.pitchLog){Object.keys(A.pitchLog).forEach(function(n){A.pitchLog[n]=(A.pitchLog[n]||[]).filter(e=>e.eventId!=='test-sandbox');if(!A.pitchLog[n].length)delete A.pitchLog[n];});}
+  A.schedule=A.schedule.filter(e=>e.id!=='test-sandbox');
+  sv();renderHome();toast('Test data wiped');
+  if(typeof ss==='function')ss('screen-home');
+}
 
 // ROSTER
 function openRosterModal(){$('ros-list').innerHTML=A.roster.map(p=>'<div class="player-row"><div class="pjrsy">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;">'+(p.name||'(none)')+'</span><button class="btn btn-xs" onclick="editPl(\''+p.id+'\')">Edit</button></div>').join('');om('m-roster');}
