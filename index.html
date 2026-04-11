@@ -292,6 +292,9 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-resume"><div class="modal" style="text-align:center;"><h3>Game in progress</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="rs-detail">You already have data saved for this game.</div><div class="mact"><button class="btn btn-gold btn-full" onclick="resumeConfirm(true)">Resume saved game</button><button class="btn btn-red btn-full" onclick="resumeConfirm(false)">Start fresh (erase data)</button><button class="btn btn-full" onclick="cm('m-resume')">Cancel</button></div></div></div>
 
+<!-- OPPONENT BATTER PICKER (on-the-fly lineup entry) -->
+<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
+
 <!-- PITCHER SWITCH MODAL (3.2 + 3.1) -->
 <div class="modal-ov" id="m-pswitch"><div class="modal"><h3 id="psw-title">Change Pitcher</h3>
 <div id="psw-list" style="margin-bottom:10px;"></div>
@@ -398,7 +401,7 @@ var A={roster:[],schedule:[],gameResults:{},pitchLog:{},filter:'all',epId:null,e
 var G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
 inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
 cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
-fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false};
+fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
 
 function $(id){return document.getElementById(id);}
 function sa(){try{localStorage.setItem('mm_a',JSON.stringify(A));}catch(e){}}
@@ -417,7 +420,7 @@ try{
     G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
        inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
        cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
-       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false};
+       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
     if(A.gameResults){
       Object.keys(A.gameResults).forEach(function(k){
         var r=A.gameResults[k];
@@ -437,6 +440,7 @@ if(!G.bases)G.bases=[null,null,null];
 if(!G.fa)G.fa={};
 if(G.hbi===undefined)G.hbi=-1;if(G.abi===undefined)G.abi=-1;
 if(G.pscored===undefined)G.pscored=[];
+if(G.oppLuDone===undefined)G.oppLuDone=false;
 if(G.plb===undefined)G.plb=false;
 }
 function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
@@ -505,7 +509,7 @@ function clearTestData(){
     G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
        inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
        cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
-       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false};
+       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
   }
   if(A.gameResults)delete A.gameResults['test-sandbox'];
   if(A.pitchLog){Object.keys(A.pitchLog).forEach(function(n){A.pitchLog[n]=(A.pitchLog[n]||[]).filter(e=>e.eventId!=='test-sandbox');if(!A.pitchLog[n].length)delete A.pitchLog[n];});}
@@ -557,7 +561,7 @@ function enterLineupFlow(ev){
   goToLineupBuild();ss('screen-avail');
 }
 function resetG(ev){var ih=ev.ha==='home',op=ev.opponent||'Visitors';
-G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false};APOS=POS.slice();sg();}
+G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false};APOS=POS.slice();sg();}
 function r2lu(){return A.roster.map(p=>({name:p.name||'',jersey:p.jersey||'',rid:p.id}));}
 
 // AVAILABILITY — Step 1: mark present/absent
@@ -730,7 +734,13 @@ function pickOppPlayer(pi){_oppOrder[_oppPicking]=pi;cm('m-opppick');renderOppSp
 function removeOppSpot(i){_oppOrder[i]=null;renderOppSpots();}
 function addOppSpot(){_oppOrder.push(null);renderOppSpots();}
 function autoFillOppPool(pi){var idx=_oppOrder.indexOf(null);if(idx>=0)_oppOrder[idx]=pi;else _oppOrder.push(pi);renderOppSpots();}
-function skipOpp(){enterSC();}
+function skipOpp(){
+  // Drop any empty placeholder rows that were added by renderOppLU's padding.
+  // If the user skipped without entering anyone, alu/hlu ends up empty so the
+  // on-the-fly picker can build the lineup slot-by-slot during the game.
+  var lu=getOppLU().filter(function(p){return p&&(p.name||p.jersey);});
+  setOppLU(lu);sv();enterSC();
+}
 function confirmOpp(){
   var lu=getOppLU();
   // reorder by _oppOrder if it's been set, otherwise use as-is
@@ -1004,14 +1014,80 @@ if(G.cpitch.length){
   $('cur-seq').innerHTML='<span style="color:var(--text3);font-family:sans-serif;font-size:11px;">No pitches yet</span>';
 }}
 
-function renderBL(){var lu=clu(),el=$('bat-list');if(!lu||!lu.length){el.innerHTML='<div class="empty">Add in Lineup tab</div>';return;}
-var _tni=isHB()?G.hbi:G.abi;var ni=_tni>=0?_tni:0;
+function renderBL(){var lu=clu(),el=$('bat-list');
 var _opp=theyBat();
-el.innerHTML=lu.map(function(p,i){var act=G.cbi===i,nx=!act&&i===ni&&G.cbi<0;var t=isHB()?'home':'away',st=gps(i,t);var m=st.ab>0?st.h+'/'+st.ab:'';
+var _oppOpen=_opp&&!G.oppLuDone;// opponent lineup still being built — allow on-the-fly entry
+// Banner: pitches logged with no batter yet (opp on-the-fly)
+var banner='';
+if(G.cbi<0&&G.cpitch.length>0&&_opp){
+  banner='<div style="background:var(--bg3);border:1px solid var(--amber2);border-radius:var(--rs);padding:7px 9px;margin-bottom:8px;font-size:11px;color:var(--amber2);font-family:sans-serif;">⚾ '+G.cpitch.length+' pitch'+(G.cpitch.length===1?'':'es')+' logged without a batter — tap a slot or <b>+ Add next batter</b> to attribute them.</div>';
+}
+var addTile=_oppOpen?'<div class="bat-item" onclick="openOppBatterPicker()" style="cursor:pointer;background:var(--bg3);border:1px dashed var(--gold);"><span class="bat-num" style="color:var(--gold);">+</span><span class="bat-name" style="color:var(--gold);">Add next batter</span></div>':'';
+if(!lu||!lu.length){
+  el.innerHTML=banner+(addTile||'<div class="empty">Add in Lineup tab</div>');
+  return;
+}
+var _tni=isHB()?G.hbi:G.abi;var ni=_tni>=0?_tni:0;
+var rows=lu.map(function(p,i){var act=G.cbi===i,nx=!act&&i===ni&&G.cbi<0&&!_oppOpen;var t=isHB()?'home':'away',st=gps(i,t);var m=st.ab>0?st.h+'/'+st.ab:'';
 var dispName=_opp?oppDisplay(p):(p.name||p.jersey?esc(p.name||'#'+p.jersey):'?');
-return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+'</div>';}).join('');}
+return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+'</div>';}).join('');
+el.innerHTML=banner+rows+addTile;}
 
-function selBat(i){if(G.cbi===i)return;if(G.cbi>=0&&G.cpitch.length>0){if(!confirm('Switch? Pitches lost.'))return;}G.cbi=i;G.cpitch=[];G.balls=0;G.strikes=0;sv();renderSC();}
+function selBat(i){if(G.cbi===i)return;
+// cbi<0: preserve any pitches accumulated while waiting to assign a batter (opp on-the-fly)
+var preservePitches=G.cbi<0&&G.cpitch.length>0;
+if(G.cbi>=0&&G.cpitch.length>0){if(!confirm('Switch? Pitches lost.'))return;}
+G.cbi=i;
+if(!preservePitches){G.cpitch=[];G.balls=0;G.strikes=0;}
+sv();renderSC();}
+
+// OPPONENT ON-THE-FLY BATTER PICKER
+// Used when the other team doesn't give a lineup card: tap to add each batter as they come up.
+var _pendOppR=null;// pending AB result when picker was triggered by endAB()
+function openOppBatterPicker(r){
+  _pendOppR=(typeof r==='string')?r:null;
+  $('m-oppbat-pending').textContent=_pendOppR?('AB pending: '+_pendOppR+' — pick who batted'):(G.cpitch.length>0?(G.cpitch.length+' pitches queued — pick who batted'):'');
+  var lu=tlu();// opponent lineup
+  var listHtml=lu.map(function(p,i){
+    var nm=p.name||('#'+(p.jersey||'?'));
+    var jersey=p.jersey?'#'+p.jersey+' ':'';
+    return '<div class="lu-row" onclick="oppbatPick('+i+')" style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="color:var(--gold);font-family:sans-serif;font-size:12px;min-width:22px;">'+(i+1)+'</span><span style="flex:1;font-size:13px;">'+esc(jersey+nm)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap →</span></div>';
+  }).join('');
+  $('m-oppbat-list').innerHTML=listHtml||'<div class="empty" style="padding:10px;font-size:11px;">No batters yet — add one below.</div>';
+  $('m-oppbat-end').style.display=(lu.length>0&&!G.oppLuDone)?'':'none';
+  $('m-oppbat-jn').value='';$('m-oppbat-nm').value='';
+  om('m-oppbat');
+  setTimeout(function(){var j=$('m-oppbat-jn');if(j)j.focus();},100);
+}
+function _oppbatResume(){
+  // After a batter is selected in the picker, resume endAB if there was a pending result
+  var r=_pendOppR;_pendOppR=null;
+  sv();renderSC();
+  if(r)endAB(r);
+}
+function oppbatPick(i){
+  var lu=tlu();if(!lu[i])return;
+  G.cbi=i;cm('m-oppbat');_oppbatResume();
+}
+function oppbatAdd(){
+  var jn=($('m-oppbat-jn').value||'').trim();
+  var nm=($('m-oppbat-nm').value||'').trim();
+  if(!jn&&!nm){toast('Enter jersey # or name');return;}
+  var lu=tlu();
+  lu.push({jersey:jn,name:nm});
+  G.cbi=lu.length-1;
+  cm('m-oppbat');_oppbatResume();
+}
+function oppbatEndOrder(){
+  var lu=tlu();
+  if(!lu.length){toast('Add at least one batter first');return;}
+  if(!confirm('End of order — from now on, cycle back through the '+lu.length+' batters you\u2019ve already added?'))return;
+  G.oppLuDone=true;
+  // This batter is the first slot (wrapped back to #1)
+  G.cbi=0;
+  cm('m-oppbat');_oppbatResume();
+}
+function oppbatClose(){_pendOppR=null;cm('m-oppbat');}
 
 // PITCH
 function curPitcher(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;return(i>=0&&l[i])?l[i]:null;}
@@ -1021,7 +1097,9 @@ var _pl=_ours?ourP():theirP();var _nm=_ours?(A.roster[0]?sn(A.roster[0].name):'O
 _pl.push({name:_nm,rn:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});
 if(_ours)setOurPI(_pl.length-1);else setTheirPI(_pl.length-1);
 toast('Pitcher auto-set. Tap name above to change.',2500);renderMU();}
-function lp(c){if(G.cbi<0){toast('Select batter');return;}
+function lp(c){
+// Opponent side: allow pitches to accumulate with no batter yet (picker opens on endAB)
+if(G.cbi<0&&!theyBat()){toast('Select batter');return;}
 var _weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(_weField&&!(G.fa[G.inn]&&G.fa[G.inn]['P'])){toast('Assign your pitcher in the Field tab first');return;}
 ensurePitcher();
@@ -1092,7 +1170,9 @@ else if(c==='H')p.hbp=Math.max(0,(p.hbp||1)-1);}
 G.balls=0;G.strikes=0;G.cpitch.forEach(function(c){if(c==='S'||c==='L')G.strikes=Math.min(2,G.strikes+1);else if(c==='F'||c==='FT'){if(G.strikes<2)G.strikes++;}else if(c==='B')G.balls=Math.min(3,G.balls+1);});sv();renderSC();toast('Undid: '+c);}
 
 // END AB
-function endAB(r){if(G.cbi<0){toast('Select batter');return;}
+function endAB(r){if(G.cbi<0){
+if(theyBat()){openOppBatterPicker(r);return;}
+toast('Select batter');return;}
 ensurePitcher();
 if(G.plb){om('m-plimit');return;}
 // Auto-add a pitch if none logged and it's a ball-in-play result
@@ -1197,7 +1277,13 @@ else{if(rbi>0)addR(rbi);}
 if(G.outs>=3)G.outs=3;
 // update per-team batter index, skipping DNP players
 (function(){
-  var lup=isHB()?G.hlu:G.alu,n=Math.max(1,lup.length),start=(G.cbi+1)%n;
+  var lup=isHB()?G.hlu:G.alu;
+  // Opponent open lineup: advance past the end so next AB triggers the picker
+  if(theyBat()&&!G.oppLuDone){
+    if(isHB())G.hbi=G.cbi+1;else G.abi=G.cbi+1;
+    return;
+  }
+  var n=Math.max(1,lup.length),start=(G.cbi+1)%n;
   for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(!lup[ni]||!lup[ni].dnp){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
 })();
 G.lastABPitches=G.cpitch.slice();G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
@@ -1293,10 +1379,17 @@ function chkPitcherRest(){
 function showNB(r){
 // auto-advance — no modal, just set batter and render
 var lu=clu();
-var ni=isHB()?G.hbi:G.abi;if(ni<0||ni>=lu.length)ni=0;
+var ni=isHB()?G.hbi:G.abi;
+var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','HR':'HR','LLHR':'LLHR','FO':'F out','GO':'Grd out','LO':'L out','SAC':'SAC','FC':'FC','DP':'DP','GIDP':'GIDP','TP':'TP'};
+// Opponent open lineup: if advancing past the end, leave cbi=-1 so the picker triggers next AB
+if(theyBat()&&!G.oppLuDone&&ni>=lu.length){
+  sv();renderSC();
+  toast((rm[r]||r)+' — tap "+ Add next batter"',2500);
+  return;
+}
+if(ni<0||ni>=lu.length)ni=0;
 G.cbi=ni;sv();renderSC();
 // brief toast showing result + who's up
-var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','HR':'HR','LLHR':'LLHR','FO':'F out','GO':'Grd out','LO':'L out','SAC':'SAC','FC':'FC','DP':'DP','GIDP':'GIDP','TP':'TP'};
 var batter=lu[ni];var bName=batter?(theyBat()?oppDisplay(batter):sn(batter.name||'#'+batter.jersey)):'?';
 toast((rm[r]||r)+' — Now: '+bName,2500);}
 
