@@ -464,12 +464,12 @@ function renderSched(){
 var list=A.schedule.slice(),f=A.filter;if(f==='game')list=list.filter(e=>e.type==='game');if(f==='upcoming')list=list.filter(e=>!isPast(e));
 $('schedule-list').innerHTML=list.map(function(ev){var d=new Date(ev.date);var mo=isNaN(d)?'':d.toLocaleString('default',{month:'short'}),dy=isNaN(d)?'?':d.getDate(),dow=isNaN(d)?'':['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
 var past=isPast(ev);var res=ev.type==='game'?A.gameResults[ev.id]:null;var rh='';
-if(res){var m=ev.ha==='home'?res.hs:res.as,o=ev.ha==='home'?res.as:res.hs;rh='<div style="font-size:12px;font-weight:bold;color:'+(m>o?'var(--green2)':'var(--red2)')+';">'+(m>o?'W':'L')+' '+m+'-'+o+'</div>';}
+if(res&&res.final){var m=ev.ha==='home'?res.hs:res.as,o=ev.ha==='home'?res.as:res.hs;rh='<div style="font-size:12px;font-weight:bold;color:'+(m>o?'var(--green2)':(m<o?'var(--red2)':'var(--text2)'))+';">'+(m>o?'W':(m<o?'L':'T'))+' '+m+'-'+o+'</div>';}
 return '<div class="sched-item'+(past?' past':'')+'" onclick="'+(ev.type==='game'?"startG('"+ev.id+"')":"toast('Practice')")+'">'
 +'<div class="sdate"><div class="sdate-mo">'+mo+'</div><div class="sdate-d">'+dy+'</div><div class="sdate-dow">'+dow+'</div></div>'
 +'<div class="sinfo"><span class="stype '+ev.type+'">'+ev.type+'</span><div class="smatch">Mussels '+esc(ev.title)+'</div><div class="sloc">'+esc(ev.loc||'')+'</div></div>'
 +'<div style="text-align:right;flex-shrink:0;"><div class="stime">'+esc(ev.time||'')+'</div>'+rh+'<button class="btn btn-xs" style="margin-top:4px;" onclick="event.stopPropagation();editEv(\''+ev.id+'\')">Edit</button></div></div>';}).join('')||'<div class="empty">No events</div>';}
-function renderRec(){var w=0,l=0,t=0,g=A.schedule.filter(e=>e.type==='game').length;A.schedule.filter(e=>e.type==='game').forEach(function(ev){var r=A.gameResults[ev.id];if(!r)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';}
+function renderRec(){var w=0,l=0,t=0,g=A.schedule.filter(e=>e.type==='game').length;A.schedule.filter(e=>e.type==='game').forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';}
 
 // ROSTER
 function openRosterModal(){$('ros-list').innerHTML=A.roster.map(p=>'<div class="player-row"><div class="pjrsy">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;">'+(p.name||'(none)')+'</span><button class="btn btn-xs" onclick="editPl(\''+p.id+'\')">Edit</button></div>').join('');om('m-roster');}
