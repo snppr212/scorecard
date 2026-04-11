@@ -289,6 +289,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-phist"><div class="modal"><h3>Season Pitching</h3><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Total</th><th>Last</th><th>Rest</th><th>Avail?</th></tr></thead><tbody id="ph-body"></tbody></table></div><div class="mact"><button class="btn btn-full" onclick="cm('m-phist')">Close</button></div></div></div>
 <div class="modal-ov" id="m-next"><div class="modal" style="text-align:center;"><h3 id="nb-res" style="font-size:16px;margin-bottom:14px;"></h3><div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;">Up next: <strong id="nb-1" style="color:var(--gold);">—</strong></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:2px;">On deck: <span id="nb-2">—</span></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">In the hole: <span id="nb-3">—</span></div><button class="btn btn-gold btn-full" onclick="ackNext()">Got it</button></div></div>
 <div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-resume"><div class="modal" style="text-align:center;"><h3>Game in progress</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="rs-detail">You already have data saved for this game.</div><div class="mact"><button class="btn btn-gold btn-full" onclick="resumeConfirm(true)">Resume saved game</button><button class="btn btn-red btn-full" onclick="resumeConfirm(false)">Start fresh (erase data)</button><button class="btn btn-full" onclick="cm('m-resume')">Cancel</button></div></div></div>
 
 <!-- PITCHER SWITCH MODAL (3.2 + 3.1) -->
 <div class="modal-ov" id="m-pswitch"><div class="modal"><h3 id="psw-title">Change Pitcher</h3>
@@ -408,6 +409,24 @@ if(!A.schedule||!A.schedule.length)A.schedule=SCHED.map(e=>Object.assign({},e));
 if(!A.roster||!A.roster.length)A.roster=RNAMES.map((n,i)=>({id:'r'+i,name:n,jersey:''}));
 if(!A.gameResults)A.gameResults={};if(!A.pitchLog)A.pitchLog={};
 try{var g=localStorage.getItem('mm_g');if(g)Object.assign(G,JSON.parse(g));}catch(e){}
+// One-time cleanup of pre-Apr-11 test data (runs once per device)
+try{
+  if(!localStorage.getItem('mm_cleanup_v21')){
+    // wipe any in-progress game state and any non-final test results
+    G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
+       inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
+       cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
+       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false};
+    if(A.gameResults){
+      Object.keys(A.gameResults).forEach(function(k){
+        var r=A.gameResults[k];
+        if(!r||r.final!==true)delete A.gameResults[k];
+      });
+    }
+    localStorage.setItem('mm_cleanup_v21','1');
+    try{localStorage.setItem('mm_g',JSON.stringify(G));localStorage.setItem('mm_a',JSON.stringify(A));}catch(e){}
+  }
+}catch(e){}
 fix();APOS=POS.slice();if(G.ef)APOS.push(G.ef);
 }
 function fix(){
@@ -487,12 +506,32 @@ function saveEv(){var t=$('ev-type').value,d=$('ev-date').value.trim(),ti=$('ev-
 function openPitchHistoryModal(){var td=new Date();$('ph-body').innerHTML=A.roster.map(function(p){var log=pSeason(p.name);if(!log.length)return'';var s=pStatus(p.name,td),tot=s.tot,l=log[log.length-1];return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+tot+'</td><td>'+l.pitches+' ('+l.date+')</td><td class="'+(s.rest>0?'warn':'ok')+'">'+s.rest+'</td><td class="'+(s.ok&&!s.over40?'ok':'warn')+'">'+(s.ok&&!s.over40?'Yes':'No')+'</td></tr>';}).filter(Boolean).join('')||'<tr><td colspan="5" class="empty">No data</td></tr>';om('m-phist');}
 
 // GAME START
+var _pendingEv=null;
 function startG(eid){var ev=A.schedule.find(e=>e.id===eid);if(!ev||ev.type==='practice'){toast('Practice');return;}
-var has=G.eid===eid&&G.abs&&G.abs.length>0;if(has){if(!confirm('Resume?'))resetG(ev);}else resetG(ev);
-$('avail-game-label').textContent='Mussels '+ev.title+' · '+ev.date;
-// Skip presence/absence step — go straight to lineup builder with all players in pool
-G.pp=A.roster.map(r=>r.id);// start with everyone present
-goToLineupBuild();ss('screen-avail');}
+var has=G.eid===eid&&G.abs&&G.abs.length>0;
+if(has){
+  _pendingEv=ev;
+  var pitches=G.abs.reduce((n,ab)=>n+(ab.pitches?ab.pitches.length:0),0);
+  $('rs-detail').textContent=G.abs.length+' at-bat'+(G.abs.length===1?'':'s')+' · '+pitches+' pitch'+(pitches===1?'':'es')+' saved · Inn '+G.inn+' '+(G.half==='top'?'▲':'▼')+' · '+G.as+'-'+G.hs;
+  om('m-resume');
+  return;
+}
+resetG(ev);
+enterLineupFlow(ev);
+}
+function resumeConfirm(resume){
+  cm('m-resume');
+  var ev=_pendingEv;_pendingEv=null;
+  if(!ev)return;
+  if(!resume)resetG(ev);
+  enterLineupFlow(ev);
+}
+function enterLineupFlow(ev){
+  $('avail-game-label').textContent='Mussels '+ev.title+' · '+ev.date;
+  // Skip presence/absence step — go straight to lineup builder with all players in pool
+  G.pp=A.roster.map(r=>r.id);// start with everyone present
+  goToLineupBuild();ss('screen-avail');
+}
 function resetG(ev){var ih=ev.ha==='home',op=ev.opponent||'Visitors';
 G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false};APOS=POS.slice();sg();}
 function r2lu(){return A.roster.map(p=>({name:p.name||'',jersey:p.jersey||'',rid:p.id}));}
@@ -1633,6 +1672,13 @@ function setupSyncListeners(){
   unsubRoster=db.collection('appdata').doc('roster').onSnapshot(snap=>{
     if(!snap.exists||!snap.data()||!snap.data().adata)return;
     var remoteA=snap.data().adata;
+    // Strip any non-final gameResults entries (prevents test data from re-hydrating)
+    if(remoteA.gameResults){
+      Object.keys(remoteA.gameResults).forEach(function(k){
+        var r=remoteA.gameResults[k];
+        if(!r||r.final!==true)delete remoteA.gameResults[k];
+      });
+    }
     if(JSON.stringify(remoteA)!==JSON.stringify(A)){
       Object.assign(A,remoteA);
       renderHome();
@@ -1644,6 +1690,16 @@ function sa(){saOrig();fbSaveRoster();}
 function sg(){sgOrig();fbSaveGame();}
 
 setupSyncListeners();
+// If cleanup v21 just ran this boot, push cleaned state up so other devices clear too
+try{
+  if(localStorage.getItem('mm_cleanup_v21')==='1'&&!localStorage.getItem('mm_cleanup_v21_pushed')){
+    setTimeout(function(){
+      fbSaveRoster();
+      if(G.eid)fbSaveGame();
+      localStorage.setItem('mm_cleanup_v21_pushed','1');
+    },1500);
+  }
+}catch(e){}
 console.log('Firebase initialized');
 </script>
 </body>
