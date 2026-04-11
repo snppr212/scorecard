@@ -259,7 +259,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- PITCHERS -->
 <div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div></div></div>
 <!-- LINEUP -->
-<div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div><div id="their-lu-list"></div></div></div>
+<div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><div class="row" style="gap:4px;"><button class="btn btn-xs" id="btn-lu-edit-us" onclick="toggleLuEdit('us')">Edit</button><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><div class="row" style="gap:4px;"><button class="btn btn-xs" id="btn-lu-edit-them" onclick="toggleLuEdit('them')">Edit</button><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div></div><div id="their-lu-list"></div></div></div>
 <!-- STATS / BOX -->
 <div id="tab-stats" style="display:none;"><div class="panel" id="ls-stats-panel" style="padding:8px 10px;"></div><div class="team-toggle"><div class="team-toggle-btn active" id="st-tog-us" onclick="setST('us',this)">Us</div><div class="team-toggle-btn" id="st-tog-them" onclick="setST('them',this)">Them</div></div><div class="panel"><div class="ptitle" id="st-bt">Batting</div><div class="scroll-x"><table class="tbl" id="st-btbl"></table></div></div><div class="panel"><div class="ptitle" id="st-pt">Pitching</div><div class="scroll-x"><table class="tbl" id="st-ptbl"></table></div></div><div class="panel" id="st-err"><div class="ptitle">Fielding errors</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Pos</th><th>Inn</th><th>Type</th><th>Play</th></tr></thead><tbody id="err-body"></tbody></table></div></div></div>
 <!-- LOG -->
@@ -1434,6 +1434,23 @@ function addP(who){if(who==='us'){var v=$('hp-inp').value;if(!v)return;var _ic2=
 function setAP(who,i){if(who==='us'){setOurPI(i);var p=ourP()[i];if(p&&p.name){if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=p.name;}}else setTheirPI(i);sv();renderPT();renderMU();}
 
 // LINEUP TAB — in-game editor
+var _luEdit={us:false,them:false};
+function toggleLuEdit(who){_luEdit[who]=!_luEdit[who];var b=$('btn-lu-edit-'+who);if(b){b.textContent=_luEdit[who]?'Done':'Edit';b.className='btn btn-xs'+(_luEdit[who]?' btn-gold':'');}renderLT();}
+function moveLuUs(realIdx,dir){
+  var lu=olu();var p=lu[realIdx];if(!p||p.dnp)return;
+  // Find next/prev non-DNP slot to swap with
+  var target=realIdx+dir;
+  while(target>=0&&target<lu.length&&lu[target]&&lu[target].dnp)target+=dir;
+  if(target<0||target>=lu.length)return;
+  var tmp=lu[realIdx];lu[realIdx]=lu[target];lu[target]=tmp;
+  sv();renderLT();
+}
+function moveLuThem(i,dir){
+  var lu=tlu();var target=i+dir;
+  if(target<0||target>=lu.length)return;
+  var tmp=lu[i];lu[i]=lu[target];lu[target]=tmp;
+  sv();renderLT();
+}
 function renderLT(){
 if($('lu-our-title'))$('lu-our-title').textContent=ourName()+' batting order';
 if($('lu-their-title'))$('lu-their-title').textContent=theirName()+' lineup';
@@ -1441,16 +1458,23 @@ if($('lu-their-title'))$('lu-their-title').textContent=theirName()+' lineup';
 var lu=olu();
 var active=lu.filter(p=>!p.dnp);var dnp=lu.filter(p=>p.dnp);
 var html='';
+var editUs=_luEdit.us;
 // Active players
 active.forEach(function(p,i){
   var realIdx=lu.indexOf(p);
   var st=gps(realIdx,usT());var m=st.ab>0?st.h+'/'+st.ab:'';
+  var canUp=i>0,canDn=i<active.length-1;
   html+='<div class="lu-row" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);">'
   +'<span style="width:22px;color:var(--gold);font-family:sans-serif;font-size:12px;">'+(i+1)+'</span>'
   +'<div class="bat-jersey" style="width:28px;height:28px;font-size:11px;">'+(p.jersey||'?')+'</div>'
   +'<span style="flex:1;font-size:13px;">'+(p.name||'Player')+'</span>'
-  +(m?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+m+'</span>':'')
-  +'<button class="btn btn-xs btn-red" onclick="markDNP('+realIdx+')">Remove</button>'
+  +(editUs
+     ? '<button class="btn btn-xs" onclick="moveLuUs('+realIdx+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+'>↑</button>'
+       +'<button class="btn btn-xs" onclick="moveLuUs('+realIdx+',1)" '+(canDn?'':'disabled style="opacity:.3;"')+'>↓</button>'
+       +'<button class="btn btn-xs btn-red" onclick="markDNP('+realIdx+')">✕</button>'
+     : (m?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+m+'</span>':'')
+       +'<button class="btn btn-xs btn-red" onclick="markDNP('+realIdx+')">Remove</button>'
+  )
   +'</div>';
 });
 // DNP section
@@ -1468,12 +1492,18 @@ if(dnp.length){
 }
 if(!lu.length)html='<div class="empty">No players in lineup</div>';
 $('our-lu-list').innerHTML=html;
-// THEIR TEAM — simple rows
-var tlu2=tlu();
+// THEIR TEAM — editable rows (with optional reorder buttons in edit mode)
+var tlu2=tlu();var editThem=_luEdit.them;
 $('their-lu-list').innerHTML=tlu2.map(function(p,i){
+  var canUp=i>0,canDn=i<tlu2.length-1;
+  var reorderBtns=editThem
+    ? '<button class="btn btn-xs" onclick="moveLuThem('+i+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+'>↑</button>'
+      +'<button class="btn btn-xs" onclick="moveLuThem('+i+',1)" '+(canDn?'':'disabled style="opacity:.3;"')+'>↓</button>'
+    : '';
   return '<div class="lu-row"><span class="lu-ord">'+(i+1)+'</span>'
   +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'jersey\',this.value)" style="width:46px;">'
   +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'name\',this.value)" style="flex:1;">'
+  +reorderBtns
   +'<div class="lu-del" onclick="rmGLP(\''+themT()+'\','+i+')">✕</div></div>';
 }).join('')||'<div class="empty">None</div>';
 }
@@ -1544,28 +1574,35 @@ var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
 var html='';
 function mkHalf(abs,label){
   if(!abs.length)return'';
-  var rows=abs.map(function(ab){
-    var seq=ab.pitches.map(function(c){return'<span class="ps-'+c+'">'+c+'</span>';}).join(' ');
+  // Per-half numbering — first batter of each half = 1
+  var rows=abs.map(function(ab,i){
+    var pitches=ab.pitches||[];
+    var seq=pitches.map(function(c){return'<span class="ps-'+c+'">'+c+'</span>';}).join(' ');
+    var pcount=pitches.length;
     var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
     var notation=abNotation(ab);
     var isRun=ab.rbi>0||ab.result==='HR'||ab.result==='LLHR';
     var runStyle=isRun?'font-style:italic;color:var(--amber2);':'';
+    // Pitch sequence + total count, sits RIGHT next to the batter name for readability
+    var pitchCell=pcount?'<span style="font-size:10px;color:var(--text3);font-family:monospace;">'+seq+' ('+pcount+')</span>':'';
     return '<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;'+runStyle+'">'
-    +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;min-width:18px;">'+ab.num+'</span>'
-    +'<span style="font-size:13px;flex:1;min-width:80px;">'+esc(abBatterDisplay(ab))+'</span>'
+    +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;min-width:18px;">'+(i+1)+'</span>'
+    +'<span style="font-size:13px;min-width:80px;">'+esc(abBatterDisplay(ab))+'</span>'
+    +pitchCell
+    +'<span style="flex:1;"></span>'
     +'<span class="badge '+bc+'" style="font-size:11px;">'+esc(notation)+'</span>'
     +(ab.rbi>0?'<span style="font-size:11px;color:var(--amber2);font-family:sans-serif;">+'+ab.rbi+'R</span>':'')
-    +'<span style="font-size:10px;color:var(--text3);font-family:monospace;">'+seq+'</span>'
     +'</div>';
   });
   return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:5px 0 3px;border-top:2px solid var(--border2);margin-top:4px;">'+esc(label)+'</div>'+rows.join('');
 }
-for(var inn=maxInn;inn>=1;inn--){
+// LINEAR — oldest at the top. Top of 1 → Bottom of 1 → Top of 2 → …
+for(var inn=1;inn<=maxInn;inn++){
   var topABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='top';});
   var botABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='bottom';});
   if(!topABs.length&&!botABs.length)continue;
-  html+=mkHalf(botABs,'Inning '+inn+' ▼ — '+esc(G.ht));
   html+=mkHalf(topABs,'Inning '+inn+' ▲ — '+esc(G.at));
+  html+=mkHalf(botABs,'Inning '+inn+' ▼ — '+esc(G.ht));
 }
 p.innerHTML=html||'<div class="empty">No at-bats</div>';}
 
