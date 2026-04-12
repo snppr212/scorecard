@@ -456,7 +456,9 @@ function cm(id){$(id).classList.remove('open');}
 function ss(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
 function sn(n){if(!n)return'';var p=n.trim().split(' ');return p.length>1?p[0].charAt(0)+'.'+p[p.length-1]:n;}
 function ini(n){if(!n)return'?';var p=n.trim().split(' ');return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
-function oppDisplay(p,idx){if(!p)return'?';if(!p.name&&!p.jersey)return typeof idx==='number'?'Slot '+(idx+1):'TBD';var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
+var _ORD=['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
+function holeLabel(i){return(_ORD[i]||''+(i+1))+' Hole';}
+function oppDisplay(p,idx){if(!p)return'?';if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
 function theyBat(){return isOH()!==isHB();}// true when opponent is currently batting
 function isPast(ev){try{return new Date(ev.date+' '+ev.time)<new Date();}catch(e){return false;}}
 function fmt3(n){return n.toFixed(3).replace(/^0/,'');}
@@ -1083,12 +1085,12 @@ function oppbatAdd(){
   cm('m-oppbat');_oppbatResume();
 }
 function oppbatGhost(){
-  // Add placeholder slot — shows as "Slot N" in batting list; editable later via lineup tab
+  // Add placeholder slot — shows as "Fourth Hole" etc; editable later via lineup tab
   var lu=tlu();
   lu.push({jersey:'',name:''});
   G.cbi=lu.length-1;
   cm('m-oppbat');_oppbatResume();
-  toast('Slot '+(G.cbi+1)+' added — fill in later on Lineup tab',3000);
+  toast(holeLabel(G.cbi)+' added — fill in later on Lineup tab',3000);
 }
 function oppbatEndOrder(){
   var lu=tlu();
