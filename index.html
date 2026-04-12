@@ -456,7 +456,7 @@ function cm(id){$(id).classList.remove('open');}
 function ss(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
 function sn(n){if(!n)return'';var p=n.trim().split(' ');return p.length>1?p[0].charAt(0)+'.'+p[p.length-1]:n;}
 function ini(n){if(!n)return'?';var p=n.trim().split(' ');return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
-var _ORD=['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
+var _ORD=['Leadoff','Second','Third','Cleanup','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
 function holeLabel(i){return(_ORD[i]||''+(i+1))+' Hole';}
 function oppDisplay(p,idx){if(!p)return'?';if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
 function theyBat(){return isOH()!==isHB();}// true when opponent is currently batting
