@@ -289,7 +289,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-runner"><div class="modal"><h3 id="mr-t">Runner</h3><div id="mr-btns"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-runner')">Close</button></div></div></div>
 <div class="modal-ov" id="m-phist"><div class="modal"><h3>Season Pitching</h3><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Total</th><th>Last</th><th>Rest</th><th>Avail?</th></tr></thead><tbody id="ph-body"></tbody></table></div><div class="mact"><button class="btn btn-full" onclick="cm('m-phist')">Close</button></div></div></div>
 <div class="modal-ov" id="m-next"><div class="modal" style="text-align:center;"><h3 id="nb-res" style="font-size:16px;margin-bottom:14px;"></h3><div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;">Up next: <strong id="nb-1" style="color:var(--gold);">—</strong></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:2px;">On deck: <span id="nb-2">—</span></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">In the hole: <span id="nb-3">—</span></div><button class="btn btn-gold btn-full" onclick="ackNext()">Got it</button></div></div>
-<div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button><button class="btn btn-full" style="margin-top:8px;border-color:var(--red2);color:var(--red2);font-size:11px;" onclick="cm('m-innend');openCallGame()">Call game (time / darkness)</button></div></div></div>
+<div class="modal-ov" id="m-callgame"><div class="modal" style="text-align:center;"><h3 style="color:var(--red2);">End game early?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:6px;">Score: <strong id="cg-score"></strong></div><div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:14px;">This will finalize the game after <span id="cg-inn"></span>. This cannot be undone.</div><div class="mact"><button class="btn btn-red btn-full" onclick="confirmCallGame()">Yes — end game now</button><button class="btn btn-full" onclick="cm('m-callgame')">Go back</button></div></div></div>
 <!-- NON-BLOCKING INFO ALERT (replaces native alert() for chkFW / chkPitcherRest) -->
 <div class="modal-ov" id="m-info"><div class="modal" style="max-width:360px;"><h3 id="m-info-title" style="margin-bottom:10px;"></h3><div id="m-info-body" style="font-size:12px;font-family:sans-serif;color:var(--text2);white-space:pre-line;margin-bottom:14px;max-height:280px;overflow-y:auto;"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="cm('m-info')">Got it</button></div></div></div>
 
@@ -1434,6 +1435,19 @@ function showIE(){
     d='Inning '+(G.inn+1)+' — '+G.at+' batting';
   }
   $('ie-detail').textContent=d;om('m-innend');renderSC();
+}
+function openCallGame(){
+  // Populate the confirm modal with current score and inning info
+  $('cg-score').textContent=G.at+' '+G.as+' – '+G.hs+' '+G.ht;
+  var halfLabel=G.half==='top'?'top':'bottom';
+  $('cg-inn').textContent=halfLabel+' of inning '+G.inn;
+  om('m-callgame');
+}
+function confirmCallGame(){
+  cm('m-callgame');
+  // Clean up the half-inning state so endGame sees a tidy game
+  G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];
+  endGame();
 }
 function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];G.lastABPitches=[];G.isu=false;G.plb=false;
 // CS batter carry-over: the batter who was interrupted by CS leads off
