@@ -1852,6 +1852,15 @@ fbReady=true;
 async function fbSaveGame(){
   if(!fbReady||!G.eid)return;
   try{
+    // Guard: don't overwrite a populated remote game with blank local state
+    var snap=await db.collection('games').doc(G.eid).get();
+    if(snap.exists&&snap.data()&&snap.data().gdata){
+      var remote=snap.data().gdata;
+      if(remote.abs&&remote.abs.length>0&&(!G.abs||G.abs.length===0)){
+        console.log('fbSaveGame blocked: remote has '+remote.abs.length+' ABs, local has 0');
+        return;
+      }
+    }
     var cleanG=JSON.parse(JSON.stringify(G));// strip undefined fields (Firestore rejects them)
     await db.collection('games').doc(G.eid).set({gdata:cleanG,updated:new Date()},{merge:true});
   }catch(e){console.log('fbSaveGame error:',e);}
