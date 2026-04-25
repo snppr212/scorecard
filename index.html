@@ -560,12 +560,37 @@ function openPitchHistoryModal(){var td=new Date();$('ph-body').innerHTML=A.rost
 
 // GAME START
 var _pendingEv=null;
-function startG(eid){var ev=A.schedule.find(e=>e.id===eid);if(!ev||ev.type==='practice'){toast('Practice');return;}
+async function startG(eid){var ev=A.schedule.find(e=>e.id===eid);if(!ev||ev.type==='practice'){toast('Practice');return;}
+// First check local state for an in-progress game
 var has=G.eid===eid&&G.abs&&G.abs.length>0;
+// If no local state, check Firebase for preloaded or saved data
+if(!has&&fbReady){
+  try{
+    var snap=await db.collection('games').doc(eid).get();
+    if(snap.exists&&snap.data()&&snap.data().gdata){
+      var remote=snap.data().gdata;
+      var hasMeaningful=(remote.hlu&&remote.hlu.length>0)||(remote.alu&&remote.alu.length>0)||(remote.fa&&Object.keys(remote.fa).length>0)||(remote.hp&&remote.hp.length>0)||(remote.ap&&remote.ap.length>0)||(remote.abs&&remote.abs.length>0);
+      if(hasMeaningful){
+        // Pull remote into G so the resume modal previews it correctly
+        Object.assign(G,remote);
+        has=true;
+      }
+    }
+  }catch(e){console.log('startG fb check error:',e);}
+}
 if(has){
   _pendingEv=ev;
-  var pitches=G.abs.reduce((n,ab)=>n+(ab.pitches?ab.pitches.length:0),0);
-  $('rs-detail').textContent=G.abs.length+' at-bat'+(G.abs.length===1?'':'s')+' · '+pitches+' pitch'+(pitches===1?'':'es')+' saved · Inn '+G.inn+' '+(G.half==='top'?'▲':'▼')+' · '+G.as+'-'+G.hs;
+  var pitches=(G.abs||[]).reduce(function(n,ab){return n+(ab.pitches?ab.pitches.length:0);},0);
+  var detailParts=[];
+  if(G.abs&&G.abs.length>0)detailParts.push(G.abs.length+' at-bat'+(G.abs.length===1?'':'s')+' · '+pitches+'p · Inn '+G.inn+' '+(G.half==='top'?'▲':'▼')+' · '+G.as+'-'+G.hs);
+  else{
+    var bits=[];
+    if(G.hlu&&G.hlu.length)bits.push('lineup ('+G.hlu.length+')');
+    if(G.fa&&Object.keys(G.fa).length)bits.push('fielding ('+Object.keys(G.fa).length+' inn)');
+    if(G.hp&&G.hp.length)bits.push('pitchers ('+G.hp.length+')');
+    detailParts.push('Pre-loaded '+bits.join(' · '));
+  }
+  $('rs-detail').textContent=detailParts.join(' · ');
   om('m-resume');
   return;
 }
@@ -2229,12 +2254,25 @@ fbReady=true;
 async function fbSaveGame(){
   if(!fbReady||!G.eid)return;
   try{
-    // Guard: don't overwrite a populated remote game with blank local state
+    // Guard: don't overwrite populated remote data with blank/default local state
     var snap=await db.collection('games').doc(G.eid).get();
     if(snap.exists&&snap.data()&&snap.data().gdata){
       var remote=snap.data().gdata;
+      // Block if remote has ABs and local has none (most common race)
       if(remote.abs&&remote.abs.length>0&&(!G.abs||G.abs.length===0)){
         console.log('fbSaveGame blocked: remote has '+remote.abs.length+' ABs, local has 0');
+        return;
+      }
+      // Block if remote has fielding script and local has none (preloaded data race)
+      var remoteFAcount=remote.fa?Object.keys(remote.fa).length:0;
+      var localFAcount=G.fa?Object.keys(G.fa).length:0;
+      if(remoteFAcount>0&&localFAcount===0){
+        console.log('fbSaveGame blocked: remote has fielding for '+remoteFAcount+' innings, local has none');
+        return;
+      }
+      // Block if remote has pitchers and local has none
+      if(remote.hp&&remote.hp.length>0&&(!G.hp||G.hp.length===0)){
+        console.log('fbSaveGame blocked: remote has '+remote.hp.length+' pitchers, local has none');
         return;
       }
     }
