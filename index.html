@@ -253,12 +253,12 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);padding:8px 0;"><div style="max-width:380px;margin:0 auto;" id="field-svg"></div></div>
 <div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><div style="display:flex;gap:5px;"><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Pitch</button><button class="btn btn-xs btn-red" onclick="undoAB()" id="undo-ab-btn" style="display:none;">↩ AB</button></div></div></div>
 <div class="panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div></div>
-<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button></div></div>
+<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
 <div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
 <!-- FIELD -->
-<div id="tab-field" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:9px;"><div class="ptitle" style="margin:0;">Our fielding — Inning <span id="fi-label">1</span></div><button class="btn btn-sm btn-green" onclick="copyField()">Copy prev.</button></div><div id="fa-list"></div></div><div class="panel"><div class="ptitle">Innings per player</div><div id="fi-sum"></div></div></div>
+<div id="tab-field" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:9px;"><div class="ptitle" style="margin:0;">Our fielding</div><div id="fi-livebadge" style="font-size:10px;color:var(--green2);font-family:sans-serif;display:none;">● LIVE</div></div><div class="row" style="gap:6px;align-items:center;margin-bottom:8px;"><label style="font-size:11px;color:var(--text3);font-family:sans-serif;flex-shrink:0;">Inning</label><select id="fi-pick" onchange="setViewInn(parseInt(this.value))" style="width:auto;flex:1;"></select><button class="btn btn-xs" onclick="goToCurrentInn()" id="fi-now-btn" style="font-size:10px;">⟲ Current</button><button class="btn btn-xs btn-green" onclick="copyField()" style="font-size:10px;">Copy prev.</button></div><div id="fa-list"></div></div><div class="panel"><div class="ptitle">Innings per player</div><div id="fi-sum"></div></div></div>
 <!-- PITCHERS -->
 <div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div><div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;"><button class="btn btn-xs btn-full" onclick="if(confirm('Rebuild all pitcher stats from the AB log? Use this if you changed pitcher attribution after the fact.')){recalcPitcherStats();renderPT();renderMU();toast('Pitcher stats rebuilt from ABs',2500);}" style="font-size:10px;border-color:var(--text3);color:var(--text2);">⟲ Recalc stats from ABs (after retroactive change)</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div></div></div>
 <!-- LINEUP -->
@@ -282,7 +282,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div id="toast" class="toast"></div>
 <div class="modal-ov" id="m-roster"><div class="modal"><h3>Roster</h3><div id="ros-list"></div><div class="mact"><button class="btn btn-green btn-full" onclick="addRos()">+ Add</button><button class="btn btn-full" onclick="cm('m-roster')">Close</button></div></div></div>
 <div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
-<div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mrow"><label>Innings</label><select id="ev-inn"><option value="6">6 (regular)</option><option value="4">4 (early-season / playoff)</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><button class="btn btn-red btn-full" onclick="cm('m-setup');endGame()">🏁 End Game</button></div></div>
 <div class="modal-ov" id="m-play"><div class="modal"><h3 id="mp-t">Log play</h3><div class="mrow"><label>Scorecard notation (4-3, L9, F8)</label><input type="text" id="mp-not"></div><div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
 <div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="fc-sec" style="display:none;"><div class="mrow"><label>FC — who is out?</label><div id="fc-btns"></div></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cancelPlay()">Cancel</button></div></div></div>
@@ -290,6 +290,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-pos"><div class="modal"><h3 id="mpos-t">Assign</h3><div id="mpos-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-pos')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-runner"><div class="modal"><h3 id="mr-t">Runner</h3><div id="mr-btns"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-runner')">Close</button></div></div></div>
+<!-- STANDALONE FIELDING ERROR MODAL — for errors not tied to an AB (overthrow on a steal, missed pickoff, etc.) -->
+<div class="modal-ov" id="m-serr"><div class="modal"><h3>Log fielding error</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">For errors during baserunning (overthrow, missed cutoff). For errors during an AB, use the play modal instead.</div><div class="mrow"><label>Position</label><select id="serr-p"></select></div><div class="mrow"><label>Type</label><select id="serr-t"><option value="F">Fielding (booted)</option><option value="T">Throwing</option><option value="M">Mental (missed cutoff/cover)</option><option value="C">Catching (drop)</option></select></div><div class="mrow"><label>Description (optional)</label><input type="text" id="serr-d" placeholder="e.g. overthrow on SB allowed runner to 3rd"></div><div class="mrow"><label>Bases advanced (extra)</label><select id="serr-adv"><option value="0">None</option><option value="1">1 base</option><option value="2">2 bases (LL: only 1 on overthrow per Rules)</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmStandaloneErr()">Log error</button><button class="btn btn-full" onclick="cm('m-serr')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-phist"><div class="modal"><h3>Season Pitching</h3><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Total</th><th>Last</th><th>Rest</th><th>Avail?</th></tr></thead><tbody id="ph-body"></tbody></table></div><div class="mact"><button class="btn btn-full" onclick="cm('m-phist')">Close</button></div></div></div>
 <div class="modal-ov" id="m-next"><div class="modal" style="text-align:center;"><h3 id="nb-res" style="font-size:16px;margin-bottom:14px;"></h3><div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;">Up next: <strong id="nb-1" style="color:var(--gold);">—</strong></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:2px;">On deck: <span id="nb-2">—</span></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">In the hole: <span id="nb-3">—</span></div><button class="btn btn-gold btn-full" onclick="ackNext()">Got it</button></div></div>
 <div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button><button class="btn btn-full" style="margin-top:8px;border-color:var(--red2);color:var(--red2);font-size:11px;" onclick="cm('m-innend');openCallGame()">Call game (time / darkness)</button></div></div></div>
@@ -537,9 +539,9 @@ function savePl(){var n=$('pm-n').value.trim(),j=$('pm-j').value.trim();if(!n&&!
 function delPl(){if(!confirm('Remove?'))return;A.roster=A.roster.filter(r=>r.id!==A.epId);cm('m-player');sa();openRosterModal();}
 
 // EVENTS
-function openAddEventModal(){A.eeId=null;['ev-date','ev-time','ev-opp','ev-loc'].forEach(id=>$(id).value='');om('m-event');}
-function editEv(id){var ev=A.schedule.find(e=>e.id===id);if(!ev)return;A.eeId=id;$('ev-type').value=ev.type;$('ev-date').value=ev.date||'';$('ev-time').value=ev.time||'';$('ev-opp').value=ev.title||'';$('ev-loc').value=ev.loc||'';$('ev-ha').value=ev.ha||'home';om('m-event');}
-function saveEv(){var t=$('ev-type').value,d=$('ev-date').value.trim(),ti=$('ev-time').value.trim(),o=$('ev-opp').value.trim(),l=$('ev-loc').value.trim(),ha=$('ev-ha').value;if(!d){toast('Need date');return;}if(A.eeId){var ev=A.schedule.find(e=>e.id===A.eeId);if(ev)Object.assign(ev,{type:t,date:d,time:ti,title:o,opponent:o.replace(/^(vs |@ )/i,''),loc:l,ha});}else A.schedule.push({id:uid(),type:t,date:d,time:ti,title:o,opponent:o.replace(/^(vs |@ )/i,''),loc:l,ha});cm('m-event');sa();renderSched();}
+function openAddEventModal(){A.eeId=null;['ev-date','ev-time','ev-opp','ev-loc'].forEach(id=>$(id).value='');$('ev-inn').value='6';om('m-event');}
+function editEv(id){var ev=A.schedule.find(e=>e.id===id);if(!ev)return;A.eeId=id;$('ev-type').value=ev.type;$('ev-date').value=ev.date||'';$('ev-time').value=ev.time||'';$('ev-opp').value=ev.title||'';$('ev-loc').value=ev.loc||'';$('ev-ha').value=ev.ha||'home';$('ev-inn').value=String(ev.innings||6);om('m-event');}
+function saveEv(){var t=$('ev-type').value,d=$('ev-date').value.trim(),ti=$('ev-time').value.trim(),o=$('ev-opp').value.trim(),l=$('ev-loc').value.trim(),ha=$('ev-ha').value;var innings=parseInt($('ev-inn').value)||6;if(!d){toast('Need date');return;}if(A.eeId){var ev=A.schedule.find(e=>e.id===A.eeId);if(ev)Object.assign(ev,{type:t,date:d,time:ti,title:o,opponent:o.replace(/^(vs |@ )/i,''),loc:l,ha,innings});}else A.schedule.push({id:uid(),type:t,date:d,time:ti,title:o,opponent:o.replace(/^(vs |@ )/i,''),loc:l,ha,innings});cm('m-event');sa();renderSched();}
 
 // PITCH HIST
 function openPitchHistoryModal(){var td=new Date();$('ph-body').innerHTML=A.roster.map(function(p){var log=pSeason(p.name);if(!log.length)return'';var s=pStatus(p.name,td),tot=s.tot,l=log[log.length-1];return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+tot+'</td><td>'+l.pitches+' ('+l.date+')</td><td class="'+(s.rest>0?'warn':'ok')+'">'+s.rest+'</td><td class="'+(s.ok&&!s.over40?'ok':'warn')+'">'+(s.ok&&!s.over40?'Yes':'No')+'</td></tr>';}).filter(Boolean).join('')||'<tr><td colspan="5" class="empty">No data</td></tr>';om('m-phist');}
@@ -572,7 +574,8 @@ function enterLineupFlow(ev){
   goToLineupBuild();ss('screen-avail');
 }
 function resetG(ev){var ih=ev.ha==='home',op=ev.opponent||'Visitors';
-G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false};APOS=POS.slice();sg();}
+var ti=parseInt(ev.innings)||6;
+G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:ti,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(ti).fill(0),a:Array(ti).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false};APOS=POS.slice();sg();}
 function r2lu(){return A.roster.map(p=>({name:p.name||'',jersey:p.jersey||'',rid:p.id}));}
 
 // AVAILABILITY — Step 1: mark present/absent
@@ -850,7 +853,8 @@ $('sb-cb-b').innerHTML=bd;$('sb-cb-s').innerHTML=sd;$('sb-cb-o').innerHTML=od;}
 // FIELD SVG
 function fieldFirstName(fullName){if(!fullName)return'';return fullName.trim().split(' ')[0];}
 function renderFD(){
-var fa=G.fa[G.inn]||{},wf=theyBat();
+var _vi=(typeof viewInn==='function')?viewInn():G.inn;
+var fa=G.fa[_vi]||{},wf=theyBat();
 // auto 10-player: if our lineup has 10+ players, show 4OF
 var hasRCF=olu().length>=10;
 // Position label coords — fielders sit BEHIND their bases (smaller y) so
@@ -1393,7 +1397,7 @@ if(res==='SAC'&&!hasRunners){toast('Sacrifice requires runner(s) on base');retur
 // Validation: RBI on lineout (LO) requires runners on base
 if(res==='LO'&&G.prbi>0&&!hasRunners){toast('RBI requires runner(s) on base');return;}
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
-if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,type:et,play:not||G.pres});}
+if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,half:G.half,type:et,play:not||G.pres,standalone:false});}
 if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
 cm('m-play');finAB(res,not,G.prbi);}
 
@@ -1519,7 +1523,9 @@ var _fp=curPitcher();if(_fp){_fp.runs_allowed=(_fp.runs_allowed||0)+1;_fp.er=(_f
 
 // MERCY RULE CHECK
 function chkMercy(){
-  if(G.inn<4)return;// need at least 4 innings
+  // Mercy threshold: 4 innings for 6-inn game, 3 innings for 4-inn game (proportional)
+  var mercyMin=(G.ti||6)>=6?4:3;
+  if(G.inn<mercyMin)return;
   var lead=Math.abs(G.hs-G.as);if(lead<10)return;
   if(G._mercyShown)return;G._mercyShown=true;sv();
   var leader=G.hs>G.as?G.ht:G.at;
@@ -1588,7 +1594,7 @@ function showIE(){
     d='Switch to '+G.ht+' batting';
   }else{
     // Bottom of inning — check if game should end
-    var minInn=5; // Minimum innings for valid game
+    var minInn=G.ti||6; // play through the scheduled number of innings
     var oneAhead=(G.hs>G.as)||(G.as>G.hs); // One team winning
     if(G.inn>=minInn&&oneAhead){
       // Game is over — show final summary
@@ -1641,7 +1647,20 @@ if(weField){
   if(theyBat()&&!G.oppLuDone){setTimeout(function(){openOppBatterPicker();},400);}
 }}
 
-function chkFW(inn){if(inn<4)return;var msgs=[];olu().forEach(function(p){if(!p.name&&!p.jersey)return;var k=p.name||p.jersey,c=gfi(k);if(inn===4&&c===0)msgs.push(k+': 0 inn');if(inn>=5&&c<2)msgs.push(k+': '+c+' inn');});if(msgs.length)setTimeout(function(){$('m-info-title').textContent='Fielding Warning';$('m-info-body').textContent=msgs.join('\n');om('m-info');},300);}
+function chkFW(inn){
+  // Minimum fielding rule: 6-inn game = 3 innings, 4-inn = 2 innings
+  var totalInn = G.ti || 6;
+  var minInnReq = totalInn >= 6 ? 3 : 2;
+  // First warning fires when there's still time to fix (one inning before required)
+  var earlyWarn = totalInn - minInnReq + 1;
+  if(inn < earlyWarn) return;
+  var msgs=[];
+  olu().forEach(function(p){if(!p.name&&!p.jersey)return;var k=p.name||p.jersey,c=gfi(k);
+    if(inn === earlyWarn && c === 0) msgs.push(k+': 0 inn');
+    if(inn > earlyWarn && c < (minInnReq-1)) msgs.push(k+': '+c+' inn');
+  });
+  if(msgs.length)setTimeout(function(){$('m-info-title').textContent='Fielding Warning';$('m-info-body').textContent=msgs.join('\n')+'\n\n(Min '+minInnReq+' innings for a '+totalInn+'-inning game)';om('m-info');},300);
+}
 
 // RUNNERS
 function runnerM(b){var r=G.bases[b-1];
@@ -1715,6 +1734,41 @@ function confirmSB(){
   toast(n>1?'Double steal logged':'SB logged');
 }
 function logCS(){if(!G.bases.some(b=>b!==null)){toast('No runners');return;}om('m-cs');}
+// STANDALONE FIELDING ERROR — for errors during baserunning (not tied to an AB)
+function openStandaloneErr(){
+  // Only useful when WE'RE fielding (errors are by our defense)
+  var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+  if(!weField){toast('Errors are logged for OUR fielders only — opponent is batting?');return;}
+  // Populate position dropdown with current fielding assignments shown
+  var fa=G.fa[G.inn]||{};
+  $('serr-p').innerHTML=getActivePOS().map(function(p){return '<option value="'+p+'">'+p+(fa[p]?' — '+sn(fa[p]):'')+'</option>';}).join('');
+  $('serr-t').value='F';$('serr-d').value='';$('serr-adv').value='0';
+  om('m-serr');
+}
+function confirmStandaloneErr(){
+  var pos=$('serr-p').value,type=$('serr-t').value,desc=$('serr-d').value.trim();
+  var adv=parseInt($('serr-adv').value)||0;
+  var fa=G.fa[G.inn]||{};
+  G.errs.push({player:fa[pos]||'(unknown)',pos:pos,inn:G.inn,half:G.half,type:type,play:desc||'(baserunning)',adv:adv,standalone:true});
+  // If "Bases advanced" is set, advance the lead-most runner that many bases
+  if(adv>0){
+    for(var b=2;b>=0&&adv>0;b--){
+      if(G.bases[b]){
+        var newBase=b+adv;
+        if(newBase>=3){
+          // runner scores
+          logRun(G.bases[b].bi,G.bases[b].team);addR(1);G.bases[b]=null;adv-=(3-b);
+        }else{
+          if(!G.bases[newBase]){G.bases[newBase]=G.bases[b];G.bases[b]=null;}
+          break;
+        }
+      }
+    }
+  }
+  cm('m-serr');sv();renderSC();
+  toast('E'+_posNum(pos)+' logged'+(adv>0?' — runner advanced':''));
+}
+function _posNum(p){var m={P:1,C:2,'1B':3,'2B':4,'3B':5,SS:6,LF:7,CF:8,RF:9,RCF:10};return m[p]||p;}
 function confirmCS(){var at=$('cs-at').value;if(at==='2'&&G.bases[0])G.bases[0]=null;else if(at==='3'&&G.bases[1])G.bases[1]=null;
 var _fp=curPitcher();if(_fp)_fp.ip_outs=(_fp.ip_outs||0)+1;
 G.css.push({at,inn:G.inn,half:G.half});G.outs=Math.min(3,G.outs+1);cm('m-cs');sv();
@@ -1728,9 +1782,26 @@ function manualRun(){var t=prompt('h=home a=away');if(!t)return;if(t==='h'){G.hs
 
 // FIELD TAB
 function gfi(k){var c=0;Object.keys(G.fa).forEach(function(i){if(Object.values(G.fa[i]).indexOf(k)>=0)c++;});return c;}
-function renderFT(){$('fi-label').textContent=G.inn;var fa=G.fa[G.inn]||{};
-$('fa-list').innerHTML=getActivePOS().map(function(pos){var a=fa[pos]||'',inns=a?gfi(a):0,w=G.inn>=4&&a&&inns<2;
-return '<div class="pos-row"><span class="pos-label">'+pos+'</span><span style="flex:1;font-size:12px;color:'+(a?(w?'var(--red2)':'var(--text)'):'var(--text3)')+';">'+(a?sn(a):'— empty')+(a?' <span style="font-size:10px;color:var(--text3);">'+inns+'i</span>':'')+'</span><button class="btn btn-xs" onclick="openPM(\''+pos+'\')">'+( a?'Change':'Set')+'</button>'+(a?'<button class="btn btn-xs btn-red" style="margin-left:4px;" onclick="clrPos(\''+pos+'\')">✕</button>':'')+'</div>';}).join('');
+// Field-tab "viewing inning" — defaults to current inning, can be changed for pre-planning
+var _fieldViewInn=null;
+function viewInn(){return _fieldViewInn||G.inn;}
+function setViewInn(n){_fieldViewInn=n;renderFT();renderFD();}
+function goToCurrentInn(){_fieldViewInn=null;renderFT();renderFD();}
+function renderFT(){
+  var vi=viewInn();
+  // Build the inning selector
+  var sel=$('fi-pick');if(sel){
+    var opts='';for(var i=1;i<=(G.ti||6);i++){
+      var marker=i===G.inn?' (current)':(i<G.inn?' (past)':'');
+      opts+='<option value="'+i+'"'+(i===vi?' selected':'')+'>Inning '+i+marker+'</option>';
+    }
+    sel.innerHTML=opts;
+  }
+  $('fi-livebadge').style.display=(vi===G.inn)?'':'none';
+  if($('fi-now-btn'))$('fi-now-btn').style.display=(vi===G.inn)?'none':'';
+  var fa=G.fa[vi]||{};
+  $('fa-list').innerHTML=getActivePOS().map(function(pos){var a=fa[pos]||'',inns=a?gfi(a):0,w=G.inn>=4&&a&&inns<2;
+  return '<div class="pos-row"><span class="pos-label">'+pos+'</span><span style="flex:1;font-size:12px;color:'+(a?(w?'var(--red2)':'var(--text)'):'var(--text3)')+';">'+(a?sn(a):'— empty')+(a?' <span style="font-size:10px;color:var(--text3);">'+inns+'i</span>':'')+'</span><button class="btn btn-xs" onclick="openPM(\''+pos+'\')">'+( a?'Change':'Set')+'</button>'+(a?'<button class="btn btn-xs btn-red" style="margin-left:4px;" onclick="clrPos(\''+pos+'\')">✕</button>':'')+'</div>';}).join('');
 $('fi-sum').innerHTML=olu().map(function(p){if(!p.name&&!p.jersey)return'';var k=p.name||p.jersey,c=gfi(k),w=G.inn>=4&&c<2;
 // 4.2: group by position → POS (count; 1,2,6) · SS (1; 3)
 var byPos={};
@@ -1739,7 +1810,7 @@ var grouped=Object.keys(byPos).map(function(pos){var inns=byPos[pos].sort((a,b)=
 return '<div class="pos-row"><span style="width:76px;font-size:11px;font-family:sans-serif;color:'+(w?'var(--red2)':'var(--text)')+';">'+sn(p.name||'#'+p.jersey)+'</span>'
 +'<span style="flex:1;font-size:10px;font-family:sans-serif;">'+( grouped||'<span style="color:var(--text3);">Not assigned</span>')+'</span>'
 +'<span style="font-size:13px;font-family:sans-serif;font-weight:bold;color:'+(w?'var(--red2)':'var(--green2)')+';">'+c+'</span></div>';}).filter(Boolean).join('')||'<div class="empty">Add lineup first</div>';}
-function openPM(pos){$('mpos-t').textContent='Assign '+pos;var fa=G.fa[G.inn]||{},taken=Object.values(fa);var APOS=getActivePOS();
+function openPM(pos){var vi=viewInn();$('mpos-t').textContent='Assign '+pos+' (Inn '+vi+')';var fa=G.fa[vi]||{},taken=Object.values(fa);var APOS=getActivePOS();
 $('mpos-list').innerHTML=olu().filter(p=>{var k=p.name||p.jersey;return k&&(taken.indexOf(k)<0||fa[pos]===k);}).map(function(p){var k=p.name||p.jersey,c=gfi(k),w=G.inn>=4&&c<2;
 return '<div class="pos-row" onclick="asgPos(\''+pos+'\',\''+esc(k).replace(/'/g,"\\'")+'\');cm(\'m-pos\')" style="cursor:pointer;"><div class="bat-jersey">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;color:'+(w?'var(--red2)':'var(--text)')+';">'+esc(p.name||'#'+p.jersey)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+c+'i</span></div>';}).join('')
 +'<div class="sep"></div><div class="pos-row" onclick="addTaxi(\''+pos+'\')" style="cursor:pointer;"><span style="font-size:12px;color:var(--amber2);font-family:sans-serif;">+ Taxi squad</span></div>';
@@ -1747,20 +1818,21 @@ om('m-pos');}
 function addTaxi(pos){var n=prompt('Name:');if(!n)return;cm('m-pos');olu().push({name:n,jersey:'',rid:null});asgPos(pos,n);}
 function asgPos(pos,k){
 // Check for position conflicts
-if(!G.fa[G.inn])G.fa[G.inn]={};
-var fa=G.fa[G.inn];
+var vi=viewInn();
+if(!G.fa[vi])G.fa[vi]={};
+var fa=G.fa[vi];
 var currentPos=null;
 for(var p in fa){if(fa[p]===k&&p!==pos){currentPos=p;break;}}
 if(currentPos){toast('⚠️ '+sn(k)+' already assigned to '+currentPos+'. Remove that first.');return;}
 if(pos==='P'){var _ic=getInningsCaught(k);if(_ic>=4&&!confirm(sn(k)+' has caught '+_ic+' innings this game.\n\nLL Rule: 4+ innings catching = cannot pitch.\n\nAssign as pitcher anyway?'))return;}
 if(pos==='C'){var _cp=ourP().find(function(p){return p.name===k;});if(_cp&&(_cp.total||0)>=41&&!confirm(sn(k)+' has thrown '+_cp.total+' pitches this game.\n\nLL Rule: 41+ pitches = cannot catch.\n\nAssign as catcher anyway?'))return;}
-G.fa[G.inn][pos]=k;
-// If assigning pitcher position, sync active pitcher
-if(pos==='P'){var pl=ourP(),idx=pl.findIndex(p=>p.name===k);
+G.fa[vi][pos]=k;
+// If assigning pitcher for the CURRENT inning, sync active pitcher
+if(pos==='P'&&vi===G.inn){var pl=ourP(),idx=pl.findIndex(p=>p.name===k);
 if(idx>=0){setOurPI(idx);}else{ourP().push({name:k,rn:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});setOurPI(ourP().length-1);}}
 sv();renderFT();renderFD();}
-function clrPos(pos){if(G.fa[G.inn])delete G.fa[G.inn][pos];sv();renderFT();renderFD();}
-function copyField(){var p=G.inn-1;if(p<1){toast('No prev');return;}var fa=G.fa[p];if(!fa){toast('Nothing');return;}G.fa[G.inn]=Object.assign({},fa);sv();renderFT();renderFD();toast('Copied');}
+function clrPos(pos){var vi=viewInn();if(G.fa[vi])delete G.fa[vi][pos];sv();renderFT();renderFD();}
+function copyField(){var vi=viewInn(),p=vi-1;if(p<1){toast('No prev');return;}var fa=G.fa[p];if(!fa){toast('Nothing');return;}G.fa[vi]=Object.assign({},fa);sv();renderFT();renderFD();toast('Copied to inning '+vi);}
 
 // PITCHERS TAB
 function setPT(t,el){G.ptv=t;document.querySelectorAll('#pt-tog .team-toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');$('pt-us').style.display=t==='us'?'block':'none';$('pt-them').style.display=t==='them'?'block':'none';}
@@ -1917,8 +1989,10 @@ function abNotation(ab){
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
 var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
 var html='';
-function mkHalf(abs,label){
-  if(!abs.length)return'';
+function mkHalf(abs,label,inn,half){
+  // Pull standalone errors for this half — they'll be shown at the bottom of the half
+  var halfErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&e.standalone;});
+  if(!abs.length&&!halfErrs.length)return'';
   // Per-half numbering — first batter of each half = 1
   var lastPitcher=null;
   var pieces=[];
@@ -1947,15 +2021,22 @@ function mkHalf(abs,label){
     +(ab.rbi>0?'<span style="font-size:11px;color:var(--amber2);font-family:sans-serif;">+'+ab.rbi+'R</span>':'')
     +'</div>');
   });
+  // Append standalone errors for this half (shown after ABs)
+  halfErrs.forEach(function(e){
+    var typeLabel={F:'Fielding',T:'Throwing',M:'Mental',C:'Catching'}[e.type]||e.type;
+    pieces.push('<div style="padding:5px 0;border-bottom:1px dashed var(--amber2);font-size:11px;color:var(--amber2);font-family:sans-serif;font-style:italic;">⚠️ E'+_posNum(e.pos)+' ('+typeLabel+') — '+esc(e.player||'?')+(e.play&&e.play!=='(baserunning)'?' — '+esc(e.play):'')+(e.adv?' — runner +'+e.adv:'')+'</div>');
+  });
   return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:5px 0 3px;border-top:2px solid var(--border2);margin-top:4px;">'+esc(label)+'</div>'+pieces.join('');
 }
 // LINEAR — oldest at the top. Top of 1 → Bottom of 1 → Top of 2 → …
 for(var inn=1;inn<=maxInn;inn++){
   var topABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='top';});
   var botABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='bottom';});
-  if(!topABs.length&&!botABs.length)continue;
-  html+=mkHalf(topABs,'Inning '+inn+' ▲ — '+esc(G.at));
-  html+=mkHalf(botABs,'Inning '+inn+' ▼ — '+esc(G.ht));
+  var topErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half==='top'&&e.standalone;});
+  var botErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half==='bottom'&&e.standalone;});
+  if(!topABs.length&&!botABs.length&&!topErrs.length&&!botErrs.length)continue;
+  html+=mkHalf(topABs,'Inning '+inn+' ▲ — '+esc(G.at),inn,'top');
+  html+=mkHalf(botABs,'Inning '+inn+' ▼ — '+esc(G.ht),inn,'bottom');
 }
 p.innerHTML=html||'<div class="empty">No at-bats</div>';}
 
