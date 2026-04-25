@@ -1,5 +1,28 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v38 (2026-04-25) — f41524c
+**Pre-plan fielding spreadsheet (grid) view**
+
+Field tab gains a "By Inning / Grid" toggle. Grid view shows the entire game's fielding script on one screen so you can pre-plan rotations and adjust at the field in real time.
+
+- Toggle at the top of the Field tab; defaults to "By Inning"
+- Grid renders positions as rows (P/C/1B/2B/3B/SS/LF/CF/RF/RCF) and innings as columns (1-6 by default)
+- Bench row at the bottom auto-derives who's sitting each inning (lineup minus assigned players, excluding DNP)
+- Current inning's column highlighted with a gold-tinted header
+- Cells show player first name truncated to 6 chars (with period) for compact display; empty cells show "—"
+- Tapping any cell opens the position picker scoped to that specific (inning, position) — picker title reads "Assign LF (Inn 4)" so the scope is clear
+- Each pickable player shows their current innings count for at-a-glance balance ("3i", "2i", etc.)
+- Horizontal scroll on narrow screens
+- Innings-per-player summary still shown below the grid in both modes
+
+### v37.1 — Always 6-inning games; "Call game" prominent
+- Per actual league rules, games are always scheduled as 6 innings (mercy/time/darkness/weather can call them early)
+- Removed the per-event Innings dropdown (was added in v37, premature)
+- Replaced the bare "End Game" button in gear menu with "🏁 Call game (end early)" routed through the existing confirmation flow
+- m-callgame copy updated to mention all 4 valid reasons (time / darkness / weather / mercy)
+
+---
+
 ## v37 (2026-04-25) — 559e89a
 **4-inning games, pre-plan fielding, error tracking**
 
