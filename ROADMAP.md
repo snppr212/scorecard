@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v36 (`0773e1c`, 2026-04-25)
-**Status as of:** 2026-04-25, after v35-36 fixes (steals UX, auto-out batter, per-AB pitcher stamp)
+**Current version:** v37 (`559e89a`, 2026-04-25)
+**Status as of:** 2026-04-25, after v37 (4-inn games, pre-plan fielding, error tracking)
 
 ## Status Key
 - ✅ Done
@@ -12,17 +12,18 @@
 
 ---
 
-## v37 — Next Up
+## v38 — Next Up
 
 | # | Issue | Priority | Notes |
 |---|---|---|---|
-| 1 | **4-inning game support** | 📋 High (easy + frequent) | Per-game `inningsTotal` field. `showIE` currently ends a game only at `inn>=5 && oneAhead`. Comes up for early-season / playoff games. ~10-min fix. |
-| 2 | **Error / overthrow / fielding misplay tracking** | 📋 High | No way to log E5, E6, throwing errors, missed cutoffs, etc. as separate events. Needed for fielder accountability and to make play log tell the actual story. Bigger feature — needs design (per-position error buttons? attached to the AB or standalone? E1 vs T1 vs M1?). |
-| 3 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm. |
+| 1 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt. |
+| 2 | **Per-fielder error count in box / stats** | 📋 Medium | `G.errs[]` is fully populated now (v37) — surface a per-player error tally on the Pitchers/Box page so you can see who's making errors at a glance. |
+| 3 | **Pre-plan fielding "spreadsheet" view** | 💡 Low | Current per-inning view works but a grid view (positions × innings) would let you script everything on one screen. |
 | 4 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
-| 5 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. Could heuristically reconstruct from `ip_outs` + pitcher order. |
+| 5 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. |
+| 6 | **Walk-off / top-of-last-inning game end detection** | 💡 Low | Currently if home is leading after top of last inning, app still asks for bottom half. Should auto-end. Walk-off in bottom of last when home takes lead also not auto-detected. |
 
-### ✅ Recently Completed (v35-v36)
+### ✅ Recently Completed (v35-v37)
 
 - Stolen base checkbox UI (multi-runner advances, no stealing home)
 - Auto-out batter (LL Rule 4.04(h) — CBO mid-game removal)
@@ -30,6 +31,9 @@
 - Pitch threshold strict-equality bug fix (missed warnings on count jumps)
 - Threshold modal queue (no more overwriting)
 - Retroactive pitcher recalc + button
+- 4-inning game support (per-event innings setting)
+- Pre-plan fielding by inning (Field tab inning selector)
+- Standalone error tracking (overthrow, missed cutoff, etc.)
 
 ---
 
@@ -162,7 +166,9 @@
 | Mercy rule (10-run) | ✅ | |
 | 6-run half-inning rule | ✅ | |
 | Call game (time / darkness) | ✅ | v34 — secondary confirmation |
-| 4-inning game support | 📋 | See v35#4 |
+| 4-inning game support | ✅ | v37 — per-event Innings selector; mercy + chkFW scale |
+| Error / fielding misplay tracking | ✅ | v37 — in-AB and standalone errors; plays log shows them |
+| Pre-plan fielding by inning | ✅ | v37 — Field tab inning selector with LIVE badge |
 | End game | ✅ | |
 | Share/Export | ✅ | |
 | Game result badge only on `final===true` | ✅ | `586e418` |

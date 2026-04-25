@@ -1,5 +1,34 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v37 (2026-04-25) — 559e89a
+**4-inning games, pre-plan fielding, error tracking**
+
+### 4-inning game support
+- Event create/edit modal now has an Innings dropdown (6 regular / 4 early-season-or-playoff)
+- `resetG` reads `ev.innings` (defaults to 6) and sizes the inning score arrays accordingly
+- `showIE` uses `G.ti` instead of hardcoded 5 — game ends only after the scheduled innings have been played
+- Mercy rule scales: 10-run lead after 4 innings for a 6-inn game, after 3 for a 4-inn game
+- Min-fielding warning (`chkFW`) scales: 3 innings min for 6-inn, 2 for 4-inn (per Rules tab)
+
+### Pre-plan fielding assignments
+- Field tab now has an inning selector at the top, defaulting to current inning
+- "● LIVE" badge shows when viewing the current inning; "⟲ Current" button when viewing past/future
+- All field assignment operations (`renderFT`, `openPM`, `asgPos`, `clrPos`, `copyField`) honor the view-inning state via new `viewInn()` helper
+- Field SVG reflects the viewed inning so you can preview a planned setup
+- Pitcher auto-sync only fires when assigning the current inning's P (pre-planning future innings doesn't change the live pitcher)
+- Workflow: script your fielding rotations ahead of time, adjust at the field in real time
+
+### Standalone fielding error tracking
+- New "⚠️ Err" button in the runner action bar for errors during baserunning (overthrow, missed cutoff, dropped pickoff)
+- `m-serr` modal: position picker showing current fielder names, error type (Fielding / Throwing / Mental / Catching), optional description, "Bases advanced" selector (with note about LL's 1-base-on-overthrow rule)
+- Recorded as `{player, pos, inn, half, type, play, adv, standalone:true}` in `G.errs`
+- If "Bases advanced" is set, the lead runner advances that many bases (or scores) automatically
+- Plays log shows standalone errors as italic amber lines after the half's ABs (e.g. "⚠️ E5 (Throwing) — E.Kalman — Overthrow on SB attempt — runner +1")
+- Existing in-AB error logging now also records `half` and `standalone:false` for consistency
+- New `_posNum()` helper maps positions to E1/E2/E3/etc. notation
+
+---
+
 ## v36 (2026-04-25) — 0773e1c
 **Per-AB pitcher stamp, threshold fixes, retroactive recalc**
 
