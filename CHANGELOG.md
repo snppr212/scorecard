@@ -1,5 +1,38 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v34 (2026-04-24) — 216ea51
+**Bug fixes, opponent batter UX, sync guard, game data entry**
+
+### Bug Fixes
+- **Non-blocking alerts** — `chkFW()` and `chkPitcherRest()` now use a dismissable modal (`m-info`) instead of native `alert()`, which was freezing the UI mid-game
+- **FC base movement** — Fielder's choice now shows a runner picker ("who is out?") and places the batter on 1B; previously FC left bases unchanged
+- **CS ip_outs** — `confirmCS()` now increments `ip_outs` on the current pitcher so caught-stealing outs count toward innings pitched
+- **Multi-runner scoring** — `finAB` extra-base logic allows RBI to exceed bases advanced (e.g. single with R2 scoring from 2nd = 2 RBI)
+- **Sync guard** — `fbSaveGame()` checks remote AB count before writing; blocks if remote has ABs and local has 0, preventing blank-state overwrites (caused e2 data loss)
+- **Undefined field stripping** — `fbSaveGame()` runs `JSON.parse(JSON.stringify(G))` before Firestore `set()` to strip `undefined` values
+
+### Opponent Batter UX (major)
+- **Auto-open picker** — opponent batter picker automatically opens at game start, after each opponent AB, and when returning to At Bat tab after fielding assignments. No more hunting for "+ Add next batter"
+- **Ghost slots** — "Skip — fill in later" adds placeholder with ordinal labels: Leadoff Hole, Second Hole, Third Hole, Cleanup Hole, Fifth Hole, etc.
+- **Skip batter** — skip a slot (kid in bathroom, late arrival); skipped batters show dimmed with SKIP label; skips auto-clear when the batting order wraps
+- **Change / skip button** — visible in batting list when opponent lineup is locked; opens picker with "up next" and "skipped" badges per batter
+- **Locked lineup flexibility** — after "End of order", user can still pick any batter or add substitutes via the picker
+
+### Our Team Batting
+- **Out-of-order support** — when no batter is selected, all batters show with green selectable styling and "Tap any batter to start their at-bat" instruction banner
+- `selBat()` un-skips a batter if manually picked
+
+### Other
+- **Call game** — "Call game (time / darkness)" button on end-of-half modal with secondary confirmation to prevent accidental taps; clears bases/count and calls `endGame()`
+- Service worker bumped to v36
+
+### Game Data
+- Entered **e6: Mussels 6 – Bulls 3** (Apr 24) — 64 ABs, full play-by-play, 9 steals
+- Recovered **e2: Mussels 6 – Hot Rods 4** (Apr 11) from old session transcript after sync bug overwrote it
+- Season record: **2-1** (W Hot Rods, L Thunder, W Bulls)
+
+---
+
 ## v33 (2026-04-11) — ff4641f
 **Hot Rods roster + retroactive game logging**
 - Added **Jack Van Dyke** to `OPP_ROSTERS['Hot Rods']` (new player who joined Hot Rods mid-season)
@@ -48,14 +81,14 @@
 
 ## v16 (2026-04-10)
 **Plays log, box totals, lineup UX, pitch enforcement, result buttons, catcher/pitcher rules**
-- **Plays screen**: Rewritten inning-by-inning (newest first), alternating top▲/bottom▼ with bold divider; ABs that score runs shown in italic amber
+- **Plays screen**: Rewritten inning-by-inning (newest first), alternating top/bottom with bold divider; ABs that score runs shown in italic amber
 - **Box score**: Totals row added to bottom of both batting (AB/R/H/RBI/XBH/HR/BB/K) and pitching (IP/PC/St/Ba/H/R/ER/BB/K/ERA) tables
 - **Lineup tab**: "DNP" button renamed to "Remove"
 - **Pitching change**: After switching pitcher, confirm dialog offers to jump to Field tab to update all fielding positions
 - **75-pitch modal**: Now shows "Finish Batter" (allows current AB, then auto-reopens removal modal) / "Make Pitching Change" / "Override"
 - **Pitch logging block**: Cannot log pitches when fielding unless pitcher is assigned in Field tab
 - **RBI buttons**: Options greyed out above runners-on-base + 1; impossible RBIs disabled
-- **Result buttons**: Homer → HR; DP/GIDP merged into "Dou Play" with GIDP checkbox in popup; "Trip Play" simplified; LLHR added (Little League HR — same scoring as HR, tracks errors/misplays)
+- **Result buttons**: Homer renamed HR; DP/GIDP merged into "Dou Play" with GIDP checkbox in popup; "Trip Play" simplified; LLHR added (Little League HR — same scoring as HR, tracks errors/misplays)
 - **Catcher/pitcher warnings**: Warning when assigning P to player with 4+ innings caught; warning when assigning C to player with 41+ pitches thrown
 
 ## v15 (2026-04-09) — d3f7572
@@ -71,7 +104,7 @@
 - `p._lastNotif` dedup flag — each threshold popup fires exactly once per pitcher regardless of how many times `chkPW()` is called
 - 75-pitch block now uses proper modal (`m-plimit`) instead of just a toast
 - Added **Override — accept rule violation** red button to the 75p/3-HBP block modal
-- 3-HBP routing fixed: our pitcher → block modal with pitching change button; opponent pitcher → notify umpire modal
+- 3-HBP routing fixed: our pitcher block modal with pitching change button; opponent pitcher notify umpire modal
 - `G.lastABPitches = []` cleared at inning end in `confirmInnEnd()`
 
 ## v13 (2026-04-09) — 663f5e9
