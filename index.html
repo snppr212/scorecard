@@ -154,6 +154,9 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .bat-jersey{width:22px;height:22px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:9px;font-family:sans-serif;color:var(--gold);font-weight:bold;border:1px solid var(--border2);flex-shrink:0;}
 .bat-name{flex:1;font-size:13px;}
 .bat-mini{font-size:10px;color:var(--text3);font-family:sans-serif;}
+.bat-item.skipped{opacity:.4;border:1px dashed var(--amber2)!important;}
+.bat-item.selectable{background:rgba(42,125,82,.04);border:1px solid rgba(42,125,82,.15);}
+.bat-item.selectable:active{background:rgba(42,125,82,.12);}
 .lu-row{display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);}
 .lu-ord{width:16px;font-size:11px;color:var(--text3);font-family:sans-serif;flex-shrink:0;}
 .lu-del{width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:var(--red2);font-size:14px;cursor:pointer;flex-shrink:0;}
@@ -297,7 +300,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-resume"><div class="modal" style="text-align:center;"><h3>Game in progress</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="rs-detail">You already have data saved for this game.</div><div class="mact"><button class="btn btn-gold btn-full" onclick="resumeConfirm(true)">Resume saved game</button><button class="btn btn-red btn-full" onclick="resumeConfirm(false)">Start fresh (erase data)</button><button class="btn btn-full" onclick="cm('m-resume')">Cancel</button></div></div></div>
 
 <!-- OPPONENT BATTER PICKER (on-the-fly lineup entry) -->
-<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--text3);color:var(--text2);font-size:12px;" onclick="oppbatGhost()">Skip — fill in later</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div id="m-oppbat-add-label" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--text3);color:var(--text2);font-size:12px;" onclick="oppbatGhost()">Skip — fill in later</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
 
 <!-- PITCHER SWITCH MODAL (3.2 + 3.1) -->
 <div class="modal-ov" id="m-pswitch"><div class="modal"><h3 id="psw-title">Change Pitcher</h3>
@@ -446,6 +449,7 @@ if(G.hbi===undefined)G.hbi=-1;if(G.abi===undefined)G.abi=-1;
 if(G.pscored===undefined)G.pscored=[];
 if(G.oppLuDone===undefined)G.oppLuDone=false;
 if(G.plb===undefined)G.plb=false;
+if(G._needOppPicker===undefined)G._needOppPicker=false;
 }
 function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -764,7 +768,9 @@ function enterSC(){ss('screen-sc');document.querySelectorAll('#screen-sc .tab').
 ['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');$('tab-atbat').style.display='block';
 if(G.cbi<0&&clu().length>0){var _ini=isHB()?G.hbi:G.abi;G.cbi=_ini>=0?_ini:0;}
 chkPitcherRest();// warn about any player who can't pitch today
-renderSC();}
+renderSC();
+// Auto-open opponent batter picker if opponent bats first and lineup isn't set
+if(theyBat()&&!G.oppLuDone&&(G.cbi<0||clu().length===0)){setTimeout(function(){openOppBatterPicker();},500);}}
 
 // COMPACT LINE SCORE
 // Line score display
@@ -830,7 +836,7 @@ function renderABDetail(){
 function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();renderLS();}
 function stab(name,el){['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');document.querySelectorAll('#screen-sc .tab').forEach(t=>t.classList.remove('active'));$('tab-'+name).style.display='block';el.classList.add('active');
 renderSB();// always keep scorebar current
-if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat'){renderSC();renderABDetail();renderSummary();}}
+if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat'){renderSC();renderABDetail();renderSummary();if(G._needOppPicker){G._needOppPicker=false;setTimeout(function(){openOppBatterPicker();},300);}}}
 
 function renderSB(){$('sb-away').textContent=G.at;$('sb-home').textContent=G.ht;$('sb-away-score').textContent=G.as;$('sb-home-score').textContent=G.hs;$('sb-inn').textContent=ord(G.inn);$('sb-half').textContent=G.half==='top'?'▲ Top':'▼ Bot';for(var b=1;b<=3;b++)$('sbb-'+b).className='sb-base b'+b+(G.bases[b-1]?' on':'');
 var DOT_S='width:7px;height:7px;border-radius:50%;border:1.5px solid ';
@@ -1028,16 +1034,24 @@ var banner='';
 if(G.cbi<0&&G.cpitch.length>0&&_opp){
   banner='<div style="background:var(--bg3);border:1px solid var(--amber2);border-radius:var(--rs);padding:7px 9px;margin-bottom:8px;font-size:11px;color:var(--amber2);font-family:sans-serif;">⚾ '+G.cpitch.length+' pitch'+(G.cpitch.length===1?'':'es')+' logged without a batter — tap a slot or <b>+ Add next batter</b> to attribute them.</div>';
 }
+// Instructional banner for our team when no batter selected
+if(!_opp&&G.cbi<0&&lu.length>0){
+  banner+='<div style="font-size:10px;color:var(--green2);font-family:sans-serif;margin-bottom:6px;text-align:center;">Tap any batter to start their at-bat</div>';
+}
 var addTile=_oppOpen?'<div class="bat-item" onclick="openOppBatterPicker()" style="cursor:pointer;background:var(--bg3);border:1px dashed var(--gold);"><span class="bat-num" style="color:var(--gold);">+</span><span class="bat-name" style="color:var(--gold);">Add next batter</span></div>':'';
+// "Change batter" button when opponent lineup is locked
+var changeTile=(_opp&&G.oppLuDone)?'<div style="text-align:right;margin-bottom:4px;"><button class="btn btn-xs" onclick="openOppBatterPicker()" style="font-size:10px;">Change / skip batter</button></div>':'';
 if(!lu||!lu.length){
   el.innerHTML=banner+(addTile||'<div class="empty">Add in Lineup tab</div>');
   return;
 }
 var _tni=isHB()?G.hbi:G.abi;var ni=_tni>=0?_tni:0;
 var rows=lu.map(function(p,i){var act=G.cbi===i,nx=!act&&i===ni&&G.cbi<0&&!_oppOpen;var t=isHB()?'home':'away',st=gps(i,t);var m=st.ab>0?st.h+'/'+st.ab:'';
+var isSkip=p.skipped&&!p.dnp;
+var selectable=G.cbi<0&&!_opp&&!p.dnp;
 var dispName=_opp?oppDisplay(p,i):(p.name||p.jersey?esc(p.name||'#'+p.jersey):'?');
-return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+'</div>';}).join('');
-el.innerHTML=banner+rows+addTile;}
+return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+(isSkip?' skipped':'')+(selectable?' selectable':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;">SKIP</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+'</div>';}).join('');
+el.innerHTML=banner+changeTile+rows+addTile;}
 
 function selBat(i){if(G.cbi===i)return;
 // cbi<0: preserve any pitches accumulated while waiting to assign a batter (opp on-the-fly)
@@ -1053,11 +1067,19 @@ var _pendOppR=null;// pending AB result when picker was triggered by endAB()
 function openOppBatterPicker(r){
   _pendOppR=(typeof r==='string')?r:null;
   $('m-oppbat-pending').textContent=_pendOppR?('AB pending: '+_pendOppR+' — pick who batted'):(G.cpitch.length>0?(G.cpitch.length+' pitches queued — pick who batted'):'');
+  // Dynamic title and labels based on lineup state
+  $('m-oppbat-title').textContent=G.oppLuDone?'Change opponent batter':'Next opponent batter';
+  $('m-oppbat-add-label').textContent=G.oppLuDone?'Substitute player':'Add new batter';
   var lu=tlu();// opponent lineup
+  var expectedNext=isHB()?G.hbi:G.abi;if(expectedNext<0)expectedNext=0;
   var listHtml=lu.map(function(p,i){
-    var nm=p.name||('#'+(p.jersey||'?'));
+    var nm=p.name||p.jersey?p.name||('#'+(p.jersey||'?')):holeLabel(i);
     var jersey=p.jersey?'#'+p.jersey+' ':'';
-    return '<div class="lu-row" onclick="oppbatPick('+i+')" style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="color:var(--gold);font-family:sans-serif;font-size:12px;min-width:22px;">'+(i+1)+'</span><span style="flex:1;font-size:13px;">'+esc(jersey+nm)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap →</span></div>';
+    var isNext=G.oppLuDone&&i===expectedNext;
+    var isSkip=p.skipped&&!p.dnp;
+    var skipBtn=G.oppLuDone?'<span onclick="event.stopPropagation();skipOppBatter('+i+')" style="font-size:10px;color:var(--amber2);font-family:sans-serif;padding:2px 6px;cursor:pointer;">skip</span>':'';
+    var badge=isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;background:rgba(224,168,96,.12);padding:1px 5px;border-radius:3px;">skipped</span>':(isNext?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">up next</span>':'');
+    return '<div onclick="oppbatPick('+i+')" style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;'+(isSkip?'opacity:.4;':'')+'"><span style="color:var(--gold);font-family:sans-serif;font-size:12px;min-width:22px;">'+(i+1)+'</span><span style="flex:1;font-size:13px;">'+esc(jersey+nm)+'</span>'+badge+skipBtn+'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap →</span></div>';
   }).join('');
   $('m-oppbat-list').innerHTML=listHtml||'<div class="empty" style="padding:10px;font-size:11px;">No batters yet — add one below.</div>';
   $('m-oppbat-end').style.display=(lu.length>0&&!G.oppLuDone)?'':'none';
@@ -1073,6 +1095,7 @@ function _oppbatResume(){
 }
 function oppbatPick(i){
   var lu=tlu();if(!lu[i])return;
+  if(lu[i].skipped)delete lu[i].skipped;// un-skip if manually picked
   G.cbi=i;cm('m-oppbat');_oppbatResume();
 }
 function oppbatAdd(){
@@ -1102,6 +1125,20 @@ function oppbatEndOrder(){
   cm('m-oppbat');_oppbatResume();
 }
 function oppbatClose(){_pendOppR=null;cm('m-oppbat');}
+function skipOppBatter(i){
+  var lu=tlu();if(!lu[i])return;
+  lu[i].skipped=true;
+  // advance to next non-skipped batter
+  var n=lu.length,key=isHB()?'hbi':'abi';
+  for(var s=1;s<=n;s++){
+    var ni=(i+s)%n;
+    if(ni===0&&s>0)clearAllSkipped(lu);// wrapped — new cycle, clear skips
+    if(!lu[ni].skipped&&!lu[ni].dnp){G[key]=ni;G.cbi=ni;break;}
+  }
+  cm('m-oppbat');sv();renderSC();
+  toast(oppDisplay(lu[i],i)+' skipped — will bat next time through');
+}
+function clearAllSkipped(lu){lu.forEach(function(p){delete p.skipped;});}
 
 // PITCH
 function curPitcher(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;return(i>=0&&l[i])?l[i]:null;}
@@ -1312,7 +1349,7 @@ if(G.outs>=3)G.outs=3;
     return;
   }
   var n=Math.max(1,lup.length),start=(G.cbi+1)%n;
-  for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(!lup[ni]||!lup[ni].dnp){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
+  for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(ni<start&&_s>0)clearAllSkipped(lup);if(!lup[ni]||(!lup[ni].dnp&&!lup[ni].skipped)){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
 })();
 G.lastABPitches=G.cpitch.slice();G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
@@ -1409,13 +1446,18 @@ function showNB(r){
 var lu=clu();
 var ni=isHB()?G.hbi:G.abi;
 var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','HR':'HR','LLHR':'LLHR','FO':'F out','GO':'Grd out','LO':'L out','SAC':'SAC','FC':'FC','DP':'DP','GIDP':'GIDP','TP':'TP'};
-// Opponent open lineup: if advancing past the end, leave cbi=-1 so the picker triggers next AB
+// Opponent open lineup: if advancing past the end, auto-open the batter picker
 if(theyBat()&&!G.oppLuDone&&ni>=lu.length){
-  sv();renderSC();
-  toast((rm[r]||r)+' — tap "+ Add next batter"',2500);
+  G.cbi=-1;sv();renderSC();
+  setTimeout(function(){openOppBatterPicker();},300);
   return;
 }
+// Skip over skipped batters
 if(ni<0||ni>=lu.length)ni=0;
+if(theyBat()&&lu[ni]&&lu[ni].skipped){
+  for(var _sk=1;_sk<=lu.length;_sk++){var _ni2=(ni+_sk)%lu.length;if(_ni2===0&&_sk>0)clearAllSkipped(lu);if(!lu[_ni2].skipped&&!lu[_ni2].dnp){ni=_ni2;break;}}
+  if(isHB())G.hbi=ni;else G.abi=ni;
+}
 G.cbi=ni;sv();renderSC();
 // brief toast showing result + who's up
 var batter=lu[ni];var bName=batter?(theyBat()?oppDisplay(batter):sn(batter.name||'#'+batter.jersey)):'?';
@@ -1470,8 +1512,12 @@ if(weField){
   stab('field',document.querySelectorAll('#screen-sc .tab')[1]);
   renderSB();// keep scorebar current on tab switch
   setTimeout(chkPitcherLimit,300);// slight delay so tab renders first
+  // Flag: when user returns to atbat tab, auto-open opponent picker if needed
+  if(theyBat()&&!G.oppLuDone)G._needOppPicker=true;
 }else{
   renderSC();
+  // Auto-open opponent batter picker when their half starts
+  if(theyBat()&&!G.oppLuDone){setTimeout(function(){openOppBatterPicker();},400);}
 }}
 
 function chkFW(inn){if(inn<4)return;var msgs=[];olu().forEach(function(p){if(!p.name&&!p.jersey)return;var k=p.name||p.jersey,c=gfi(k);if(inn===4&&c===0)msgs.push(k+': 0 inn');if(inn>=5&&c<2)msgs.push(k+': '+c+' inn');});if(msgs.length)setTimeout(function(){$('m-info-title').textContent='Fielding Warning';$('m-info-body').textContent=msgs.join('\n');om('m-info');},300);}
