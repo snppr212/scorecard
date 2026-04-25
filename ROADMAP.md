@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v34 (`216ea51`, 2026-04-24)
-**Status as of:** 2026-04-24, after Bulls game (e6) W 6-3
+**Current version:** v36 (`0773e1c`, 2026-04-25)
+**Status as of:** 2026-04-25, after v35-36 fixes (steals UX, auto-out batter, per-AB pitcher stamp)
 
 ## Status Key
 - ✅ Done
@@ -12,19 +12,24 @@
 
 ---
 
-## v35 — Next Up
-
-Things to clean up or add in the next round of work.
+## v37 — Next Up
 
 | # | Issue | Priority | Notes |
 |---|---|---|---|
-| 1 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals. Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner. | 📋 Medium | Consistency with v34 modal work. |
-| 2 | **Mid-inning pitcher change tracking** — `G.fa[]` records who was pitching at the *start* of an inning, not all pitchers within it. Either record fa-events with batter index or stamp pitcher onto each AB and rebuild from there. | 📋 Medium | `index.html` field-assignment array. |
-| 3 | **Per-AB pitcher stamp** — every AB should record which pitcher faced it. Currently relies on `G.chp/cap` at write time, which makes pitcher reattribution painful. | 📋 Medium | Foundational fix for mid-inning pitcher tracking. |
-| 4 | **4-inning game support** — Little League playoff/early-season games are 4 innings, not 6. Currently `showIE` only calls `endGame()` if `G.inn>=5 && oneAhead`. Need a per-game `inningsTotal` field set at game create. | 📋 Low | Easy fix; comes up regularly. |
-| 5 | **Error / overthrow / fielding misplay tracking** — currently no way to log E5, E6, throwing errors, missed cutoffs, etc. as separate events. LLHR result type (v16) hints at the error tracking but it's batter-result-only. | 💡 | Needed for fielder accountability. |
-| 6 | Pitch-threshold modals (`m-plimit`, etc.) can stack on top of each other when ABs end quickly back-to-back. The 21/36/40 popups should be deduped per pitcher per session, not per check. | 📋 Low | `p._lastNotif` exists per v14 — verify it's actually being respected for stacked thresholds. |
-| 7 | Innings-pitched outs aren't decremented when the pitcher who recorded those outs is changed retroactively. | 📋 Low | Acceptable for now; the retroactive flow is the rare case. |
+| 1 | **4-inning game support** | 📋 High (easy + frequent) | Per-game `inningsTotal` field. `showIE` currently ends a game only at `inn>=5 && oneAhead`. Comes up for early-season / playoff games. ~10-min fix. |
+| 2 | **Error / overthrow / fielding misplay tracking** | 📋 High | No way to log E5, E6, throwing errors, missed cutoffs, etc. as separate events. Needed for fielder accountability and to make play log tell the actual story. Bigger feature — needs design (per-position error buttons? attached to the AB or standalone? E1 vs T1 vs M1?). |
+| 3 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm. |
+| 4 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
+| 5 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. Could heuristically reconstruct from `ip_outs` + pitcher order. |
+
+### ✅ Recently Completed (v35-v36)
+
+- Stolen base checkbox UI (multi-runner advances, no stealing home)
+- Auto-out batter (LL Rule 4.04(h) — CBO mid-game removal)
+- Per-AB pitcher stamp — mid-inning changes now tracked
+- Pitch threshold strict-equality bug fix (missed warnings on count jumps)
+- Threshold modal queue (no more overwriting)
+- Retroactive pitcher recalc + button
 
 ---
 
@@ -51,6 +56,8 @@ Things to clean up or add in the next round of work.
 | Undo last pitch | ✅ | |
 | Undo last AB | ✅ | |
 | Runner advancement (SB, CS, WP, etc.) | ✅ | |
+| Stolen base checkbox UI (multi-runner) | ✅ | v35 — checkboxes for 1st→2nd, 2nd→3rd; no stealing home |
+| Auto-out batter (LL 4.04(h)) | ✅ | v35 — for player removed from CBO mid-game |
 | CS credits `ip_outs` to pitcher | ✅ | v34 |
 | Auto-advance to next batter | ✅ | |
 | Multi-runner scoring on short hits | ✅ | v34 |
@@ -93,7 +100,8 @@ Things to clean up or add in the next round of work.
 | Pitcher 41+ pitches → cannot catch warning | ✅ | v16 |
 | Pitching change UI | ✅ | |
 | Innings pitched tracking | ✅ | Includes CS outs as of v34 |
-| Per-AB pitcher stamp | 📋 | See v35#3 |
+| Per-AB pitcher stamp | ✅ | v36 — `ab.pitcher` + `ab.pitcherTeam` set in `finAB` |
+| Retroactive pitcher recalc | ✅ | v36 — `recalcPitcherStats()` + Pitchers tab button |
 
 ---
 
@@ -113,7 +121,7 @@ Things to clean up or add in the next round of work.
 | Pitching change → prompt fielder update | ✅ | v16 |
 | Block pitch logging until pitcher assigned | ✅ | v16 |
 | In-game lineup edit mode (reorder, late arrivals) | ✅ | v31 |
-| Mid-inning pitcher in `G.fa[]` | 📋 | See v35#2 |
+| Mid-inning pitcher tracking | ✅ | v36 — per-AB pitcher stamp + plays log transitions |
 
 ---
 

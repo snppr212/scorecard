@@ -1,5 +1,52 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v36 (2026-04-25) — 0773e1c
+**Per-AB pitcher stamp, threshold fixes, retroactive recalc**
+
+### Mid-inning pitcher change tracking
+- Every AB now records the pitcher who faced it (`ab.pitcher`, `ab.pitcherTeam`) — captured live from `curPitcher()` at `finAB` time
+- Plays log shows a `⚾ Pitching: <name>` line whenever the pitcher changes between consecutive ABs in the same half-inning
+- New `abPitcher(ab)` helper resolves an AB's pitcher with fallback to `G.fa[inn].P` for old ABs without stamps
+- e6 backfilled — bottom-3rd Ezra→Miles transition now shows in the play log
+
+### Pitch threshold bug fix (missed warnings)
+- `chkPW()` used strict equality (`c===21`, `c===36`, etc.) — if a pitch count jumped over a threshold (e.g. 19→22 via a 3-pitch K), the warning silently skipped
+- Now uses `c>=N` with the existing dedup flag (`p._lastNotif`) so each threshold fires exactly once when crossed
+- Threshold labels updated to "21+", "36+", etc. for clarity
+
+### Threshold modal queue
+- New `_pwarnQueue` defers a second warning if the first is still open
+- Prevents back-to-back threshold firings from overwriting modal content mid-read
+- Updated "Got it — continue" button to call `_pwarnDismiss()` which pops the queue
+
+### Retroactive pitcher recalc
+- New `recalcPitcherStats()` walks `G.abs` and rebuilds every countable field per pitcher: `total`, `sw`, `lk`, `fo`, `ba`, `bip`, `hbp`, `stk`, `ip_outs`, `hits`, `runs_allowed`, `er`, `bb_allowed`, `k_pitched`, `hbp_allowed`
+- CS outs credited to the pitcher of the half's last AB
+- Auto-out ABs skipped (no pitcher charge)
+- "⟲ Recalc stats from ABs" button added to Pitchers tab → Our Pitchers section, behind a confirm prompt
+
+---
+
+## v35 (2026-04-25) — 65686f1
+**Stolen base checkbox UI + auto-out batter**
+
+### Stolen base modal redesigned
+- Old dropdown ("From: 1st/2nd, Player: ___") replaced with a checkbox list of physically-possible advances: "Runner2 2nd → 3rd" and "Runner1 1st → 2nd"
+- Multiple checkboxes for double steals — executed lead-to-trail (so 2nd vacates before 1st advances)
+- Stealing home explicitly disallowed per LL rule, with note shown when a runner is on 3rd
+- Validates impossible combos (e.g. 1st→2nd when 2nd occupied without 2nd also stealing)
+- Matches the Rules tab: "1 per half-inning. No stealing home. Double steals count as 1."
+
+### Auto-out batter for CBO removal
+- New "+ Auto out (player removed from CBO)" button in opponent batter picker
+- For the legitimate LL Rule 4.04(h) case: a player who started the game gets removed (injury / ejection / left early) — their CBO spot becomes an auto-out each time through
+- When the auto-out spot comes up: logs an AB with result `AO`, 0 pitches, 0 RBI, no pitcher attribution; increments outs
+- Auto-fires on half-inning start, normal advancement, and manual pick — no UI interaction needed
+- Slot stays in rotation each time through the order
+- Rules tab updated to note: "Player removed mid-game = automatic out each time spot comes up (LL 4.04(h))"
+
+---
+
 ## v34 (2026-04-24) — 216ea51
 **Bug fixes, opponent batter UX, sync guard, game data entry**
 
