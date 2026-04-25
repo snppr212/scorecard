@@ -286,7 +286,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><button class="btn btn-red btn-full" onclick="cm('m-setup');endGame()">🏁 End Game</button></div></div>
 <div class="modal-ov" id="m-play"><div class="modal"><h3 id="mp-t">Log play</h3><div class="mrow"><label>Scorecard notation (4-3, L9, F8)</label><input type="text" id="mp-not"></div><div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
 <div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="fc-sec" style="display:none;"><div class="mrow"><label>FC — who is out?</label><div id="fc-btns"></div></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cancelPlay()">Cancel</button></div></div></div>
-<div class="modal-ov" id="m-steal"><div class="modal"><h3>Stolen base</h3><div class="mrow"><label>From</label><select id="st-from"></select></div><div class="mrow"><label>Player</label><select id="st-who"></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmSB()">Log SB</button><button class="btn btn-full" onclick="cm('m-steal')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-steal"><div class="modal"><h3>Stolen base</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Check who advanced — multiple OK for double steals</div><div id="sb-opts" style="margin-bottom:10px;"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmSB()">Log steal(s)</button><button class="btn btn-full" onclick="cm('m-steal')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-pos"><div class="modal"><h3 id="mpos-t">Assign</h3><div id="mpos-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-pos')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-runner"><div class="modal"><h3 id="mr-t">Runner</h3><div id="mr-btns"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-runner')">Close</button></div></div></div>
@@ -300,7 +300,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-resume"><div class="modal" style="text-align:center;"><h3>Game in progress</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="rs-detail">You already have data saved for this game.</div><div class="mact"><button class="btn btn-gold btn-full" onclick="resumeConfirm(true)">Resume saved game</button><button class="btn btn-red btn-full" onclick="resumeConfirm(false)">Start fresh (erase data)</button><button class="btn btn-full" onclick="cm('m-resume')">Cancel</button></div></div></div>
 
 <!-- OPPONENT BATTER PICKER (on-the-fly lineup entry) -->
-<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div id="m-oppbat-add-label" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--text3);color:var(--text2);font-size:12px;" onclick="oppbatGhost()">Skip — fill in later</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div id="m-oppbat-add-label" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--text3);color:var(--text2);font-size:12px;" onclick="oppbatGhost()">Skip — fill in later</button></div>
+<div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--red2);color:var(--red2);font-size:12px;" onclick="oppbatAutoOut()">+ Auto out (short lineup, LL 4.04(h))</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
 
 <!-- PITCHER SWITCH MODAL (3.2 + 3.1) -->
 <div class="modal-ov" id="m-pswitch"><div class="modal"><h3 id="psw-title">Change Pitcher</h3>
@@ -462,7 +463,7 @@ function sn(n){if(!n)return'';var p=n.trim().split(' ');return p.length>1?p[0].c
 function ini(n){if(!n)return'?';var p=n.trim().split(' ');return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
 var _ORD=['Leadoff','Second','Third','Cleanup','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
 function holeLabel(i){return(_ORD[i]||''+(i+1))+' Hole';}
-function oppDisplay(p,idx){if(!p)return'?';if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
+function oppDisplay(p,idx){if(!p)return'?';if(p.autoOut)return'⚪ Auto Out';if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
 function theyBat(){return isOH()!==isHB();}// true when opponent is currently batting
 function isPast(ev){try{return new Date(ev.date+' '+ev.time)<new Date();}catch(e){return false;}}
 function fmt3(n){return n.toFixed(3).replace(/^0/,'');}
@@ -1096,7 +1097,10 @@ function _oppbatResume(){
 function oppbatPick(i){
   var lu=tlu();if(!lu[i])return;
   if(lu[i].skipped)delete lu[i].skipped;// un-skip if manually picked
-  G.cbi=i;cm('m-oppbat');_oppbatResume();
+  G.cbi=i;cm('m-oppbat');
+  // Auto-out: log immediately
+  if(lu[i].autoOut){_pendOppR=null;sv();renderSC();setTimeout(logAutoOut,200);return;}
+  _oppbatResume();
 }
 function oppbatAdd(){
   var jn=($('m-oppbat-jn').value||'').trim();
@@ -1114,6 +1118,46 @@ function oppbatGhost(){
   G.cbi=lu.length-1;
   cm('m-oppbat');_oppbatResume();
   toast(holeLabel(G.cbi)+' added — fill in later on Lineup tab',3000);
+}
+function oppbatAutoOut(){
+  // Add an automatic-out slot (LL Rule 4.04(h) — short lineup)
+  // When this spot comes up, it auto-records an out with 0 pitches
+  var lu=tlu();
+  lu.push({jersey:'',name:'Auto Out',autoOut:true});
+  G.cbi=lu.length-1;
+  cm('m-oppbat');
+  // Don't resume into endAB — auto-log immediately
+  sv();renderSC();
+  toast('Auto-out slot added — will record an out each time it comes up',3500);
+  // Auto-fire the out for this slot
+  setTimeout(function(){if(G.cbi>=0&&tlu()[G.cbi]&&tlu()[G.cbi].autoOut)logAutoOut();},200);
+}
+function logAutoOut(){
+  // Log an automatic out — no pitches, no pitcher attribution, just an out
+  var lu=clu();var b=lu[G.cbi];
+  if(!b||!b.autoOut){toast('Not an auto-out slot');return;}
+  var t = G.half==='top'?'away':'home';
+  var halfNum = G.abs.filter(function(a){return a.inn===G.inn&&a.half===G.half;}).length+1;
+  G.abs.push({
+    bi:G.cbi,batter:b.name||'Auto Out',team:t,
+    result:'AO',not:'AO',pc:0,pitches:[],
+    inn:G.inn,half:G.half,num:halfNum,rbi:0,autoOut:true
+  });
+  G.outs = Math.min(3, G.outs+1);
+  // Advance batter index
+  (function(){
+    var lup=isHB()?G.hlu:G.alu;
+    if(theyBat()&&!G.oppLuDone){
+      if(isHB())G.hbi=G.cbi+1;else G.abi=G.cbi+1;
+      return;
+    }
+    var n=Math.max(1,lup.length),start=(G.cbi+1)%n;
+    for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(ni<start&&_s>0)clearAllSkipped(lup);if(!lup[ni]||(!lup[ni].dnp&&!lup[ni].skipped)){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
+  })();
+  G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
+  if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
+  if(G.outs>=3){renderSC();showIE();return;}
+  showNB('AO');
 }
 function oppbatEndOrder(){
   var lu=tlu();
@@ -1459,6 +1503,8 @@ if(theyBat()&&lu[ni]&&lu[ni].skipped){
   if(isHB())G.hbi=ni;else G.abi=ni;
 }
 G.cbi=ni;sv();renderSC();
+// Auto-out batter: immediately log the out, no UI interaction needed
+if(theyBat()&&lu[ni]&&lu[ni].autoOut){setTimeout(function(){logAutoOut();},250);return;}
 // brief toast showing result + who's up
 var batter=lu[ni];var bName=batter?(theyBat()?oppDisplay(batter):sn(batter.name||'#'+batter.jersey)):'?';
 toast((rm[r]||r)+' — Now: '+bName,2500);}
@@ -1505,6 +1551,8 @@ if(_savedCsIdx>=0&&_savedCsTeam){
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
 // always set next batter index for whoever bats next
 var _nlu=clu();if(_nlu.length>0){var _ni=isHB()?G.hbi:G.abi;G.cbi=_ni>=0?_ni:0;}
+// Auto-out at start of half: fire immediately
+if(theyBat()&&_nlu[G.cbi]&&_nlu[G.cbi].autoOut){setTimeout(logAutoOut,500);}
 // 3.3: determine who fields in the new half
 var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(weField){
@@ -1544,12 +1592,55 @@ function outRun(b){G.bases[b-1]=null;G.outs=Math.min(3,G.outs+1);sv();if(G.outs>
 function rmRun(b){G.bases[b-1]=null;sv();renderSC();}
 
 // STEALS
-function logSteal(){if(G.isu)toast('⚠️ Steal used this half!',3000);var s=$('st-from');s.innerHTML='';if(G.bases[0])s.innerHTML+='<option value="1">1st</option>';if(G.bases[1])s.innerHTML+='<option value="2">2nd</option>';if(!s.innerHTML){toast('No runners');return;}
-var o='<option value="">—</option>';for(var b=0;b<3;b++){if(G.bases[b]&&G.bases[b].name)o+='<option value="'+G.bases[b].bi+'">'+esc(G.bases[b].name)+'</option>';}$('st-who').innerHTML=o;om('m-steal');}
-function confirmSB(){var f=parseInt($('st-from').value),bi=$('st-who').value,r=G.bases[f-1];if(!r){cm('m-steal');return;}
-if(bi!==''){var prev=G.steals.filter(e=>e.bi==bi).length;if(prev>0)toast('⚠️ Already stolen this game!',3500);}
-G.isu=true;G.steals.push({from:f,bi,inn:G.inn,half:G.half,name:r.name});
-if(f===3){if(G.bases[2])logRun(G.bases[2].bi,G.bases[2].team);G.bases[2]=null;addR(1);}else{G.bases[f]=r;G.bases[f-1]=null;}cm('m-steal');sv();renderSC();toast('SB logged');}
+function logSteal(){
+  // Build checkbox list of physically possible steals (no stealing home in LL)
+  var html='';
+  var has2 = G.bases[1] && !G.bases[2];// 2nd → 3rd is only possible if 3B is empty
+  var has1 = G.bases[0] && (!G.bases[1] || has2);// 1st → 2nd needs 2B empty, or 2nd also stealing
+  if(has2){
+    var nm2 = G.bases[1].name || '?';
+    html += '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border2);border-radius:var(--rs);margin-bottom:6px;font-family:sans-serif;font-size:13px;cursor:pointer;background:var(--bg3);"><input type="checkbox" id="sb-2to3" style="width:auto;margin:0;flex-shrink:0;"><strong style="color:var(--gold);">'+esc(nm2)+'</strong> 2nd → 3rd</label>';
+  }
+  if(G.bases[0]){
+    var nm1 = G.bases[0].name || '?';
+    var blocked = G.bases[1] && !has2;// 2nd is occupied AND can't move (3B occupied)
+    var note = '';
+    if(G.bases[1] && has2) note = ' <span style="font-size:10px;color:var(--text3);">(only with 2nd→3rd)</span>';
+    if(blocked) note = ' <span style="font-size:10px;color:var(--red2);">(blocked — 2nd occupied)</span>';
+    html += '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border2);border-radius:var(--rs);margin-bottom:6px;font-family:sans-serif;font-size:13px;cursor:pointer;background:var(--bg3);'+(blocked?'opacity:.4;':'')+'"><input type="checkbox" id="sb-1to2" '+(blocked?'disabled':'')+' style="width:auto;margin:0;flex-shrink:0;"><strong style="color:var(--gold);">'+esc(nm1)+'</strong> 1st → 2nd'+note+'</label>';
+  }
+  if(G.bases[2]){
+    var nm3 = G.bases[2].name || '?';
+    html += '<div style="padding:8px 10px;font-family:sans-serif;font-size:11px;color:var(--text3);border:1px dashed var(--border);border-radius:var(--rs);margin-top:4px;">'+esc(nm3)+' on 3rd — stealing home not allowed in LL</div>';
+  }
+  if(!html){toast('No runners can steal');return;}
+  $('sb-opts').innerHTML = html;
+  om('m-steal');
+}
+function confirmSB(){
+  var go23 = $('sb-2to3') && $('sb-2to3').checked;
+  var go12 = $('sb-1to2') && $('sb-1to2').checked;
+  if(!go23 && !go12){toast('Check at least one steal');return;}
+  // Validate: 1st→2nd requires 2nd to be empty or also stealing
+  if(go12 && G.bases[1] && !go23){toast('Cannot steal 2nd — 2nd is occupied');return;}
+  // Execute lead-to-trail so 2nd vacates before 1st advances
+  if(go23){
+    var r2 = G.bases[1];
+    G.bases[2] = r2;
+    G.bases[1] = null;
+    G.steals.push({from:2,to:3,bi:r2.bi,inn:G.inn,half:G.half,name:r2.name});
+  }
+  if(go12){
+    var r1 = G.bases[0];
+    G.bases[1] = r1;
+    G.bases[0] = null;
+    G.steals.push({from:1,to:2,bi:r1.bi,inn:G.inn,half:G.half,name:r1.name});
+  }
+  G.isu = true;
+  cm('m-steal');sv();renderSC();
+  var n = (go23?1:0)+(go12?1:0);
+  toast(n>1?'Double steal logged':'SB logged');
+}
 function logCS(){if(!G.bases.some(b=>b!==null)){toast('No runners');return;}om('m-cs');}
 function confirmCS(){var at=$('cs-at').value;if(at==='2'&&G.bases[0])G.bases[0]=null;else if(at==='3'&&G.bases[1])G.bases[1]=null;
 var _fp=curPitcher();if(_fp)_fp.ip_outs=(_fp.ip_outs||0)+1;
