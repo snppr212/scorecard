@@ -155,6 +155,18 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .bat-name{flex:1;font-size:13px;}
 .bat-mini{font-size:10px;color:var(--text3);font-family:sans-serif;}
 .bat-item.skipped{opacity:.4;border:1px dashed var(--amber2)!important;}
+.fld-grid{width:100%;border-collapse:collapse;font-family:sans-serif;font-size:10px;}
+.fld-grid th,.fld-grid td{border:1px solid var(--border);padding:5px 3px;text-align:center;min-width:42px;}
+.fld-grid th{background:var(--bg3);color:var(--gold);font-weight:bold;font-size:10px;}
+.fld-grid th.live-col{background:rgba(200,169,110,.18);color:var(--gold);}
+.fld-grid td.pos-cell{background:var(--bg2);color:var(--gold);font-weight:bold;font-size:10px;text-align:left;padding-left:6px;width:34px;min-width:34px;}
+.fld-grid td.cell{cursor:pointer;font-size:10px;}
+.fld-grid td.cell.empty{color:var(--text3);background:var(--bg);}
+.fld-grid td.cell.filled{color:var(--text);}
+.fld-grid td.cell.live-col{background:rgba(200,169,110,.06);}
+.fld-grid td.cell:active{background:rgba(200,169,110,.2);}
+.fld-grid td.bench-cell{font-size:9px;color:var(--text2);background:var(--bg2);font-style:italic;line-height:1.3;}
+.fld-grid tr.bench-row td.pos-cell{color:var(--amber2);}
 .bat-item.selectable{background:rgba(42,125,82,.04);border:1px solid rgba(42,125,82,.15);}
 .bat-item.selectable:active{background:rgba(42,125,82,.12);}
 .lu-row{display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);}
@@ -258,7 +270,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
 <!-- FIELD -->
-<div id="tab-field" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:9px;"><div class="ptitle" style="margin:0;">Our fielding</div><div id="fi-livebadge" style="font-size:10px;color:var(--green2);font-family:sans-serif;display:none;">● LIVE</div></div><div class="row" style="gap:6px;align-items:center;margin-bottom:8px;"><label style="font-size:11px;color:var(--text3);font-family:sans-serif;flex-shrink:0;">Inning</label><select id="fi-pick" onchange="setViewInn(parseInt(this.value))" style="width:auto;flex:1;"></select><button class="btn btn-xs" onclick="goToCurrentInn()" id="fi-now-btn" style="font-size:10px;">⟲ Current</button><button class="btn btn-xs btn-green" onclick="copyField()" style="font-size:10px;">Copy prev.</button></div><div id="fa-list"></div></div><div class="panel"><div class="ptitle">Innings per player</div><div id="fi-sum"></div></div></div>
+<div id="tab-field" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:9px;"><div class="ptitle" style="margin:0;">Our fielding</div><div id="fi-livebadge" style="font-size:10px;color:var(--green2);font-family:sans-serif;display:none;">● LIVE</div></div><div class="row" style="gap:4px;align-items:center;margin-bottom:8px;"><div class="team-toggle" style="flex-shrink:0;margin:0;"><div class="team-toggle-btn active" id="fld-mode-list" onclick="setFldMode('list')">By Inning</div><div class="team-toggle-btn" id="fld-mode-grid" onclick="setFldMode('grid')">Grid</div></div></div><div id="fld-list-mode"><div class="row" style="gap:6px;align-items:center;margin-bottom:8px;"><label style="font-size:11px;color:var(--text3);font-family:sans-serif;flex-shrink:0;">Inning</label><select id="fi-pick" onchange="setViewInn(parseInt(this.value))" style="width:auto;flex:1;"></select><button class="btn btn-xs" onclick="goToCurrentInn()" id="fi-now-btn" style="font-size:10px;">⟲ Current</button><button class="btn btn-xs btn-green" onclick="copyField()" style="font-size:10px;">Copy prev.</button></div><div id="fa-list"></div></div><div id="fld-grid-mode" style="display:none;"><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tap any cell to assign. Bench row shows who's sitting that inning.</div><div id="fld-grid-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;"></div></div></div><div class="panel"><div class="ptitle">Innings per player</div><div id="fi-sum"></div></div></div>
 <!-- PITCHERS -->
 <div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div><div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;"><button class="btn btn-xs btn-full" onclick="if(confirm('Rebuild all pitcher stats from the AB log? Use this if you changed pitcher attribution after the fact.')){recalcPitcherStats();renderPT();renderMU();toast('Pitcher stats rebuilt from ABs',2500);}" style="font-size:10px;border-color:var(--text3);color:var(--text2);">⟲ Recalc stats from ABs (after retroactive change)</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div></div></div>
 <!-- LINEUP -->
@@ -1783,11 +1795,76 @@ function manualRun(){var t=prompt('h=home a=away');if(!t)return;if(t==='h'){G.hs
 function gfi(k){var c=0;Object.keys(G.fa).forEach(function(i){if(Object.values(G.fa[i]).indexOf(k)>=0)c++;});return c;}
 // Field-tab "viewing inning" — defaults to current inning, can be changed for pre-planning
 var _fieldViewInn=null;
+var _fldMode='list';// 'list' or 'grid'
 function viewInn(){return _fieldViewInn||G.inn;}
 function setViewInn(n){_fieldViewInn=n;renderFT();renderFD();}
 function goToCurrentInn(){_fieldViewInn=null;renderFT();renderFD();}
+function setFldMode(m){
+  _fldMode=m;
+  $('fld-mode-list').classList.toggle('active',m==='list');
+  $('fld-mode-grid').classList.toggle('active',m==='grid');
+  $('fld-list-mode').style.display=(m==='list')?'block':'none';
+  $('fld-grid-mode').style.display=(m==='grid')?'block':'none';
+  renderFT();
+}
+function _fldShortName(name){
+  // Compact name for grid cells: first name truncated to 6 chars
+  if(!name)return'';
+  var fn=name.trim().split(' ')[0];
+  return fn.length>6?fn.substring(0,5)+'.':fn;
+}
+function renderFldGrid(){
+  var wrap=$('fld-grid-wrap');if(!wrap)return;
+  var pos=getActivePOS();
+  var totalInn=G.ti||6;
+  var lu=olu().filter(function(p){return p.name||p.jersey;});
+
+  var html='<table class="fld-grid"><thead><tr><th></th>';
+  for(var i=1;i<=totalInn;i++){
+    var live=i===G.inn;
+    html+='<th class="'+(live?'live-col':'')+'">'+i+'</th>';
+  }
+  html+='</tr></thead><tbody>';
+
+  // Position rows
+  pos.forEach(function(p){
+    html+='<tr><td class="pos-cell">'+p+'</td>';
+    for(var i=1;i<=totalInn;i++){
+      var fa=G.fa[i]||{};
+      var nm=fa[p]||'';
+      var live=i===G.inn;
+      var cls='cell '+(nm?'filled':'empty')+(live?' live-col':'');
+      var disp=nm?_fldShortName(nm):'—';
+      html+='<td class="'+cls+'" onclick="gridAssign('+i+',\''+p+'\')">'+esc(disp)+'</td>';
+    }
+    html+='</tr>';
+  });
+
+  // Bench row — auto-derived
+  html+='<tr class="bench-row"><td class="pos-cell">Bench</td>';
+  for(var i=1;i<=totalInn;i++){
+    var fa=G.fa[i]||{};
+    var assigned=Object.values(fa);
+    var bench=lu.filter(function(p){var k=p.name||p.jersey;return assigned.indexOf(k)<0&&!p.dnp;}).map(function(p){return _fldShortName(p.name||p.jersey);});
+    html+='<td class="bench-cell">'+(bench.length?esc(bench.join(', ')):'—')+'</td>';
+  }
+  html+='</tr></tbody></table>';
+  wrap.innerHTML=html;
+}
+function gridAssign(inn,pos){
+  // Set viewInn so openPM writes to the right inning, then open the picker
+  _fieldViewInn=inn;
+  openPM(pos);
+}
 function renderFT(){
   var vi=viewInn();
+  // Render the grid view if active, then return early (no need for the per-inning picker)
+  if(_fldMode==='grid'){
+    renderFldGrid();
+    // Still need the innings-per-player summary at the bottom
+    renderFTSummary();
+    return;
+  }
   // Build the inning selector
   var sel=$('fi-pick');if(sel){
     var opts='';for(var i=1;i<=(G.ti||6);i++){
@@ -1801,6 +1878,8 @@ function renderFT(){
   var fa=G.fa[vi]||{};
   $('fa-list').innerHTML=getActivePOS().map(function(pos){var a=fa[pos]||'',inns=a?gfi(a):0,w=G.inn>=4&&a&&inns<2;
   return '<div class="pos-row"><span class="pos-label">'+pos+'</span><span style="flex:1;font-size:12px;color:'+(a?(w?'var(--red2)':'var(--text)'):'var(--text3)')+';">'+(a?sn(a):'— empty')+(a?' <span style="font-size:10px;color:var(--text3);">'+inns+'i</span>':'')+'</span><button class="btn btn-xs" onclick="openPM(\''+pos+'\')">'+( a?'Change':'Set')+'</button>'+(a?'<button class="btn btn-xs btn-red" style="margin-left:4px;" onclick="clrPos(\''+pos+'\')">✕</button>':'')+'</div>';}).join('');
+renderFTSummary();}
+function renderFTSummary(){
 $('fi-sum').innerHTML=olu().map(function(p){if(!p.name&&!p.jersey)return'';var k=p.name||p.jersey,c=gfi(k),w=G.inn>=4&&c<2;
 // 4.2: group by position → POS (count; 1,2,6) · SS (1; 3)
 var byPos={};
