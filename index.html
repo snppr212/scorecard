@@ -260,7 +260,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- FIELD -->
 <div id="tab-field" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:9px;"><div class="ptitle" style="margin:0;">Our fielding — Inning <span id="fi-label">1</span></div><button class="btn btn-sm btn-green" onclick="copyField()">Copy prev.</button></div><div id="fa-list"></div></div><div class="panel"><div class="ptitle">Innings per player</div><div id="fi-sum"></div></div></div>
 <!-- PITCHERS -->
-<div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div></div></div>
+<div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div><div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;"><button class="btn btn-xs btn-full" onclick="if(confirm('Rebuild all pitcher stats from the AB log? Use this if you changed pitcher attribution after the fact.')){recalcPitcherStats();renderPT();renderMU();toast('Pitcher stats rebuilt from ABs',2500);}" style="font-size:10px;border-color:var(--text3);color:var(--text2);">⟲ Recalc stats from ABs (after retroactive change)</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div></div></div>
 <!-- LINEUP -->
 <div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><div class="row" style="gap:4px;"><button class="btn btn-xs" id="btn-lu-edit-us" onclick="toggleLuEdit('us')">Edit</button><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><div class="row" style="gap:4px;"><button class="btn btn-xs" id="btn-lu-edit-them" onclick="toggleLuEdit('them')">Edit</button><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div></div><div id="their-lu-list"></div></div></div>
 <!-- STATS / BOX -->
@@ -329,7 +329,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div style="font-size:14px;font-family:sans-serif;font-weight:bold;margin-bottom:6px;" id="pwarn-name"></div>
 <div style="font-size:13px;font-family:sans-serif;margin-bottom:4px;" id="pwarn-msg"></div>
 <div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;" id="pwarn-sub"></div>
-<button class="btn btn-gold btn-full" onclick="cm('m-pwarn')">Got it — continue</button>
+<button class="btn btn-gold btn-full" onclick="_pwarnDismiss()">Got it — continue</button>
 </div></div>
 
 <!-- MERCY RULE MODAL -->
@@ -1188,6 +1188,66 @@ function clearAllSkipped(lu){lu.forEach(function(p){delete p.skipped;});}
 
 // PITCH
 function curPitcher(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;return(i>=0&&l[i])?l[i]:null;}
+// Resolve the pitcher who faced an AB, falling back to G.fa[inn].P for old ABs without stamp
+function abPitcher(ab){
+  if(!ab)return null;
+  var pTeam=ab.pitcherTeam||(ab.half==='top'?'home':'away');
+  var list=pTeam==='home'?G.hp:G.ap;
+  if(ab.pitcher){var p=list.find(function(x){return x.name===ab.pitcher;});if(p)return p;}
+  // Fallback: lookup from inning's starting fielder assignment
+  var faName=(G.fa[ab.inn]||{}).P;
+  if(faName){var p2=list.find(function(x){return x.name===faName;});if(p2)return p2;}
+  return null;
+}
+// Rebuild pitcher stats from the AB list — use after retroactive pitcher changes
+function recalcPitcherStats(){
+  var allP=G.hp.concat(G.ap);
+  // Reset countable fields (preserve name, rn, _lastNotif, throws)
+  allP.forEach(function(p){
+    p.total=0;p.sw=0;p.lk=0;p.fo=0;p.ba=0;p.bip=0;p.hbp=0;p.stk=0;
+    p.ip_outs=0;p.hits=0;p.runs_allowed=0;p.er=0;
+    p.bb_allowed=0;p.k_pitched=0;p.hbp_allowed=0;
+  });
+  // Walk each AB and credit the pitcher who faced it
+  G.abs.forEach(function(ab){
+    var p=abPitcher(ab);if(!p)return;
+    if(ab.autoOut)return;// auto-outs don't count against any pitcher
+    // Tally pitch types
+    (ab.pitches||[]).forEach(function(c){
+      p.total++;
+      if(c==='S'){p.sw++;p.stk++;}
+      else if(c==='L'){p.lk++;p.stk++;}
+      else if(c==='F'||c==='FT'){p.fo++;p.stk++;}// simplified for retroactive
+      else if(c==='B')p.ba++;
+      else if(c==='X')p.bip++;
+      else if(c==='H')p.hbp++;
+    });
+    // Outcome stats
+    var r=ab.result;
+    var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
+    if(isOut)p.ip_outs++;
+    if(r==='DP'||r==='GIDP')p.ip_outs++;// second out from DP
+    if(r==='TP')p.ip_outs+=2;// triple play: 2 more outs beyond batter
+    if(['1B','2B','3B','HR','LLHR'].indexOf(r)>=0)p.hits++;
+    if(r==='BB')p.bb_allowed++;
+    if(r==='K'||r==='KL')p.k_pitched++;
+    if(r==='HBP')p.hbp_allowed++;
+    p.runs_allowed+=(ab.rbi||0);
+    p.er=p.runs_allowed;
+  });
+  // Add CS outs to pitcher who was in when CS was logged
+  // (We don't track per-CS pitcher attribution yet; outs went to whoever
+  //  was current at CS time. Since we walk ABs only, CS outs need separate
+  //  handling. For now we just walk G.css and credit the AB's pitcher
+  //  closest to that inning/half.)
+  (G.css||[]).forEach(function(cs){
+    var sameHalf=G.abs.filter(function(a){return a.inn===cs.inn&&a.half===cs.half;});
+    var lastAB=sameHalf[sameHalf.length-1];
+    var p=lastAB?abPitcher(lastAB):null;
+    if(p)p.ip_outs++;
+  });
+  sv();
+}
 function ensurePitcher(){if(curPitcher())return;// auto-create placeholder so pitch logging always works
 var _t=G.half==='top'?'home':'away';var _ours=(_t==='home')===isOH();
 var _pl=_ours?ourP():theirP();var _nm=_ours?(A.roster[0]?sn(A.roster[0].name):'Our P'):'Opp. P';
@@ -1224,7 +1284,13 @@ else if(c==='F'||c==='FT'){p.fo=(p.fo||0)+1;if(G.strikes<2)p.stk=(p.stk||0)+1;}
 else if(c==='B')p.ba=(p.ba||0)+1;
 else if(c==='X')p.bip=(p.bip||0)+1;
 else if(c==='H')p.hbp=(p.hbp||0)+1;}
-function showPWarn(nm,title,msg,sub){$('pwarn-title').textContent=title;$('pwarn-name').textContent=nm;$('pwarn-msg').textContent=msg;$('pwarn-sub').textContent=sub||'';om('m-pwarn');}
+var _pwarnQueue=[];
+function showPWarn(nm,title,msg,sub){
+  // If a warning is already open, queue this one to fire after dismiss
+  if($('m-pwarn').classList.contains('open')){_pwarnQueue.push({nm:nm,title:title,msg:msg,sub:sub});return;}
+  $('pwarn-title').textContent=title;$('pwarn-name').textContent=nm;$('pwarn-msg').textContent=msg;$('pwarn-sub').textContent=sub||'';om('m-pwarn');
+}
+function _pwarnDismiss(){cm('m-pwarn');if(_pwarnQueue.length){var n=_pwarnQueue.shift();setTimeout(function(){showPWarn(n.nm,n.title,n.msg,n.sub);},250);}}
 function chkPW(){
 var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;
 if(i<0||!l[i])return;
@@ -1234,12 +1300,15 @@ var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(c>=75&&lastN<75){p._lastNotif=75;
   if(weField){G.plb=true;sv();$('plimit-msg').textContent=nm+' has thrown '+c+' pitches (limit: 75). Must be removed before next batter.';om('m-plimit');}
   else showPWarn(nm,'🛑 Opponent at 75+ Pitches','Opponent pitcher must be removed. Notify the umpire.','Rule: pitcher may finish current batter only.');}
-else if(c===66&&lastN<66){p._lastNotif=66;showPWarn(nm,'⚠️ Rest Required — 66 pitches','Requires 4 calendar days rest after this game.','Only 9 pitches remaining today.');}
-else if(c===65&&lastN<65){p._lastNotif=65;showPWarn(nm,'⚠️ 65 Pitches — 10 Left','10 pitches remaining today before limit.','Rest: 3 days required.');}
-else if(c===51&&lastN<51){p._lastNotif=51;showPWarn(nm,'⚠️ Rest Required — 51 pitches','Requires 3 calendar days rest.','');}
-else if(c===40&&lastN<40){p._lastNotif=40;showPWarn(nm,'⚠️ 40-Pitch Rule','Ineligible to pitch in the next game.','2 days rest required. Can continue today up to 75 pitches.');}
-else if(c===36&&lastN<36){p._lastNotif=36;showPWarn(nm,'⚠️ Rest Required — 36 pitches','Requires 2 calendar days rest.','Plan your substitution.');}
-else if(c===21&&lastN<21){p._lastNotif=21;showPWarn(nm,'⚠️ Rest Required — 21 pitches','Requires 1 calendar day rest.','Can continue pitching today until the inning ends.');}}
+// Use >= for thresholds so jumps over a boundary still trigger the warning
+// (e.g. 19 → 22 pitches via a 3-pitch K still fires the 21-pitch warning).
+// The dedup flag (p._lastNotif) prevents the same threshold from re-firing.
+else if(c>=66&&lastN<66){p._lastNotif=66;showPWarn(nm,'⚠️ Rest Required — 66+ pitches','Requires 4 calendar days rest after this game.','Limit: 75 pitches today.');}
+else if(c>=65&&lastN<65){p._lastNotif=65;showPWarn(nm,'⚠️ 65 Pitches — 10 Left','10 pitches remaining today before limit.','Rest: 3 days required.');}
+else if(c>=51&&lastN<51){p._lastNotif=51;showPWarn(nm,'⚠️ Rest Required — 51+ pitches','Requires 3 calendar days rest.','');}
+else if(c>=40&&lastN<40){p._lastNotif=40;showPWarn(nm,'⚠️ 40-Pitch Rule','Ineligible to pitch in the next game.','2 days rest required. Can continue today up to 75 pitches.');}
+else if(c>=36&&lastN<36){p._lastNotif=36;showPWarn(nm,'⚠️ Rest Required — 36+ pitches','Requires 2 calendar days rest.','Plan your substitution.');}
+else if(c>=21&&lastN<21){p._lastNotif=21;showPWarn(nm,'⚠️ Rest Required — 21+ pitches','Requires 1 calendar day rest.','Can continue pitching today until the inning ends.');}}
 // 3.1: check pitch limit when WE start fielding a new half-inning
 function chkPitcherLimit(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
@@ -1333,10 +1402,12 @@ chkPW();// check pitch thresholds for every AB outcome (1B,2B,GO,FO,etc.)
 saveSnap();// save state before any mutation so we can undo
 if($('undo-ab-btn'))$('undo-ab-btn').style.display='inline-flex';
 var lu=clu(),b=lu[G.cbi],t=isHB()?'home':'away';
-G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0});
-var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
-// attribute result to fielding pitcher
+// Stamp the pitcher who faced this AB — captures mid-inning changes accurately
 var _fp=curPitcher();
+var _pTeam=G.half==='top'?'home':'away';// team OF the pitcher (opposite of batter)
+G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null});
+var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
+// attribute result to fielding pitcher (already computed above)
 if(_fp){
   if(isOut)_fp.ip_outs=(_fp.ip_outs||0)+1;
   if(r==='DP'||r==='GIDP')_fp.ip_outs=(_fp.ip_outs||0)+1;// second out
@@ -1849,7 +1920,15 @@ var html='';
 function mkHalf(abs,label){
   if(!abs.length)return'';
   // Per-half numbering — first batter of each half = 1
-  var rows=abs.map(function(ab,i){
+  var lastPitcher=null;
+  var pieces=[];
+  abs.forEach(function(ab,i){
+    // Inject a pitcher-change line when the pitcher differs from the previous AB
+    var thisPitcher = ab.pitcher || ((G.fa[ab.inn]||{}).P) || null;
+    if(thisPitcher && thisPitcher!==lastPitcher){
+      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 18px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+'</div>');
+      lastPitcher=thisPitcher;
+    }
     var pitches=ab.pitches||[];
     var seq=pitches.map(function(c){return'<span class="ps-'+c+'">'+c+'</span>';}).join(' ');
     var pcount=pitches.length;
@@ -1859,16 +1938,16 @@ function mkHalf(abs,label){
     var runStyle=isRun?'font-style:italic;color:var(--amber2);':'';
     // Pitch sequence + total count, sits RIGHT next to the batter name for readability
     var pitchCell=pcount?'<span style="font-size:10px;color:var(--text3);font-family:monospace;">'+seq+' ('+pcount+')</span>':'';
-    return '<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;'+runStyle+'">'
+    pieces.push('<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;'+runStyle+'">'
     +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;min-width:18px;">'+(i+1)+'</span>'
     +'<span style="font-size:13px;min-width:80px;">'+esc(abBatterDisplay(ab))+'</span>'
     +pitchCell
     +'<span style="flex:1;"></span>'
     +'<span class="badge '+bc+'" style="font-size:11px;">'+esc(notation)+'</span>'
     +(ab.rbi>0?'<span style="font-size:11px;color:var(--amber2);font-family:sans-serif;">+'+ab.rbi+'R</span>':'')
-    +'</div>';
+    +'</div>');
   });
-  return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:5px 0 3px;border-top:2px solid var(--border2);margin-top:4px;">'+esc(label)+'</div>'+rows.join('');
+  return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:5px 0 3px;border-top:2px solid var(--border2);margin-top:4px;">'+esc(label)+'</div>'+pieces.join('');
 }
 // LINEAR — oldest at the top. Top of 1 → Bottom of 1 → Top of 2 → …
 for(var inn=1;inn<=maxInn;inn++){
