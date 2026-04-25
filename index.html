@@ -716,15 +716,11 @@ if(ih)G.hlu=lu;else G.alu=lu;
 if(G.eid){if(!A.gameResults[G.eid])A.gameResults[G.eid]={};A.gameResults[G.eid].lineupOrder=_lineupOrder.filter(Boolean);}
 // reset per-team batter index for our team
 if(ih)G.hbi=0;else G.abi=0;
-// Pre-populate opponent lineup from OPP_ROSTERS
-var ev=A.schedule.find(e=>e.id===G.eid);
-var oppName=ev?ev.opponent:'';
-var oppLU=ih?G.alu:G.hlu;
-if(oppLU.length===0&&oppName&&OPP_ROSTERS[oppName]){
-  if(ih)G.alu=OPP_ROSTERS[oppName].map(n=>({name:n,jersey:''}));
-  else G.hlu=OPP_ROSTERS[oppName].map(n=>({name:n,jersey:''}));
-}
-sg();$('opp-title').textContent=(ih?G.at:G.ht)+' Lineup';$('opp-sub').textContent='Enter players, then set order';
+// Don't auto-populate opponent lineup. The user adds opponent batters
+// live as each AB comes up via the m-oppbat picker. If they want to
+// pre-fill from a saved roster, they can tap "Pre-fill from saved roster"
+// below.
+sg();$('opp-title').textContent=(ih?G.at:G.ht)+' Lineup';$('opp-sub').textContent='Add live during the game, or enter ahead of time';
 _oppOrder=[];$('opp-step1').style.display='block';$('opp-step2').style.display='none';
 renderOppLU();ss('screen-opp');}
 
