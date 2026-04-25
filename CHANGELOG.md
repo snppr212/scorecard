@@ -1,8 +1,53 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v33 (2026-04-11) — ff4641f
+**Hot Rods roster + retroactive game logging**
+- Added **Jack Van Dyke** to `OPP_ROSTERS['Hot Rods']` (new player who joined Hot Rods mid-season)
+- Retroactively logged **Mussels 6 – Hot Rods 4** (e2, Apr 11) via preview-eval scripting after the live log was lost mid-game
+- Documented several bugs surfaced during the retroactive replay (see Known Issues in ROADMAP)
+
+## v32 (2026-04-11) — 54d85e4
+**Opponent on-the-fly lineup + no-batter AB flow**
+- Opponent batter picker (`m-oppbat`) now allows adding a new opponent batter inline during the game without rebuilding the full lineup up front
+- "End of order" button locks the lineup as built and cycles back through it
+- AB flow tolerates `cbi=-1` with pitches in the buffer — pitches stay logged against the current pitcher even before a batter is picked
+- Useful when the opposing scorebook is incomplete or batters arrive late
+
+## v31 (2026-04-11) — de641f0
+**Plays screen linear + lineup edit mode**
+- Plays log redesigned to a single linear stream (vs. previous nested half-innings) — easier to scroll on phone
+- Lineup tab gains in-game **Edit** mode toggle: reorder via up/down arrows, mark DNP, support late arrivals
+
+## Field Graphic redesign sequence (Apr 10–11)
+- `180a1c3` Bigger gold runner circles centered on bases (visibility from across the dugout)
+- `a403381` Field labels show player first name when assigned
+- `6ccd8f9` Position name labels in dark boxes, visible dirt around bases + mound
+- `a341125` Restored v22 field graphic (solid green wide angle), flipped home plate point downward
+- `4851a57` Reverted field graphic to prior version
+- `c7843f5` Initial low-angle landscape redesign (later reverted)
+- `879da83` Initial proper baseball-diamond rewrite
+
+## v30 (2026-04-10) — `ab6129d`
+**Game-day field reference**
+- Added `FIELD_TRIAGE.md` — pre-game checklist, sandbox testing notes, common-quirk reference for in-game troubleshooting
+
+## Test Sandbox + Resume hardening (Apr 9–10)
+- `49f59f0` **Test Sandbox** — gold 🧪 button on home screen spins up a fake `vs TEST OPPONENT` game; isolated from real data and W-L record; one-tap **Wipe test data** clears all sandbox state including `pitchLog` entries tagged `eventId='test-sandbox'`
+- `64ee616` **Resume modal** with three explicit buttons: *Resume*, *Start fresh (erase data)*, *Cancel* — prevents accidental wipes mid-game; auto-cleanup of test sandbox state on launch
+- `586e418` Game result badge (W/L/T) on schedule only renders when `gameResults[eid].final === true`
+
+## Firebase integration (v18–v20, Apr 8–9)
+- `85f8ab3` **Firebase + Firestore integration** — game state and roster sync to `diamond-statz` project; multi-device coherent state
+- `73665e8` Fixed Firebase SDK URL to use compat-version
+- `84ba5b5` Bumped service worker to v18 for Firebase integration
+- `d82b444` **Fixed infinite recursion** in `sa()`/`sg()` Firebase wrappers — root cause of the "tapping a game does nothing" hang. Wrappers were defined as `function` declarations that hoisted *before* the originals were captured, so `saOrig()` referenced the wrapper itself. Switched to assignments.
+
+## v17 (2026-04-09) — 0ce0e61
+**Compact line score strip**
+- Compact inning-by-inning strip added to top of At Bat, Plays, and Box tabs — running totals always visible
+
 ## v16 (2026-04-10)
 **Plays log, box totals, lineup UX, pitch enforcement, result buttons, catcher/pitcher rules**
-
 - **Plays screen**: Rewritten inning-by-inning (newest first), alternating top▲/bottom▼ with bold divider; ABs that score runs shown in italic amber
 - **Box score**: Totals row added to bottom of both batting (AB/R/H/RBI/XBH/HR/BB/K) and pitching (IP/PC/St/Ba/H/R/ER/BB/K/ERA) tables
 - **Lineup tab**: "DNP" button renamed to "Remove"

@@ -282,18 +282,22 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><button class="btn btn-red btn-full" onclick="cm('m-setup');endGame()">🏁 End Game</button></div></div>
 <div class="modal-ov" id="m-play"><div class="modal"><h3 id="mp-t">Log play</h3><div class="mrow"><label>Scorecard notation (4-3, L9, F8)</label><input type="text" id="mp-not"></div><div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
-<div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cancelPlay()">Cancel</button></div></div></div>
+<div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="fc-sec" style="display:none;"><div class="mrow"><label>FC — who is out?</label><div id="fc-btns"></div></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cancelPlay()">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-steal"><div class="modal"><h3>Stolen base</h3><div class="mrow"><label>From</label><select id="st-from"></select></div><div class="mrow"><label>Player</label><select id="st-who"></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmSB()">Log SB</button><button class="btn btn-full" onclick="cm('m-steal')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-pos"><div class="modal"><h3 id="mpos-t">Assign</h3><div id="mpos-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-pos')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-runner"><div class="modal"><h3 id="mr-t">Runner</h3><div id="mr-btns"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-runner')">Close</button></div></div></div>
 <div class="modal-ov" id="m-phist"><div class="modal"><h3>Season Pitching</h3><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Total</th><th>Last</th><th>Rest</th><th>Avail?</th></tr></thead><tbody id="ph-body"></tbody></table></div><div class="mact"><button class="btn btn-full" onclick="cm('m-phist')">Close</button></div></div></div>
 <div class="modal-ov" id="m-next"><div class="modal" style="text-align:center;"><h3 id="nb-res" style="font-size:16px;margin-bottom:14px;"></h3><div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;">Up next: <strong id="nb-1" style="color:var(--gold);">—</strong></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:2px;">On deck: <span id="nb-2">—</span></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">In the hole: <span id="nb-3">—</span></div><button class="btn btn-gold btn-full" onclick="ackNext()">Got it</button></div></div>
-<div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button><button class="btn btn-full" style="margin-top:8px;border-color:var(--red2);color:var(--red2);font-size:11px;" onclick="cm('m-innend');openCallGame()">Call game (time / darkness)</button></div></div></div>
+<div class="modal-ov" id="m-callgame"><div class="modal" style="text-align:center;"><h3 style="color:var(--red2);">End game early?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:6px;">Score: <strong id="cg-score"></strong></div><div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:14px;">This will finalize the game after <span id="cg-inn"></span>. This cannot be undone.</div><div class="mact"><button class="btn btn-red btn-full" onclick="confirmCallGame()">Yes — end game now</button><button class="btn btn-full" onclick="cm('m-callgame')">Go back</button></div></div></div>
+<!-- NON-BLOCKING INFO ALERT (replaces native alert() for chkFW / chkPitcherRest) -->
+<div class="modal-ov" id="m-info"><div class="modal" style="max-width:360px;"><h3 id="m-info-title" style="margin-bottom:10px;"></h3><div id="m-info-body" style="font-size:12px;font-family:sans-serif;color:var(--text2);white-space:pre-line;margin-bottom:14px;max-height:280px;overflow-y:auto;"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="cm('m-info')">Got it</button></div></div></div>
+
 <div class="modal-ov" id="m-resume"><div class="modal" style="text-align:center;"><h3>Game in progress</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="rs-detail">You already have data saved for this game.</div><div class="mact"><button class="btn btn-gold btn-full" onclick="resumeConfirm(true)">Resume saved game</button><button class="btn btn-red btn-full" onclick="resumeConfirm(false)">Start fresh (erase data)</button><button class="btn btn-full" onclick="cm('m-resume')">Cancel</button></div></div></div>
 
 <!-- OPPONENT BATTER PICKER (on-the-fly lineup entry) -->
-<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--text3);color:var(--text2);font-size:12px;" onclick="oppbatGhost()">Skip — fill in later</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
 
 <!-- PITCHER SWITCH MODAL (3.2 + 3.1) -->
 <div class="modal-ov" id="m-pswitch"><div class="modal"><h3 id="psw-title">Change Pitcher</h3>
@@ -401,7 +405,7 @@ var A={roster:[],schedule:[],gameResults:{},pitchLog:{},filter:'all',epId:null,e
 var G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
 inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
 cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
-fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
+fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
 
 function $(id){return document.getElementById(id);}
 function sa(){try{localStorage.setItem('mm_a',JSON.stringify(A));}catch(e){}}
@@ -420,7 +424,7 @@ try{
     G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
        inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
        cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
-       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
+       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
     if(A.gameResults){
       Object.keys(A.gameResults).forEach(function(k){
         var r=A.gameResults[k];
@@ -452,7 +456,9 @@ function cm(id){$(id).classList.remove('open');}
 function ss(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
 function sn(n){if(!n)return'';var p=n.trim().split(' ');return p.length>1?p[0].charAt(0)+'.'+p[p.length-1]:n;}
 function ini(n){if(!n)return'?';var p=n.trim().split(' ');return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
-function oppDisplay(p){if(!p)return'?';var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):'?';return j+nm;}
+var _ORD=['Leadoff','Second','Third','Cleanup','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
+function holeLabel(i){return(_ORD[i]||''+(i+1))+' Hole';}
+function oppDisplay(p,idx){if(!p)return'?';if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
 function theyBat(){return isOH()!==isHB();}// true when opponent is currently batting
 function isPast(ev){try{return new Date(ev.date+' '+ev.time)<new Date();}catch(e){return false;}}
 function fmt3(n){return n.toFixed(3).replace(/^0/,'');}
@@ -509,7 +515,7 @@ function clearTestData(){
     G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
        inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
        cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
-       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
+       fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
   }
   if(A.gameResults)delete A.gameResults['test-sandbox'];
   if(A.pitchLog){Object.keys(A.pitchLog).forEach(function(n){A.pitchLog[n]=(A.pitchLog[n]||[]).filter(e=>e.eventId!=='test-sandbox');if(!A.pitchLog[n].length)delete A.pitchLog[n];});}
@@ -561,7 +567,7 @@ function enterLineupFlow(ev){
   goToLineupBuild();ss('screen-avail');
 }
 function resetG(ev){var ih=ev.ha==='home',op=ev.opponent||'Visitors';
-G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false};APOS=POS.slice();sg();}
+G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false};APOS=POS.slice();sg();}
 function r2lu(){return A.roster.map(p=>({name:p.name||'',jersey:p.jersey||'',rid:p.id}));}
 
 // AVAILABILITY — Step 1: mark present/absent
@@ -1029,7 +1035,7 @@ if(!lu||!lu.length){
 }
 var _tni=isHB()?G.hbi:G.abi;var ni=_tni>=0?_tni:0;
 var rows=lu.map(function(p,i){var act=G.cbi===i,nx=!act&&i===ni&&G.cbi<0&&!_oppOpen;var t=isHB()?'home':'away',st=gps(i,t);var m=st.ab>0?st.h+'/'+st.ab:'';
-var dispName=_opp?oppDisplay(p):(p.name||p.jersey?esc(p.name||'#'+p.jersey):'?');
+var dispName=_opp?oppDisplay(p,i):(p.name||p.jersey?esc(p.name||'#'+p.jersey):'?');
 return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+'</div>';}).join('');
 el.innerHTML=banner+rows+addTile;}
 
@@ -1077,6 +1083,14 @@ function oppbatAdd(){
   lu.push({jersey:jn,name:nm});
   G.cbi=lu.length-1;
   cm('m-oppbat');_oppbatResume();
+}
+function oppbatGhost(){
+  // Add placeholder slot — shows as "Fourth Hole" etc; editable later via lineup tab
+  var lu=tlu();
+  lu.push({jersey:'',name:''});
+  G.cbi=lu.length-1;
+  cm('m-oppbat');_oppbatResume();
+  toast(holeLabel(G.cbi)+' added — fill in later on Lineup tab',3000);
 }
 function oppbatEndOrder(){
   var lu=tlu();
@@ -1183,7 +1197,7 @@ if(G.cpitch.length===0){
   else{G.cpitch.push('X');pAdd('X');}// any BIP result
   chkPW();// always check thresholds after auto-pitches
 }
-G.pres=r;G.prbi=0;G.dpout=null;
+G.pres=r;G.prbi=0;G.dpout=null;G.fcout=null;
 // BB with bases loaded = auto 1 RBI
 if((r==='BB'||r==='HBP')&&G.bases[0]&&G.bases[1]&&G.bases[2]){
   var not=r==='BB'?'BB':'HBP';finAB(r,not,1);return;
@@ -1206,6 +1220,8 @@ var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());$('err-sec').style
 var dp=r==='DP';$('dp-sec').style.display=dp?'block':'none';
 if($('gidp-chk'))$('gidp-chk').checked=false;
 if(dp){var db='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';db+='<button class="btn btn-sm" style="margin:3px;" onclick="G.dpout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('dp-btns').innerHTML=db||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
+var fc=r==='FC';$('fc-sec').style.display=fc?'block':'none';
+if(fc){var fb='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';fb+='<button class="btn btn-sm" style="margin:3px;" onclick="G.fcout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('fc-btns').innerHTML=fb||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
 om('m-play');}
 function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePOS().map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
 function cancelPlay(){
@@ -1213,7 +1229,7 @@ function cancelPlay(){
   if(G.cpitch.length>0&&G.cpitch[G.cpitch.length-1]==='X'){
     G.cpitch.pop();
   }
-  G.pres=null;G.prbi=0;G.dpout=null;
+  G.pres=null;G.prbi=0;G.dpout=null;G.fcout=null;
   cm('m-play');sv();renderSC();
 }
 function submitPlay(){var not=$('mp-not').value.trim(),et=$('err-t').value,ep=$('err-p').value;
@@ -1259,7 +1275,19 @@ else if(['1B','2B','3B'].includes(r)){
   // Place batter
   var br={name:b?b.name:'?',jerseyNum:b?b.jersey:'',bi:G.cbi,team:t};
   if(r==='1B')G.bases[0]=br;else if(r==='2B')G.bases[1]=br;else G.bases[2]=br;
+  // Auto-score extra runners when RBI exceeds physically scored (e.g. 2B scores R2+R1)
+  var extra=(rbi||0)-scored;
+  for(var _eb=2;_eb>=0&&extra>0;_eb--){
+    if(G.bases[_eb]&&G.bases[_eb]!==br){logRun(G.bases[_eb].bi,G.bases[_eb].team);G.bases[_eb]=null;scored++;extra--;}
+  }
   addR(scored);
+}
+else if(r==='FC'){
+  // Fielder's choice: runner out, batter reaches 1B
+  if(G.fcout!==null&&G.bases[G.fcout])G.bases[G.fcout]=null;
+  var br={name:b?b.name:'?',jerseyNum:b?b.jersey:'',bi:G.cbi,team:t};
+  G.bases[0]=br;
+  if(rbi>0)addR(rbi);
 }
 else if(r==='BB'||r==='HBP'){
   var scored=0;
@@ -1374,7 +1402,7 @@ function chkPitcherRest(){
   var gd=new Date(ev.date);if(isNaN(gd))return;
   var msgs=[];
   A.roster.forEach(function(p){var s=pStatus(p.name,gd);if(s.rest>0)msgs.push('• '+sn(p.name)+': needs '+s.rest+' more day'+(s.rest>1?'s':'')+' rest (threw '+s.last+'p last game)');});
-  if(msgs.length)setTimeout(function(){alert('⚠️ Pitching Rest Restrictions:\n\n'+msgs.join('\n')+'\n\nThese players cannot pitch today.');},600);}
+  if(msgs.length)setTimeout(function(){$('m-info-title').textContent='Pitching Rest Restrictions';$('m-info-body').textContent=msgs.join('\n')+'\n\nThese players cannot pitch today.';om('m-info');},600);}
 
 function showNB(r){
 // auto-advance — no modal, just set batter and render
@@ -1410,6 +1438,19 @@ function showIE(){
   }
   $('ie-detail').textContent=d;om('m-innend');renderSC();
 }
+function openCallGame(){
+  // Populate the confirm modal with current score and inning info
+  $('cg-score').textContent=G.at+' '+G.as+' – '+G.hs+' '+G.ht;
+  var halfLabel=G.half==='top'?'top':'bottom';
+  $('cg-inn').textContent=halfLabel+' of inning '+G.inn;
+  om('m-callgame');
+}
+function confirmCallGame(){
+  cm('m-callgame');
+  // Clean up the half-inning state so endGame sees a tidy game
+  G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];
+  endGame();
+}
 function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[null,null,null];G.cbi=-1;G.cpitch=[];G.lastABPitches=[];G.isu=false;G.plb=false;
 // CS batter carry-over: the batter who was interrupted by CS leads off
 var _savedCsIdx=G._csBatterIdx;var _savedCsTeam=G._csTeam;
@@ -1433,7 +1474,7 @@ if(weField){
   renderSC();
 }}
 
-function chkFW(inn){if(inn<4)return;var msgs=[];olu().forEach(function(p){if(!p.name&&!p.jersey)return;var k=p.name||p.jersey,c=gfi(k);if(inn===4&&c===0)msgs.push(k+': 0 inn');if(inn>=5&&c<2)msgs.push(k+': '+c+' inn');});if(msgs.length)setTimeout(()=>alert('⚠️ Fielding warning:\n\n'+msgs.join('\n')),300);}
+function chkFW(inn){if(inn<4)return;var msgs=[];olu().forEach(function(p){if(!p.name&&!p.jersey)return;var k=p.name||p.jersey,c=gfi(k);if(inn===4&&c===0)msgs.push(k+': 0 inn');if(inn>=5&&c<2)msgs.push(k+': '+c+' inn');});if(msgs.length)setTimeout(function(){$('m-info-title').textContent='Fielding Warning';$('m-info-body').textContent=msgs.join('\n');om('m-info');},300);}
 
 // RUNNERS
 function runnerM(b){var r=G.bases[b-1];
@@ -1465,6 +1506,7 @@ G.isu=true;G.steals.push({from:f,bi,inn:G.inn,half:G.half,name:r.name});
 if(f===3){if(G.bases[2])logRun(G.bases[2].bi,G.bases[2].team);G.bases[2]=null;addR(1);}else{G.bases[f]=r;G.bases[f-1]=null;}cm('m-steal');sv();renderSC();toast('SB logged');}
 function logCS(){if(!G.bases.some(b=>b!==null)){toast('No runners');return;}om('m-cs');}
 function confirmCS(){var at=$('cs-at').value;if(at==='2'&&G.bases[0])G.bases[0]=null;else if(at==='3'&&G.bases[1])G.bases[1]=null;
+var _fp=curPitcher();if(_fp)_fp.ip_outs=(_fp.ip_outs||0)+1;
 G.css.push({at,inn:G.inn,half:G.half});G.outs=Math.min(3,G.outs+1);cm('m-cs');sv();
 if(G.outs>=3){
   // batter's AB was never completed — they lead off next time their team bats
@@ -1810,7 +1852,17 @@ fbReady=true;
 async function fbSaveGame(){
   if(!fbReady||!G.eid)return;
   try{
-    await db.collection('games').doc(G.eid).set({gdata:G,updated:new Date()},{merge:true});
+    // Guard: don't overwrite a populated remote game with blank local state
+    var snap=await db.collection('games').doc(G.eid).get();
+    if(snap.exists&&snap.data()&&snap.data().gdata){
+      var remote=snap.data().gdata;
+      if(remote.abs&&remote.abs.length>0&&(!G.abs||G.abs.length===0)){
+        console.log('fbSaveGame blocked: remote has '+remote.abs.length+' ABs, local has 0');
+        return;
+      }
+    }
+    var cleanG=JSON.parse(JSON.stringify(G));// strip undefined fields (Firestore rejects them)
+    await db.collection('games').doc(G.eid).set({gdata:cleanG,updated:new Date()},{merge:true});
   }catch(e){console.log('fbSaveGame error:',e);}
 }
 async function fbSaveRoster(){
