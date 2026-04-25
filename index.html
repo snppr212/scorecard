@@ -601,8 +601,15 @@ function resumeConfirm(resume){
   cm('m-resume');
   var ev=_pendingEv;_pendingEv=null;
   if(!ev)return;
-  if(!resume)resetG(ev);
-  enterLineupFlow(ev);
+  if(resume){
+    // Resume saved/preloaded game — skip lineup confirmation, go straight to scorecard
+    // (lineup, fielding, pitchers are already set in G from the Firebase fetch)
+    enterSC();
+  }else{
+    // Start fresh — wipe state and walk through lineup builder
+    resetG(ev);
+    enterLineupFlow(ev);
+  }
 }
 function enterLineupFlow(ev){
   $('avail-game-label').textContent='Mussels '+ev.title+' · '+ev.date;
