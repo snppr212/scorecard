@@ -1,5 +1,12 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v39.1 (2026-04-26)
+**Rules tab — Rest days reformatted**
+- Rest days on the Rules tab now render one threshold per line with bold day counts, instead of bunched together with `·` separators
+- Bumps sw.js to v54
+
+---
+
 ## v39 (2026-04-26) — 731a8b9
 **Plays log redesign, edit/swap ABs, placeholders, jersey #s, PA, skip-our-batter, "Call game" relocated**
 

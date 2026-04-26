@@ -252,6 +252,27 @@ User feedback from 2026-04-26 testing. All items below are confirmed for impleme
 
 These are wild but plausibly amazing if we ever wanted to push the app from "great game-day tool" to "the LL scorekeeper that other coaches notice from across the dugout."
 
+### 🎯 User-prioritized for v41+
+
+After 2026-04-26 review, these moved up from "moonshot" to "yes when ready":
+
+| Priority | Idea | User notes |
+|---|------|-----------|
+| **🔥 v41 candidate** | **Print-friendly retro scorecard export (PDF/image)** | Inspired by [@MlbScorecards](https://x.com/MlbScorecards) on X — hand-drawn-style game scorecards that look like they came from a press box. Generate a single-page export from `G.abs` + box. Diamond grid per AB, pitcher line, totals. **Big delight factor.** |
+| **🔥 v41 candidate** | **Season aggregation** — per-player BA/OBP/SLG/ERA/IP/K/BB across all games | "Definitely want." End-of-season stat sheet. Build a stats screen that walks `A.gameResults` + each game's `G.abs`. |
+| **📋 v42** | **AI-generated game recap** | Tap a button at end of game → narrated paragraph. **Append next 2-3 upcoming events** (practices/games — pull from `A.schedule`) with times and locations. So the email reads like a wrap-up + a coach's reminder. |
+| **💡 v42+** | **Live spectator link** | Parked behind "complete a clean game first." Once we know the data is reliable end-to-end, expose a read-only URL. |
+| **💡 future** | **Inning start/end timestamps** | If easy to slot in. Stamp `inn.startTs` / `inn.endTs` automatically when half-inning transitions fire. Don't need a visible 1:45 countdown — just nice-to-know data. |
+| **💡 future** | **Pitch-count progress bar** | Small visual bar in the matchup bar (or pitcher card) showing distance to 75. Replaces the text projector idea. Maybe color-coded: green / amber at 40 / red at 65 / pulsing red at 75. |
+
+### ⏸️ Parked until "clean game" milestone
+
+| Idea | Why parked |
+|---|---|
+| **Pitch quality tagging** — high / outside / non-competitive / etc. | "Not ready to even try that until we can make it through a game." Save for after v40-v41 polish. |
+| **Voice input for plays** | Same — wait for clean baseline. |
+| **Photo → OCR scorecard import** | Same. |
+
 ### Hands-free / faster input
 
 | # | Idea | Why it's cool | Effort |
