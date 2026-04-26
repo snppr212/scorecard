@@ -1,5 +1,42 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v39 (2026-04-26) — 731a8b9
+**Plays log redesign, edit/swap ABs, placeholders, jersey #s, PA, skip-our-batter, "Call game" relocated**
+
+Shipped as 4 batches across the day after Lugnuts game testing.
+
+### Batch 1 — quick wins (sw v50)
+- **A1: "Call game" safety** — removed the red Call-game button from the end-of-half-inning modal (m-innend) where it was easy to fat-finger; relocated to the bottom of the Rules tab. Gear menu's Call-game button stays as the primary entry point.
+- **B4: PA counter** — `gps()` now returns `s.pa` (counts plate appearances, excludes auto-outs). Bat list, matchup bar, and box score all show `0/1 (3PA)` when PA differs from AB. Box score gets a new PA column.
+- **A3: Jersey # ahead of name in box score** — new `_findJersey(name)` and `boxName(p)` helpers. Batting and pitching tables show `#12 L. Kesselman` instead of just `L. Kesselman`.
+- **B5: Skip-this-batter for our team** — new `skipBatter(i)` mirrors the opponent skip. Each row in the bat-list (our team only) gets a small `skip` / `un-skip` toggle button. For the bathroom-kid scenario.
+
+### Batch 2 — placeholder names + propagation (sw v51)
+- **A2 part 1: Placeholder format** — `oppbatGhost()` now stores names as `(Leadoff)`, `(Cleanup)`, or `(N-hole)` (parens included in the actual `name` field, not just the visual label). New `placeholderName(i)` and `isPlaceholder(name)` helpers.
+- **A2 part 2: Propagation fix** — `abBatterDisplay` now looks up the CURRENT lineup entry by `bi` index first (then falls back to name match). Renaming a placeholder on the Lineup tab to a real name now propagates to the Plays log immediately. Lineup-tab inputs auto re-render Plays log, Box score, and At Bat via new `_propagateLineupEdit()` helper.
+- **A2 part 3: Light-red rendering** — placeholder names render in `#ff8888` italic everywhere: Plays log, Box score, At Bat tab, batting list, matchup bar, opp picker.
+
+### Batch 3 — Plays log redesign (sw v52)
+- **B1+B2+B3: 4-column grid + sub-lines**
+- New layout: `# | batter | pitch sequence | result badge` — fixed widths on cols 1 & 4 so long pitch sequences wrap instead of pushing the result badge off-screen
+- Removed the right-side `+R` badge — runs now show as an indented sub-line
+- **Sub-lines under each AB:**
+  - **Steals**: green `↳ SB by J. Smith (1st → 2nd)` — multiple steals = multiple sub-lines
+  - **Caught stealing**: red `↳ CS by J. Thomas (2nd → 3rd, OUT)`
+  - **Runs scored**: amber italic `↳ Scored: Ethan T., Miles B. (+2 R)`
+- **Data model additions:**
+  - `ab.pscored` — names of runners who scored on this AB; stamped at finAB time via a global buffer that `logRun` feeds into
+  - `steal.during_ab_num` — set to `G.abc + 1` at log time so the Plays log knows which AB to attach the sub-line to
+  - `cs.during_ab_num` + `cs.name` + `cs.from` — captured from `G.bases` before the base is cleared
+  - `G.runs` entries also get `half:G.half` (was missing on some paths)
+
+### Batch 4 — edit & swap ABs (sw v53)
+- **B6: Plays log gets ✎ (edit) and ⇄ (swap) icons on each AB row**
+- **Edit-AB modal**: change batter (dropdown of lineup), result, RBI, notation. Save → recalculates pitcher stats. Delete option also available with confirm prompt.
+- **Swap-AB modal**: pick another AB from the same half-inning. Confirm → swaps ONLY `bi` and `batter` (pitches, result, RBI stay with their original AB). For the out-of-order-batting scenario when you don't catch it live.
+
+---
+
 ## v38 (2026-04-25) — f41524c
 **Pre-plan fielding spreadsheet (grid) view**
 

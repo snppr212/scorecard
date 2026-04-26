@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v38.4 (`3936dae`, 2026-04-26)
-**Status as of:** 2026-04-26, after grid view + game-day fixes (opp lineup popup, resume flow, sync guard improvements)
+**Current version:** v39 (`731a8b9`, 2026-04-26)
+**Status as of:** 2026-04-26, after Batch 1-4 (Call-game relocation, PA counter, jersey #s, placeholders, plays log 4-col + sub-lines, edit/swap ABs)
 
 ## Status Key
 - ✅ Done
@@ -12,37 +12,38 @@
 
 ---
 
-## v39 — HIGH PRIORITY (after testing wraps)
-
-These are the items the user surfaced during the Lugnuts game testing on 2026-04-26. Hold for implementation until further test feedback is collected.
+## v40 — Next Up
 
 | # | Issue | Priority | Notes |
 |---|---|---|---|
-| 1 | **Move "Call game" out of end-of-inning popup** | 🔥 High | Currently the m-innend modal has a red "Call game (time / darkness)" button — too easy to fat-finger when ending a half-inning. Remove from m-innend; relocate to **the bottom of the Rules tab**. The gear menu's "🏁 Call game (end early)" button stays as the primary entry point. Goal: prevent accidental game-ends. |
-| 2 | **Placeholder name format and propagation** | 🔥 High | Multiple parts: (a) When "Don't know — use ordinal placeholder" is tapped, the name should be stored as **`(Leadoff)`, `(2-hole)`, `(3-hole)`, `(Cleanup)`, `(5-hole)`** etc. — parentheses included. Currently labels like "Leadoff Hole" / "Cleanup Hole" are displayed but the underlying `name` field is empty, leading to inconsistent rendering across pages. (b) The placeholder should appear on **every** screen — Plays log, Box score, At Bat tab, Lineup tab — not just some. **Bug observed:** user added a placeholder, edited it on the Lineup tab to a real name, the box score updated but the Plays log did not. (c) Visual: render placeholders in **light red text** so they stand out. (d) Editing the placeholder on the Lineup tab should propagate the new name everywhere immediately — including any already-logged ABs that referenced the placeholder. |
-| 3 | **Box score: jersey # ahead of name in Player column** | 🔥 High | Currently the Box score "Player" column shows just the name (or `F. Lastname` short form). Should be `#12  Leo Kesselman` or `(12) Leo Kesselman` so it's easier to confirm against a paper scorebook or umpire calls. Apply to both batting and pitching tables, both teams. |
-| 4 | **Per-fielder error count in box / stats** | 📋 Medium | `G.errs[]` is fully populated now (v37) — surface a per-player error tally on the Box / Stats page so you can see who's making errors at a glance. |
-| 5 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | If home is leading after top of last inning, app still asks for bottom half. Should auto-end. Walk-off in bottom of last when home takes lead also not auto-detected. |
-| 6 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts. |
-| 7 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | Now that OPP_ROSTERS auto-populate is removed, add an opt-in "Pre-fill from saved roster" button to the opp lineup entry screen for known opponents. Note: v38.7 already shows OPP_ROSTERS as a live menu inside the m-oppbat picker, which may have made this less needed. |
-| 8 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
-| 9 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. |
+| 1 | **Per-fielder error count in box / stats** | 📋 Medium | `G.errs[]` is fully populated now (v37) — surface a per-player error tally on the Box / Stats page so you can see who's making errors at a glance. |
+| 2 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | If home is leading after top of last inning, app still asks for bottom half. Should auto-end. Walk-off in bottom of last when home takes lead also not auto-detected. |
+| 3 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts, edit/swap/delete-AB confirms. |
+| 4 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | Now that OPP_ROSTERS auto-populate is removed, add an opt-in "Pre-fill from saved roster" button to the opp lineup entry screen for known opponents. Note: v38.7 already shows OPP_ROSTERS as a live menu inside the m-oppbat picker, which may have made this less needed. |
+| 5 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
+| 6 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. |
+| 7 | **Edit-AB recompute who-scored** | 💡 Low | When you edit an AB to change RBI from say 0 to 2, we don't currently recompute `G.runs` or `ab.pscored`. The score may go out of sync. Could either (a) only allow result/batter edits not score-affecting fields, or (b) full recompute via a "rebuild from ABs" pass. |
 
-### ✅ Recently Completed (v35-v38.4)
+### ✅ Recently Completed
 
-**Live-game fixes (v38.1-v38.4, today):**
+**v39 (today, 2026-04-26):** Plays log redesign + post-Lugnuts test fixes
+- Plays log: 4-column layout (# | batter | pitches | result), no more overflow
+- Plays log: indented sub-lines for steals, CS, runs scored
+- Edit-AB modal (✎) — change batter, result, RBI, notation; or delete
+- Swap-AB modal (⇄) — fix out-of-order batting after the fact
+- Placeholder names: `(Leadoff)`/`(Cleanup)`/`(N-hole)` format, light red, propagate on edit
+- Box score: jersey # ahead of name; new PA column
+- "Call game" relocated to bottom of Rules tab (out of accidental-tap zone)
+- PA counter in matchup bar and bat list
+- Skip-this-batter for our team (bathroom kid scenario)
+- Roster-as-menu opp picker (full hardcoded roster shown by default with jersey input per row)
 - Opponent lineup choice popup ("Pre-enter" vs "Add live as they bat")
-- Pre-entry screen with ↑↓ reorder arrows on each row
-- Removed OPP_ROSTERS auto-populate (was hard-coding the roster)
-- Resume flow goes straight to scorecard (was incorrectly routing through lineup builder)
-- startG checks Firebase before resetting local state (preload race fix)
-- Sync guard expanded to also block fielding/pitcher overwrites with empty data
+- Resume flow goes straight to scorecard (no more lineup re-confirm)
 
-**Earlier (v35-v38):**
+**v35-v38:**
 - Pre-plan fielding spreadsheet/grid view (positions × innings, bench row)
 - Pre-plan fielding by inning (Field tab inning selector)
 - Standalone error tracking ("⚠️ Err" button + modal, plays log integration)
-- "Call game (end early)" prominent in gear menu — for time/darkness/weather/mercy
 - Stolen base checkbox UI (multi-runner advances, no stealing home)
 - Auto-out batter (LL Rule 4.04(h) — CBO mid-game removal)
 - Per-AB pitcher stamp — mid-inning changes now tracked, plays log shows transitions
