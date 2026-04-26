@@ -1599,7 +1599,9 @@ var lu=clu(),b=lu[G.cbi],t=isHB()?'home':'away';
 // Stamp the pitcher who faced this AB — captures mid-inning changes accurately
 var _fp=curPitcher();
 var _pTeam=G.half==='top'?'home':'away';// team OF the pitcher (opposite of batter)
-G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null});
+// Buffer for runner names who score during this AB — used for sub-lines in Plays log
+G._abScoredBuffer=[];
+G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null,pscored:[]});
 var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
 // attribute result to fielding pitcher (already computed above)
 if(_fp){
@@ -1662,6 +1664,9 @@ if(G.outs>=3)G.outs=3;
   var n=Math.max(1,lup.length),start=(G.cbi+1)%n;
   for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(ni<start&&_s>0)clearAllSkipped(lup);if(!lup[ni]||(!lup[ni].dnp&&!lup[ni].skipped)){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
 })();
+// Flush who-scored buffer onto the just-pushed AB record
+if(G._abScoredBuffer&&G._abScoredBuffer.length){var _justAb=G.abs[G.abs.length-1];if(_justAb)_justAb.pscored=G._abScoredBuffer.slice();}
+G._abScoredBuffer=null;
 G.lastABPitches=G.cpitch.slice();G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
 if(G.finishBatter){G.finishBatter=false;G.plb=true;sv();
@@ -1708,7 +1713,9 @@ else{G.hs+=n;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+n;}
 var newR=G.half==='top'?(G.inns.a[G.inn-1]||0):(G.inns.h[G.inn-1]||0);
 if(!isLast&&newR>=6){sv();renderSB();$('sixrun-msg').textContent=(G.half==='top'?(G.at):(G.ht))+' has scored 6 runs — inning is over.';om('m-6run');}
 chkMercy();}
-function logRun(bi,team){if(!G.runs)G.runs=[];G.runs.push({bi:bi,team:team,inn:G.inn});
+function logRun(bi,team){if(!G.runs)G.runs=[];G.runs.push({bi:bi,team:team,inn:G.inn,half:G.half});
+// If we're inside finAB, also stash the runner's name on the in-progress AB.
+if(G._abScoredBuffer){var lu=team==='home'?G.hlu:G.alu;var p=lu[bi];if(p&&p.name)G._abScoredBuffer.push(p.name);}
 var _fp=curPitcher();if(_fp){_fp.runs_allowed=(_fp.runs_allowed||0)+1;_fp.er=(_fp.er||0)+1;}}
 
 // MERCY RULE CHECK
@@ -1910,13 +1917,13 @@ function confirmSB(){
     var r2 = G.bases[1];
     G.bases[2] = r2;
     G.bases[1] = null;
-    G.steals.push({from:2,to:3,bi:r2.bi,inn:G.inn,half:G.half,name:r2.name});
+    G.steals.push({from:2,to:3,bi:r2.bi,inn:G.inn,half:G.half,name:r2.name,during_ab_num:G.abc+1});
   }
   if(go12){
     var r1 = G.bases[0];
     G.bases[1] = r1;
     G.bases[0] = null;
-    G.steals.push({from:1,to:2,bi:r1.bi,inn:G.inn,half:G.half,name:r1.name});
+    G.steals.push({from:1,to:2,bi:r1.bi,inn:G.inn,half:G.half,name:r1.name,during_ab_num:G.abc+1});
   }
   G.isu = true;
   cm('m-steal');sv();renderSC();
@@ -1959,9 +1966,17 @@ function confirmStandaloneErr(){
   toast('E'+_posNum(pos)+' logged'+(adv>0?' — runner advanced':''));
 }
 function _posNum(p){var m={P:1,C:2,'1B':3,'2B':4,'3B':5,SS:6,LF:7,CF:8,RF:9,RCF:10};return m[p]||p;}
-function confirmCS(){var at=$('cs-at').value;if(at==='2'&&G.bases[0])G.bases[0]=null;else if(at==='3'&&G.bases[1])G.bases[1]=null;
+function confirmCS(){var at=$('cs-at').value;
+// Capture the runner's name + bi BEFORE clearing the base, for the Plays log sub-line
+var fromBaseIdx=at==='2'?0:(at==='3'?1:-1);
+var csRunner=fromBaseIdx>=0&&G.bases[fromBaseIdx]?G.bases[fromBaseIdx]:null;
+var csName=csRunner?(csRunner.name||'?'):'?';
+var csBi=csRunner?csRunner.bi:null;
+var fromLabel=at==='2'?'1st':'2nd';
+if(at==='2'&&G.bases[0])G.bases[0]=null;else if(at==='3'&&G.bases[1])G.bases[1]=null;
 var _fp=curPitcher();if(_fp)_fp.ip_outs=(_fp.ip_outs||0)+1;
-G.css.push({at,inn:G.inn,half:G.half});G.outs=Math.min(3,G.outs+1);cm('m-cs');sv();
+G.css.push({at:at,inn:G.inn,half:G.half,name:csName,bi:csBi,from:fromLabel,during_ab_num:G.abc+1});
+G.outs=Math.min(3,G.outs+1);cm('m-cs');sv();
 if(G.outs>=3){
   // batter's AB was never completed — they lead off next time their team bats
   G._csBatterIdx=G.cbi;G._csTeam=isHB()?'home':'away';
@@ -2292,6 +2307,10 @@ function abNotation(ab){
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
 var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
 var html='';
+// Compact base-name helper for sub-lines (e.g. "1st", "2nd", "3rd")
+function _baseLbl(n){return n===1||n==='1'||n==='1st'?'1st':n===2||n==='2'||n==='2nd'?'2nd':n===3||n==='3'||n==='3rd'?'3rd':String(n);}
+// First initial + last name for sub-line names
+function _shortName(name){if(!name)return'?';var p=name.trim().split(' ');return p.length>1?p[0].charAt(0)+'. '+p[p.length-1]:name;}
 function mkHalf(abs,label,inn,half){
   // Pull standalone errors for this half — they'll be shown at the bottom of the half
   var halfErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&e.standalone;});
@@ -2303,7 +2322,7 @@ function mkHalf(abs,label,inn,half){
     // Inject a pitcher-change line when the pitcher differs from the previous AB
     var thisPitcher = ab.pitcher || ((G.fa[ab.inn]||{}).P) || null;
     if(thisPitcher && thisPitcher!==lastPitcher){
-      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 18px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+'</div>');
+      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 22px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+'</div>');
       lastPitcher=thisPitcher;
     }
     var pitches=ab.pitches||[];
@@ -2311,18 +2330,41 @@ function mkHalf(abs,label,inn,half){
     var pcount=pitches.length;
     var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
     var notation=abNotation(ab);
-    var isRun=ab.rbi>0||ab.result==='HR'||ab.result==='LLHR';
-    var runStyle=isRun?'font-style:italic;color:var(--amber2);':'';
-    // Pitch sequence + total count, sits RIGHT next to the batter name for readability
-    var pitchCell=pcount?'<span style="font-size:10px;color:var(--text3);font-family:monospace;">'+seq+' ('+pcount+')</span>':'';
-    pieces.push('<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;'+runStyle+'">'
-    +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;min-width:18px;">'+(i+1)+'</span>'
-    +'<span style="font-size:13px;min-width:80px;">'+abBatterHtml(ab)+'</span>'
-    +pitchCell
-    +'<span style="flex:1;"></span>'
-    +'<span class="badge '+bc+'" style="font-size:11px;">'+esc(notation)+'</span>'
-    +(ab.rbi>0?'<span style="font-size:11px;color:var(--amber2);font-family:sans-serif;">+'+ab.rbi+'R</span>':'')
+    var isRun=(ab.pscored&&ab.pscored.length>0)||ab.result==='HR'||ab.result==='LLHR';
+    var runStyle=isRun?'color:var(--amber2);':'';
+    var pitchCell=pcount?seq+' <span style="color:var(--text3);">('+pcount+')</span>':'<span style="color:var(--text3);">—</span>';
+    // 4-COLUMN GRID: # | batter | pitches | result
+    pieces.push('<div style="display:grid;grid-template-columns:22px minmax(80px,auto) 1fr 50px;gap:6px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);'+runStyle+'">'
+    +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+(i+1)+'</span>'
+    +'<span style="font-size:13px;">'+abBatterHtml(ab)+'</span>'
+    +'<span style="font-size:10px;font-family:monospace;overflow-wrap:anywhere;line-height:1.4;">'+pitchCell+'</span>'
+    +'<span class="badge '+bc+'" style="font-size:11px;text-align:center;">'+esc(notation)+'</span>'
     +'</div>');
+    // Sub-lines for this AB (steals + CS + scored)
+    var subPieces=[];
+    var abNum=ab.num;
+    // Steals during this AB (before the AB ended)
+    var sbDuring=(G.steals||[]).filter(function(s){return s.during_ab_num===abNum;});
+    sbDuring.forEach(function(s){
+      var fromB=_baseLbl(s.from);
+      var toB=_baseLbl(s.to);
+      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--green2);font-family:sans-serif;">↳ SB by '+esc(_shortName(s.name))+' ('+fromB+' → '+toB+')</div>');
+    });
+    // Caught stealing during this AB
+    var csDuring=(G.css||[]).filter(function(c){return c.during_ab_num===abNum;});
+    csDuring.forEach(function(c){
+      var fromB=c.from||(c.at==='2'?'1st':'2nd');
+      var toB=_baseLbl(c.at);
+      var nm=c.name||'?';
+      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--red2);font-family:sans-serif;">↳ CS by '+esc(_shortName(nm))+' ('+fromB+' → '+toB+', OUT)</div>');
+    });
+    // Runs scored on this AB
+    if(ab.pscored&&ab.pscored.length){
+      var names=ab.pscored.map(_shortName).join(', ');
+      var rbiPart=ab.rbi>0?' (+'+ab.rbi+' R)':' ('+ab.pscored.length+' R)';
+      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--amber2);font-family:sans-serif;font-style:italic;">↳ Scored: '+esc(names)+rbiPart+'</div>');
+    }
+    pieces.push.apply(pieces,subPieces);
   });
   // Append standalone errors for this half (shown after ABs)
   halfErrs.forEach(function(e){
