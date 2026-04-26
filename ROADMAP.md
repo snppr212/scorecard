@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v38 (`f41524c`, 2026-04-25)
-**Status as of:** 2026-04-25, after v38 (fielding grid view)
+**Current version:** v38.4 (`3936dae`, 2026-04-26)
+**Status as of:** 2026-04-26, after grid view + game-day fixes (opp lineup popup, resume flow, sync guard improvements)
 
 ## Status Key
 - ✅ Done
@@ -16,24 +16,34 @@
 
 | # | Issue | Priority | Notes |
 |---|---|---|---|
-| 1 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt. |
-| 2 | **Per-fielder error count in box / stats** | 📋 Medium | `G.errs[]` is fully populated now (v37) — surface a per-player error tally on the Pitchers/Box page so you can see who's making errors at a glance. |
-| 3 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | If home is leading after top of last inning, app still asks for bottom half. Should auto-end. Walk-off in bottom of last when home takes lead also not auto-detected. |
-| 4 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
-| 5 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. |
+| 1 | **Per-fielder error count in box / stats** | 📋 Medium | `G.errs[]` is fully populated now (v37) — surface a per-player error tally on the Box / Stats page so you can see who's making errors at a glance. |
+| 2 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | If home is leading after top of last inning, app still asks for bottom half. Should auto-end. Walk-off in bottom of last when home takes lead also not auto-detected. |
+| 3 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts. |
+| 4 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | Now that OPP_ROSTERS auto-populate is removed, add an opt-in "Pre-fill from saved roster" button to the opp lineup entry screen for known opponents (Hot Rods, etc.) |
+| 5 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
+| 6 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. |
 
-### ✅ Recently Completed (v35-v38)
+### ✅ Recently Completed (v35-v38.4)
 
+**Live-game fixes (v38.1-v38.4, today):**
+- Opponent lineup choice popup ("Pre-enter" vs "Add live as they bat")
+- Pre-entry screen with ↑↓ reorder arrows on each row
+- Removed OPP_ROSTERS auto-populate (was hard-coding the roster)
+- Resume flow goes straight to scorecard (was incorrectly routing through lineup builder)
+- startG checks Firebase before resetting local state (preload race fix)
+- Sync guard expanded to also block fielding/pitcher overwrites with empty data
+
+**Earlier (v35-v38):**
+- Pre-plan fielding spreadsheet/grid view (positions × innings, bench row)
+- Pre-plan fielding by inning (Field tab inning selector)
+- Standalone error tracking ("⚠️ Err" button + modal, plays log integration)
+- "Call game (end early)" prominent in gear menu — for time/darkness/weather/mercy
 - Stolen base checkbox UI (multi-runner advances, no stealing home)
 - Auto-out batter (LL Rule 4.04(h) — CBO mid-game removal)
-- Per-AB pitcher stamp — mid-inning changes now tracked
+- Per-AB pitcher stamp — mid-inning changes now tracked, plays log shows transitions
 - Pitch threshold strict-equality bug fix (missed warnings on count jumps)
 - Threshold modal queue (no more overwriting)
 - Retroactive pitcher recalc + button
-- Pre-plan fielding by inning (Field tab inning selector)
-- Standalone error tracking (overthrow, missed cutoff, etc.)
-- Always 6-inning scheduling; "Call game" in gear menu
-- **Pre-plan fielding spreadsheet (grid) view (v38)**
 
 ---
 
