@@ -229,7 +229,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div id="opp-step1">
 <div class="panel"><div class="ptitle">Enter players (jersey # + name)</div><div id="opp-rows"></div>
 <div class="row" style="margin-top:8px;gap:5px;"><button class="btn btn-sm btn-green" onclick="addOppRow()">+ Add player</button><button class="btn btn-sm btn-red" onclick="rmLastOppRow()">Remove last</button></div></div>
-<div class="g2" style="margin-top:8px;"><button class="btn btn-gold btn-full" onclick="goToOppOrder()">Set batting order →</button><button class="btn btn-full" onclick="skipOpp()">Skip</button></div>
+<div class="g2" style="margin-top:8px;"><button class="btn btn-gold btn-full" onclick="finishOppEntry()">Done →</button><button class="btn btn-full" onclick="skipOpp()">Skip — add live</button></div>
 </div>
 <!-- Step 2: batting order -->
 <div id="opp-step2" style="display:none;">
@@ -293,6 +293,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- MODALS -->
 <div id="toast" class="toast"></div>
 <div class="modal-ov" id="m-roster"><div class="modal"><h3>Roster</h3><div id="ros-list"></div><div class="mact"><button class="btn btn-green btn-full" onclick="addRos()">+ Add</button><button class="btn btn-full" onclick="cm('m-roster')">Close</button></div></div></div>
+<!-- OPPONENT LINEUP START — fires after our lineup is set -->
+<div class="modal-ov" id="m-oppstart"><div class="modal" style="text-align:center;"><h3 id="oppstart-title">Opponent batting order</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;">Got their lineup card, or want to add as they bat?</div><div class="mact"><button class="btn btn-gold btn-full" onclick="cm('m-oppstart');goToOppEntry()">📋 Pre-enter their lineup</button><button class="btn btn-full" onclick="cm('m-oppstart');skipOpp()">⚾ Add live as they bat</button></div></div></div>
 <div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-bottom:6px;">Game called for time / darkness / weather / mercy?</div><button class="btn btn-red btn-full" onclick="cm('m-setup');openCallGame()">🏁 Call game (end early)</button></div></div>
@@ -716,11 +718,14 @@ if(ih)G.hlu=lu;else G.alu=lu;
 if(G.eid){if(!A.gameResults[G.eid])A.gameResults[G.eid]={};A.gameResults[G.eid].lineupOrder=_lineupOrder.filter(Boolean);}
 // reset per-team batter index for our team
 if(ih)G.hbi=0;else G.abi=0;
-// Don't auto-populate opponent lineup. The user adds opponent batters
-// live as each AB comes up via the m-oppbat picker. If they want to
-// pre-fill from a saved roster, they can tap "Pre-fill from saved roster"
-// below.
-sg();$('opp-title').textContent=(ih?G.at:G.ht)+' Lineup';$('opp-sub').textContent='Add live during the game, or enter ahead of time';
+sg();
+// Show the modal asking how they want to handle opponent lineup
+$('oppstart-title').textContent=(ih?G.at:G.ht)+' batting order';
+om('m-oppstart');return;}
+// Direct entry path — only enters if they tapped "Pre-enter their lineup"
+function goToOppEntry(){
+var ih=isOH();
+$('opp-title').textContent=(ih?G.at:G.ht)+' Lineup';$('opp-sub').textContent='Type in batting order; use ↑ ↓ to reorder';
 _oppOrder=[];$('opp-step1').style.display='block';$('opp-step2').style.display='none';
 renderOppLU();ss('screen-opp');}
 
@@ -732,13 +737,20 @@ function setOppLU(lu){if(isOH())G.alu=lu;else G.hlu=lu;}
 function renderOppLU(){
   var lu=getOppLU();while(lu.length<9)lu.push({name:'',jersey:''});
   $('opp-rows').innerHTML=lu.map(function(p,i){
+    var canUp=i>0,canDn=i<lu.length-1;
     return '<div class="lu-row"><span class="lu-ord">'+(i+1)+'</span>'
     +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uOLU('+i+',\'jersey\',this.value)" style="width:46px;">'
     +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uOLU('+i+',\'name\',this.value)" style="flex:1;">'
+    +'<button class="btn btn-xs" onclick="moveOLU('+i+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+' style="padding:2px 6px;">↑</button>'
+    +'<button class="btn btn-xs" onclick="moveOLU('+i+',1)" '+(canDn?'':'disabled style="opacity:.3;"')+' style="padding:2px 6px;">↓</button>'
     +'<div class="lu-del" onclick="rmOLU('+i+')">✕</div></div>';
   }).join('');
 }
 function uOLU(i,f,v){var lu=getOppLU();if(lu[i])lu[i][f]=v;sv();}
+function moveOLU(i,dir){
+  var lu=getOppLU();var j=i+dir;if(j<0||j>=lu.length)return;
+  var tmp=lu[i];lu[i]=lu[j];lu[j]=tmp;sv();renderOppLU();
+}
 function addOppRow(){var lu=getOppLU();lu.push({name:'',jersey:''});renderOppLU();}
 function rmLastOppRow(){var lu=getOppLU();if(lu.length>1)lu.pop();renderOppLU();}
 function rmOLU(i){var lu=getOppLU();lu.splice(i,1);sv();renderOppLU();}
@@ -793,6 +805,14 @@ function skipOpp(){
   // on-the-fly picker can build the lineup slot-by-slot during the game.
   var lu=getOppLU().filter(function(p){return p&&(p.name||p.jersey);});
   setOppLU(lu);sv();enterSC();
+}
+// Done button on the pre-entry screen — saves whatever's entered and locks the order
+function finishOppEntry(){
+  var lu=getOppLU().filter(function(p){return p&&(p.name||p.jersey);});
+  if(!lu.length){toast('Add at least one batter, or tap "Skip — add live"');return;}
+  setOppLU(lu);
+  G.oppLuDone=true;// lineup is locked; no auto-add modal during game
+  sv();enterSC();
 }
 function confirmOpp(){
   var lu=getOppLU();
