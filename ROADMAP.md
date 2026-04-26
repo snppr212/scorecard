@@ -16,13 +16,14 @@
 
 | # | Issue | Priority | Notes |
 |---|---|---|---|
-| 1 | **Per-fielder error count in box / stats** | 📋 Medium | `G.errs[]` is fully populated now (v37) — surface a per-player error tally on the Box / Stats page so you can see who's making errors at a glance. |
-| 2 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | If home is leading after top of last inning, app still asks for bottom half. Should auto-end. Walk-off in bottom of last when home takes lead also not auto-detected. |
-| 3 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts, edit/swap/delete-AB confirms. |
-| 4 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | Now that OPP_ROSTERS auto-populate is removed, add an opt-in "Pre-fill from saved roster" button to the opp lineup entry screen for known opponents. Note: v38.7 already shows OPP_ROSTERS as a live menu inside the m-oppbat picker, which may have made this less needed. |
+| 1 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | Auto-end the game when home leads after top of last, or when home walks off in bottom of last. Today both cases require manual "Call game". |
+| 2 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts, edit/swap/delete-AB confirms. Pure polish. |
+| 3 | **⚠️ Yellow-! error indicator on Plays log AB rows** | 💡 Low | When an in-AB error is logged via the play modal (m-play err-sec), surface it as a small ⚠️ icon next to the result badge. Tap → small popup showing position, type (F/T/M/C), description. Standalone errors already render as a sub-line; this would extend the same to in-AB errors. |
+| 4 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | v38.7 already shows OPP_ROSTERS as a live menu inside m-oppbat — probably unneeded. |
 | 5 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
-| 6 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. |
-| 7 | **Edit-AB recompute who-scored** | 💡 Low | When you edit an AB to change RBI from say 0 to 2, we don't currently recompute `G.runs` or `ab.pscored`. The score may go out of sync. Could either (a) only allow result/batter edits not score-affecting fields, or (b) full recompute via a "rebuild from ABs" pass. |
+| 6 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no `⚾ Pitching: X` transition lines for those games. Cosmetic only. |
+| 7 | **Edit-AB recompute who-scored when RBI changes** | 📋 Medium | Today the Edit-AB modal lets you change RBI but doesn't update `G.runs[]` or `ab.pscored`. The team-total score (G.hs/G.as) goes out of sync. Either remove RBI from Edit-AB (use "+ Run" instead) or do a full rebuild from ABs on save. |
+| 8 | **Per-fielder error count column on Box** | 💡 Low | Existing Box "Fielding errors" panel already shows each error with player/pos/inn/type/play. A per-player count column on the batting table would be cosmetic. Mark deferred. |
 
 ### ✅ Recently Completed
 
