@@ -227,9 +227,9 @@ User feedback from 2026-04-26 testing. All items below are confirmed for impleme
 
 | Doc | Status | Notes |
 |---|---|---|
-| `FIELD_TRIAGE.md` (game-day quick ref) | ✅ | v30 — needs version bump from v30 → v34 references |
-| `CHANGELOG.md` | ✅ | Updated through v34 |
-| `ROADMAP.md` | ✅ | This file |
+| `FIELD_TRIAGE.md` (game-day quick ref) | ✅ | v30 — needs version bump from v30 → v39 references |
+| `CHANGELOG.md` | ✅ | Updated through v39 |
+| `ROADMAP.md` | ✅ | This file (v40 plan + crazy ideas) |
 
 ---
 
@@ -245,6 +245,79 @@ User feedback from 2026-04-26 testing. All items below are confirmed for impleme
 | Season stats aggregation | 💡 | |
 | Email/text game summary | 💡 | |
 | Pitch reconstruction from results | 💡 | See v36#2 |
+
+---
+
+## 🚀 Crazy ideas — long-term moonshots
+
+These are wild but plausibly amazing if we ever wanted to push the app from "great game-day tool" to "the LL scorekeeper that other coaches notice from across the dugout."
+
+### Hands-free / faster input
+
+| # | Idea | Why it's cool | Effort |
+|---|------|----------------|--------|
+| 1 | **Voice input for plays** — "Hunter, single to left field" → app parses and logs the AB. "Brody, ball" → adds a ball. | Hands stay on the dugout fence. Zero taps in clean games. Web Speech API exists, ML parser fits in ~100 lines. | Medium-high |
+| 2 | **Photo of paper scorecard → OCR import** | Coach brings a printed scorebook, snaps a pic, the app extracts batters / results / pitch counts automatically. Saves 90+ minutes per retroactive game vs. preview-eval scripting. | High (needs vision model API) |
+| 3 | **One-tap "no pitch / no swing" auto-rules** — based on count and result, infer the pitch sequence (BB = ball, ball, ball, ball; K-swinging = whatever's needed). | Lowers the cognitive load when you can't keep up with pitches in chaotic moments. | Low |
+
+### Sharing & spectator experience
+
+| # | Idea | Why it's cool | Effort |
+|---|------|----------------|--------|
+| 4 | **Live spectator link** — read-only URL parents/grandparents can watch in real time. Score, current AB, runners on base, last 5 plays. | Grandparents who can't make it to the game can follow along. Other parents in the stands stop bothering you for the score. | Medium (Firestore listener + a simple read-only HTML view) |
+| 5 | **AI-generated game recap** — at end of game, tap "Generate recap" → "The Mussels battled back from a 3-0 deficit. Hunter Bresson's clutch 2-run single in the 5th tied the game; Ezra Kalman shut the door with 5 strikeouts over 2.2 innings to seal the win." | Auto-narration. Send it to the team email list. Kids love seeing their names in the recap. | Medium (LLM API call with the AB log) |
+| 6 | **Email/text summary auto-send** | Tap End Game → "Send to team?" → blast a clean summary to the team email/SMS list. | Low-medium |
+
+### Pitcher management (you'd genuinely use this)
+
+| # | Idea | Why it's cool | Effort |
+|---|------|----------------|--------|
+| 7 | **Pitch-count projector** — "Brody at 41p — projected to hit 75 in ~7 more pitches at his current rate." Live in the matchup bar. | Lets you plan a substitution before you're in trouble. | Low |
+| 8 | **Rest-day calendar** — shows who's eligible to pitch when, days out from the next game. "Eligible again: Tuesday." | Already on the long-tail list but worth highlighting. End-of-season pitch-count compliance is a real LL headache. | Medium |
+| 9 | **Multi-game pitch-count panel** — at game-create, see each pitcher's last 7 / 14 days of pitches. Color-coded availability. | Makes the rest-day calendar predictive: "Don't start Hunter today, he's hit 2 days max already this week." | Medium |
+
+### Stats & history
+
+| # | Idea | Why it's cool | Effort |
+|---|------|----------------|--------|
+| 10 | **Season aggregation** — per-player stats across all games (BA, OBP, SLG, ERA, IP, K, BB, HBP). | The real stat sheet at end of season. Currently we have per-game only. | Medium (just sum across games in `A.gameResults`) |
+| 11 | **Achievement / milestone notifications** — "🎉 Hunter's first triple of the season!" toast at end of inning. "Brody's 100th career strikeout!" | Kids LOVE this. Print achievements at the end-of-season banquet. | Low-medium |
+| 12 | **Player charts** — Hunter's hits per game over time, batting average trend, pitch count by week. Visual. | Helpful for end-of-season parent meetings or college recruiting in years to come. | Medium (Chart.js or pure SVG) |
+| 13 | **Side-by-side game compare** — pick two games, see hits/runs/pitchers/etc. side by side. | "Why did we beat Hot Rods 6-4 but lose to Thunder 5-2?" Lets you spot patterns. | Low-medium |
+
+### Risk management & game-day
+
+| # | Idea | Why it's cool | Effort |
+|---|------|----------------|--------|
+| 14 | **1:45 time-limit countdown** — visible clock that turns amber at 1:30 and red at 1:40. Reminds you when "no new inning" rule kicks in. | LL Rule per Rules tab. Right now it's manual / not tracked. | Low |
+| 15 | **Lightning / weather alert** — pull from a weather API on game start, warn if storms within 30 mi. | Safety. Real coaches get this from MyRadar. We could surface it inline. | Medium |
+| 16 | **6-run rule auto-detection** — when a half-inning hits 6 runs, automatic "End half-inning?" prompt. Currently the rule exists but the user enforces it. | Low effort, big game-day win. | Low |
+
+### UI delight
+
+| # | Idea | Why it's cool | Effort |
+|---|------|----------------|--------|
+| 17 | **Apple Watch quick-glance score** — companion app or web shortcut showing the current score and AB. | Coach with watch can score without phone in hand. | High (separate dev) |
+| 18 | **Player avatars / photos** | Tap a player → small face on their card. Personalizes the app. | Low-medium |
+| 19 | **Animated pitch trajectories** on the field SVG — pitches show as ghost lines, fielding plays show as arcs. | Eye candy but kids LOVE it during reviews. | High |
+| 20 | **Walk-up music / fun facts per kid** — coach mode shows "Hunter walks up to Eye of the Tiger" or "Brody loves dinosaurs". | Pure delight, no stats value. Worth it to make the kids feel seen. | Low |
+
+### Coach intelligence
+
+| # | Idea | Why it's cool | Effort |
+|---|------|----------------|--------|
+| 21 | **Defensive shift suggestions** — based on opp batter handedness + history, recommend infield/outfield positioning. | Proper LL teams already do this informally. Auto-suggest is genuinely useful. | High |
+| 22 | **Substitution rule tracker** — re-entry rules, courtesy runners, etc. The app warns "X re-entered already, can't sub back in." | Catches rule violations before umps do. | Medium |
+| 23 | **Tournament bracket support** — playoff-style scheduling with bye/seeding/single-elimination. | When you make playoffs, you'd love this. | Medium-high |
+| 24 | **Scout mode** — quickly observe an opposing team in another game and capture their batters, pitchers, tendencies for next time we play them. | Some coaches do scouting trips. App makes it 10x faster. | Medium |
+
+### Tongue-in-cheek but possible
+
+| # | Idea | Why it's fun |
+|---|------|--------------|
+| 25 | **AI coach tactical suggestion** — "Bring in Ezra to face #5; he's 0-for-3 against righties this season." | Modern baseball is moneyball. Why not LL? Mostly for fun though. |
+| 26 | **Predict-the-pitch mini-game for kids in the stands** | Pitch comes in, kid taps "ball/strike" on a tablet, gets points. Engagement. |
+| 27 | **End-of-game automated highlight reel from photos** — if the team takes photos during the game, the app picks the 5 best moments + score. | Long shot. Probably too ambitious. |
 
 ---
 
