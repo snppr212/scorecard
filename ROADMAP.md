@@ -16,7 +16,7 @@
 
 | # | Issue | Priority | Notes |
 |---|---|---|---|
-| 1 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | Auto-end the game when home leads after top of last, or when home walks off in bottom of last. Today both cases require manual "Call game". |
+| 1 | **Walk-off / top-of-last-inning end-game PROMPT** | 📋 Medium | NOT auto-end (game state can be wrong, umpire disputes, mis-logged plays). Instead: when conditions look like the game should be over, pop up a confirm modal: "Home leads — call it now?" with Yes / Keep playing. Triggers: (a) top of last inning ends with home leading, (b) home takes the lead in bottom of last inning (walk-off). User confirms or dismisses. |
 | 2 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts, edit/swap/delete-AB confirms. Pure polish. |
 | 3 | **⚠️ Yellow-! error indicator on Plays log AB rows** | 💡 Low | When an in-AB error is logged via the play modal (m-play err-sec), surface it as a small ⚠️ icon next to the result badge. Tap → small popup showing position, type (F/T/M/C), description. Standalone errors already render as a sub-line; this would extend the same to in-AB errors. |
 | 4 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | v38.7 already shows OPP_ROSTERS as a live menu inside m-oppbat — probably unneeded. |
