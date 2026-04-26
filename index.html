@@ -316,7 +316,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-resume"><div class="modal" style="text-align:center;"><h3>Game in progress</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="rs-detail">You already have data saved for this game.</div><div class="mact"><button class="btn btn-gold btn-full" onclick="resumeConfirm(true)">Resume saved game</button><button class="btn btn-red btn-full" onclick="resumeConfirm(false)">Start fresh (erase data)</button><button class="btn btn-full" onclick="cm('m-resume')">Cancel</button></div></div></div>
 
 <!-- OPPONENT BATTER PICKER (on-the-fly lineup entry) -->
-<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div id="m-oppbat-add-label" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--text3);color:var(--text2);font-size:12px;" onclick="oppbatGhost()">Skip — fill in later</button></div>
+<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div id="m-oppbat-add-label" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div style="margin-bottom:8px;"><button class="btn btn-full" id="m-oppbat-ghost" style="background:var(--bg3);border:1px dashed var(--gold);color:var(--gold);font-size:12px;font-weight:bold;" onclick="oppbatGhost()">Don't know — use placeholder</button><div id="m-oppbat-ghost-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-top:3px;"></div></div>
 <div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--red2);color:var(--red2);font-size:12px;" onclick="oppbatAutoOut()">+ Auto out (player removed from CBO)</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
 
 <!-- PITCHER SWITCH MODAL (3.2 + 3.1) -->
@@ -991,7 +991,14 @@ var pPC=p?('PC:'+(p.total||0)+hbpPart):'Tap to set →';
 var pCol=p?(p.total>=65?'var(--red2)':p.total>=40?'var(--amber2)':'var(--green2)'):'var(--red2)';
 $('mu-p').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer;">'+esc(pName)+'</span>';
 $('mu-pd').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer;color:'+pCol+';">'+pPC+'</span>';
-$('mu-b').textContent=b?(theyBat()?oppDisplay(b):sn(b.name||'#'+b.jersey)):'Select batter';
+// Batter name: tappable when opponent is at bat — opens the picker so the
+// user can switch to a different batter or add a placeholder.
+var batLabel=b?(theyBat()?oppDisplay(b):sn(b.name||'#'+b.jersey)):'Select batter';
+if(theyBat()){
+  $('mu-b').innerHTML='<span onclick="openOppBatterPicker()" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--text3);text-underline-offset:3px;">'+esc(batLabel)+'</span>';
+}else{
+  $('mu-b').textContent=batLabel;
+}
 if(b&&G.cbi>=0){var st=gps(G.cbi,isHB()?'home':'away');$('mu-bd').textContent=st.ab>0?st.h+'-'+st.ab:'';}else $('mu-bd').textContent='';}
 
 // 3.2: unified pitcher switch modal — who='us'|'them', forced=true blocks cancel
@@ -1142,10 +1149,14 @@ function openOppBatterPicker(r){
     var isNext=G.oppLuDone&&i===expectedNext;
     var isSkip=p.skipped&&!p.dnp;
     var skipBtn=G.oppLuDone?'<span onclick="event.stopPropagation();skipOppBatter('+i+')" style="font-size:10px;color:var(--amber2);font-family:sans-serif;padding:2px 6px;cursor:pointer;">skip</span>':'';
-    var badge=isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;background:rgba(224,168,96,.12);padding:1px 5px;border-radius:3px;">skipped</span>':(isNext?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">up next</span>':'');
-    return '<div onclick="oppbatPick('+i+')" style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;'+(isSkip?'opacity:.4;':'')+'"><span style="color:var(--gold);font-family:sans-serif;font-size:12px;min-width:22px;">'+(i+1)+'</span><span style="flex:1;font-size:13px;">'+esc(jersey+nm)+'</span>'+badge+skipBtn+'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap →</span></div>';
+    var nextBg=isNext?'background:rgba(42,125,82,.12);':'';
+    var badge=isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;background:rgba(224,168,96,.12);padding:1px 5px;border-radius:3px;">skipped</span>':(isNext?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;font-weight:bold;">UP NEXT</span>':'');
+    return '<div onclick="oppbatPick('+i+')" style="cursor:pointer;padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;'+nextBg+(isSkip?'opacity:.4;':'')+'"><span style="color:var(--gold);font-family:sans-serif;font-size:13px;min-width:22px;font-weight:bold;">'+(i+1)+'</span><span style="flex:1;font-size:14px;">'+esc(jersey+nm)+'</span>'+badge+skipBtn+'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap →</span></div>';
   }).join('');
   $('m-oppbat-list').innerHTML=listHtml||'<div class="empty" style="padding:10px;font-size:11px;">No batters yet — add one below.</div>';
+  // Update the placeholder hint to show the next ordinal label that would be used
+  var nextOrd=lu.length;// new ghost lands at this index
+  $('m-oppbat-ghost-hint').textContent='Will add: '+holeLabel(nextOrd)+' (rename later on Lineup tab)';
   $('m-oppbat-end').style.display=(lu.length>0&&!G.oppLuDone)?'':'none';
   $('m-oppbat-jn').value='';$('m-oppbat-nm').value='';
   om('m-oppbat');
