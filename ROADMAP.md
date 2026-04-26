@@ -12,18 +12,29 @@
 
 ---
 
-## v40 — Next Up
+## v40 — Next Up (queued for next session)
 
-| # | Issue | Priority | Notes |
-|---|---|---|---|
-| 1 | **Walk-off / top-of-last-inning end-game PROMPT** | 📋 Medium | NOT auto-end (game state can be wrong, umpire disputes, mis-logged plays). Instead: when conditions look like the game should be over, pop up a confirm modal: "Home leads — call it now?" with Yes / Keep playing. Triggers: (a) top of last inning ends with home leading, (b) home takes the lead in bottom of last inning (walk-off). User confirms or dismisses. |
-| 2 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts, edit/swap/delete-AB confirms. Pure polish. |
-| 3 | **⚠️ Yellow-! error indicator on Plays log AB rows** | 💡 Low | When an in-AB error is logged via the play modal (m-play err-sec), surface it as a small ⚠️ icon next to the result badge. Tap → small popup showing position, type (F/T/M/C), description. Standalone errors already render as a sub-line; this would extend the same to in-AB errors. |
-| 4 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | v38.7 already shows OPP_ROSTERS as a live menu inside m-oppbat — probably unneeded. |
-| 5 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
-| 6 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no `⚾ Pitching: X` transition lines for those games. Cosmetic only. |
-| 7 | **Edit-AB recompute who-scored when RBI changes** | 📋 Medium | Today the Edit-AB modal lets you change RBI but doesn't update `G.runs[]` or `ab.pscored`. The team-total score (G.hs/G.as) goes out of sync. Either remove RBI from Edit-AB (use "+ Run" instead) or do a full rebuild from ABs on save. |
-| 8 | **Per-fielder error count column on Box** | 💡 Low | Existing Box "Fielding errors" panel already shows each error with player/pos/inn/type/play. A per-player count column on the batting table would be cosmetic. Mark deferred. |
+User feedback from 2026-04-26 testing. All items below are confirmed for implementation.
+
+### 🔥 High priority
+
+| # | Issue | Notes |
+|---|------|-------|
+| **A** | **Edit-AB: RBI change must rebuild G.runs / G.hs / G.as** | Currently editing an AB's RBI doesn't update the team score or the `↳ Scored:` sub-line. Score quietly goes out of sync. Fix: when Edit-AB saves, do a full rebuild from `G.abs` (clear `G.runs`, walk every AB, re-derive score and inning totals). |
+| **B** | **Per-CS pitcher attribution** | Stamp `cs.pitcher` and `cs.pitcherTeam` at `confirmCS` time. Update `recalcPitcherStats()` to use `cs.pitcher` directly instead of the heuristic of "last AB pitcher in the half." |
+| **C** | **Backfill pitcher stamps for e2 (Hot Rods) and e4 (Thunder)** | Write a one-time eval that walks each game's ABs and stamps `ab.pitcher` based on the documented inning ranges (Brody/Ethan/Ezra for e2, Felix/Land/Gutmann/Stabert for e4). Cosmetic but completes the Plays log transition lines for those games. |
+| **D** | **Pitchers tab redesign — collapsible pitch breakdown** | Each pitcher row: `#22 Brody Steinberg — 35` (jersey, name, dash, pitch count). Click row to expand a panel showing pitch-type breakdown: <ul><li>Strikes (total): swinging / looking / foul tip / foul ball (separate counts)</li><li>Ball in play</li><li>Balls</li><li>HBP</li></ul> Requires splitting the existing `p.fo` counter into `p.fo` (foul ball) and `p.ft` (foul tip). Update `pAdd()` and `recalcPitcherStats()` accordingly. |
+| **E** | **Lineup tab cleanup — hide X delete behind Edit toggle** | Currently the ✕ delete button is always visible on each row. Should only appear when "Edit" is toggled on, for BOTH our team and opp team. Existing `_luEdit` state already controls reorder buttons; extend it to control X visibility too. |
+| **F** | **Lineup tab — show "Saved roster — not in lineup yet" section for opp team** | Below the entered opp lineup, render a list of saved roster players (from OPP_ROSTERS) that aren't yet in alu. Each row gets a + button to add them to the lineup. Then user uses existing ↑/↓ arrows to position them. Replaces the v40-original "Pre-fill from saved roster" item but in a more useful, in-context form. |
+| **G** | **Replace remaining native confirm() / prompt() dialogs** | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for adding a runner, `markDNP()`, recalc stats confirm, addTaxi name prompt, addGB late-arrival prompts, Edit-AB / Swap-AB / Delete-AB confirms. Build a generic `confirmModal(title, body, onYes, onNo)` and `promptModal(title, label, onSubmit)` to replace them all. |
+
+### 📋 Lower priority
+
+| # | Issue | Notes |
+|---|------|-------|
+| H | **Walk-off / end-game PROMPT (not auto-end)** | When conditions look like the game should be over, pop up a confirm modal: "Home leads — call it now?" with Yes / Keep playing. Triggers: (a) top of last inning ends with home leading, (b) home takes the lead in bottom of last inning. User confirms or dismisses. NOT auto-end — too many ways game state can be temporarily wrong. |
+| I | **⚠️ Yellow-! error indicator on Plays log AB rows** | Small ⚠️ icon next to the result badge when the AB had an error logged via m-play err-sec. Tap → popup with position, type, description. Extends standalone-error sub-lines to in-AB errors. |
+| J | **Per-fielder error count column on Box** | Box "Fielding errors" panel already shows each error individually — a count column on the batting table would be cosmetic. Deferred unless requested. |
 
 ### ✅ Recently Completed
 
