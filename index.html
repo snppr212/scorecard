@@ -313,6 +313,10 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-next"><div class="modal" style="text-align:center;"><h3 id="nb-res" style="font-size:16px;margin-bottom:14px;"></h3><div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;">Up next: <strong id="nb-1" style="color:var(--gold);">—</strong></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:2px;">On deck: <span id="nb-2">—</span></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">In the hole: <span id="nb-3">—</span></div><button class="btn btn-gold btn-full" onclick="ackNext()">Got it</button></div></div>
 <div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-callgame"><div class="modal" style="text-align:center;"><h3 style="color:var(--red2);">Call the game?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:6px;">Score: <strong id="cg-score"></strong></div><div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;">Will finalize after <span id="cg-inn"></span>.<br>Use for time / darkness / weather / mercy. Cannot be undone.</div><div class="mact"><button class="btn btn-red btn-full" onclick="confirmCallGame()">Yes — call it now</button><button class="btn btn-full" onclick="cm('m-callgame')">Go back</button></div></div></div>
+<!-- EDIT-AB MODAL: fix a logged at-bat (wrong batter, wrong result, wrong RBI) -->
+<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
+<!-- SWAP-AB MODAL: swap two ABs in the same half-inning (out-of-order fix) -->
+<div class="modal-ov" id="m-swapab"><div class="modal" style="max-width:380px;"><h3>Swap with which AB?</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Pick another AB from the same half. Only the BATTER swaps — pitches, result, and RBI stay with their original AB.</div><div id="swapab-list" style="max-height:280px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-swapab')">Cancel</button></div></div></div>
 <!-- NON-BLOCKING INFO ALERT (replaces native alert() for chkFW / chkPitcherRest) -->
 <div class="modal-ov" id="m-info"><div class="modal" style="max-width:360px;"><h3 id="m-info-title" style="margin-bottom:10px;"></h3><div id="m-info-body" style="font-size:12px;font-family:sans-serif;color:var(--text2);white-space:pre-line;margin-bottom:14px;max-height:280px;overflow-y:auto;"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="cm('m-info')">Got it</button></div></div></div>
 
@@ -2271,6 +2275,94 @@ $('err-body').innerHTML=G.errs.map(function(e){return '<tr><td>'+esc(e.player)+'
 $('st-err').style.display=who==='us'?'block':'none';}
 
 // LOG
+// EDIT-AB: open editor for the AB at index `idx` in G.abs
+var _editAbIdx=-1;
+function openEditAB(idx){
+  var ab=G.abs[idx];if(!ab){toast('AB not found');return;}
+  _editAbIdx=idx;
+  $('editab-title').textContent='Edit AB #'+ab.num+' — Inning '+ab.inn+' '+(ab.half==='top'?'▲':'▼');
+  // Populate batter dropdown from the team's lineup
+  var lu=ab.team==='home'?G.hlu:G.alu;
+  var opts=lu.map(function(p,i){var nm=p.name||'(slot '+(i+1)+')';return'<option value="'+i+'"'+(i===ab.bi?' selected':'')+'>'+(i+1)+'. '+esc(nm)+(p.jersey?' #'+p.jersey:'')+'</option>';}).join('');
+  $('editab-bat').innerHTML=opts;
+  $('editab-res').value=ab.result;
+  $('editab-rbi').value=ab.rbi||0;
+  $('editab-not').value=ab.not||'';
+  om('m-editab');
+}
+function confirmEditAB(){
+  if(_editAbIdx<0)return;
+  var ab=G.abs[_editAbIdx];if(!ab)return;
+  var newBi=parseInt($('editab-bat').value);
+  var newRes=$('editab-res').value;
+  var newRbi=parseInt($('editab-rbi').value)||0;
+  var newNot=($('editab-not').value||'').trim();
+  var lu=ab.team==='home'?G.hlu:G.alu;
+  if(lu[newBi]){ab.bi=newBi;ab.batter=lu[newBi].name||('#'+(lu[newBi].jersey||'?'));}
+  ab.result=newRes;ab.rbi=newRbi;ab.not=newNot;
+  // Recalculate pitcher stats from the (now-updated) AB list
+  if(typeof recalcPitcherStats==='function')recalcPitcherStats();
+  cm('m-editab');sv();
+  // Refresh visible views
+  if(typeof renderLog==='function')renderLog();
+  if(typeof renderStats==='function')try{renderStats();}catch(e){}
+  if(typeof renderSC==='function')renderSC();
+  toast('AB #'+ab.num+' updated');
+}
+function confirmDeleteAB(){
+  if(_editAbIdx<0)return;
+  var ab=G.abs[_editAbIdx];if(!ab)return;
+  if(!confirm('Delete AB #'+ab.num+'? This cannot be undone. Pitcher stats will be recalculated.'))return;
+  G.abs.splice(_editAbIdx,1);
+  // Renumber subsequent ABs in the same half-inning so the # stays sequential
+  // (we just renumber globally to keep simple)
+  G.abs.forEach(function(a,i){a.num=i+1;});G.abc=G.abs.length;
+  if(typeof recalcPitcherStats==='function')recalcPitcherStats();
+  cm('m-editab');sv();
+  if(typeof renderLog==='function')renderLog();
+  if(typeof renderStats==='function')try{renderStats();}catch(e){}
+  if(typeof renderSC==='function')renderSC();
+  toast('AB deleted; stats recalculated');
+}
+// SWAP-AB: pick another AB in the same half and swap just the batter attribution
+var _swapFromIdx=-1;
+function openSwapAB(idx){
+  var ab=G.abs[idx];if(!ab){toast('AB not found');return;}
+  _swapFromIdx=idx;
+  // Find candidates in the same half-inning
+  var cands=[];
+  G.abs.forEach(function(a,i){if(i!==idx&&a.inn===ab.inn&&a.half===ab.half)cands.push({i:i,ab:a});});
+  if(!cands.length){toast('No other ABs in this half-inning to swap with');return;}
+  var html=cands.map(function(c){
+    var lu=c.ab.team==='home'?G.hlu:G.alu;
+    var p=lu[c.ab.bi];
+    var nm=p?(p.name||'(slot '+(c.ab.bi+1)+')'):c.ab.batter;
+    return '<div onclick="confirmSwapAB('+c.i+')" style="cursor:pointer;padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">'
+      +'<span style="color:var(--gold);font-family:sans-serif;font-size:13px;min-width:36px;font-weight:bold;">#'+c.ab.num+'</span>'
+      +'<span style="flex:1;font-size:13px;">'+esc(nm)+'</span>'
+      +'<span class="badge b'+c.ab.result.replace(/[^A-Za-z]/g,'')+'" style="font-size:11px;">'+esc(abNotation(c.ab))+'</span>'
+      +'</div>';
+  }).join('');
+  $('swapab-list').innerHTML=html;
+  om('m-swapab');
+}
+function confirmSwapAB(otherIdx){
+  if(_swapFromIdx<0)return;
+  var a=G.abs[_swapFromIdx],b=G.abs[otherIdx];
+  if(!a||!b)return;
+  var nameA=(a.team==='home'?G.hlu:G.alu)[a.bi];nameA=nameA?(nameA.name||'?'):a.batter;
+  var nameB=(b.team==='home'?G.hlu:G.alu)[b.bi];nameB=nameB?(nameB.name||'?'):b.batter;
+  if(!confirm('Swap batter on AB#'+a.num+' ('+nameA+') ↔ AB#'+b.num+' ('+nameB+')?\n\nPitches/result/RBI stay with each AB; only the batter attribution changes.'))return;
+  // Swap bi and batter only
+  var tmpBi=a.bi,tmpBatter=a.batter;
+  a.bi=b.bi;a.batter=b.batter;
+  b.bi=tmpBi;b.batter=tmpBatter;
+  cm('m-swapab');sv();
+  if(typeof renderLog==='function')renderLog();
+  if(typeof renderStats==='function')try{renderStats();}catch(e){}
+  if(typeof renderSC==='function')renderSC();
+  toast('Swapped AB#'+a.num+' ↔ AB#'+b.num);
+}
 // abBatterDisplay: look up the CURRENT lineup entry for this AB so name edits
 // (e.g., renaming "(Leadoff)" to "Joey") propagate to all already-logged ABs.
 // Lookup by bi index first, then fall back to name match for safety.
@@ -2333,12 +2425,18 @@ function mkHalf(abs,label,inn,half){
     var isRun=(ab.pscored&&ab.pscored.length>0)||ab.result==='HR'||ab.result==='LLHR';
     var runStyle=isRun?'color:var(--amber2);':'';
     var pitchCell=pcount?seq+' <span style="color:var(--text3);">('+pcount+')</span>':'<span style="color:var(--text3);">—</span>';
-    // 4-COLUMN GRID: # | batter | pitches | result
-    pieces.push('<div style="display:grid;grid-template-columns:22px minmax(80px,auto) 1fr 50px;gap:6px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);'+runStyle+'">'
+    // 4-COLUMN GRID + edit/swap icons: # | batter | pitches | result | ✎ ⇄
+    var globalIdx=G.abs.indexOf(ab);
+    var editBtns='<span style="display:inline-flex;gap:3px;align-items:center;">'
+      +'<span onclick="event.stopPropagation();openEditAB('+globalIdx+')" style="cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;" title="Edit AB">✎</span>'
+      +'<span onclick="event.stopPropagation();openSwapAB('+globalIdx+')" style="cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;" title="Swap with another AB">⇄</span>'
+      +'</span>';
+    pieces.push('<div style="display:grid;grid-template-columns:22px minmax(80px,auto) 1fr 50px auto;gap:6px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);'+runStyle+'">'
     +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+(i+1)+'</span>'
     +'<span style="font-size:13px;">'+abBatterHtml(ab)+'</span>'
     +'<span style="font-size:10px;font-family:monospace;overflow-wrap:anywhere;line-height:1.4;">'+pitchCell+'</span>'
     +'<span class="badge '+bc+'" style="font-size:11px;text-align:center;">'+esc(notation)+'</span>'
+    +editBtns
     +'</div>');
     // Sub-lines for this AB (steals + CS + scored)
     var subPieces=[];
