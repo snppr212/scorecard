@@ -316,8 +316,23 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-resume"><div class="modal" style="text-align:center;"><h3>Game in progress</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="rs-detail">You already have data saved for this game.</div><div class="mact"><button class="btn btn-gold btn-full" onclick="resumeConfirm(true)">Resume saved game</button><button class="btn btn-red btn-full" onclick="resumeConfirm(false)">Start fresh (erase data)</button><button class="btn btn-full" onclick="cm('m-resume')">Cancel</button></div></div></div>
 
 <!-- OPPONENT BATTER PICKER (on-the-fly lineup entry) -->
-<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;"><h3 id="m-oppbat-title">Next opponent batter</h3><div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap existing slot</div><div id="m-oppbat-list" style="max-height:180px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div id="m-oppbat-add-label" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add new batter</div><div class="row" style="gap:4px;margin-bottom:8px;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:56px;" inputmode="numeric"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;"><button class="btn btn-sm btn-green" onclick="oppbatAdd()">Add</button></div><div style="margin-bottom:8px;"><button class="btn btn-full" id="m-oppbat-ghost" style="background:var(--bg3);border:1px dashed var(--gold);color:var(--gold);font-size:12px;font-weight:bold;" onclick="oppbatGhost()">Don't know — use placeholder</button><div id="m-oppbat-ghost-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-top:3px;"></div></div>
-<div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--red2);color:var(--red2);font-size:12px;" onclick="oppbatAutoOut()">+ Auto out (player removed from CBO)</button></div><div class="sep"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()">End of order → start over at #1</button><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:360px;">
+<h3 id="m-oppbat-title">Next opponent batter</h3>
+<div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div>
+<!-- ROSTER MENU: existing batters as tappable buttons -->
+<div id="m-oppbat-listlabel" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin-bottom:4px;">Tap to select <span id="m-oppbat-count" style="color:var(--gold);"></span></div>
+<div id="m-oppbat-list" style="max-height:200px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div>
+<!-- LOCK & CYCLE BUTTON — prominent, only visible when 1+ batters entered -->
+<button class="btn btn-gold btn-full" id="m-oppbat-end" onclick="oppbatEndOrder()" style="margin-bottom:10px;display:none;">✓ Lineup done — cycle from top</button>
+<!-- QUICK ADD: jersey-first input for fast entry -->
+<div id="m-oppbat-add-label" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;margin:6px 0 4px;">Add batter (jersey # · name optional)</div>
+<div class="row" style="gap:6px;margin-bottom:8px;align-items:center;"><input id="m-oppbat-jn" type="text" placeholder="#" style="width:64px;font-size:18px;text-align:center;font-weight:bold;" inputmode="numeric" onkeydown="if(event.key==='Enter'){event.preventDefault();oppbatAdd();}"><input id="m-oppbat-nm" type="text" placeholder="Name (optional)" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();oppbatAdd();}"><button class="btn btn-green" onclick="oppbatAdd()" style="padding:8px 14px;font-weight:bold;">Add</button></div>
+<!-- PLACEHOLDER & AUTO-OUT -->
+<div style="margin-bottom:6px;"><button class="btn btn-full" id="m-oppbat-ghost" style="background:var(--bg3);border:1px dashed var(--gold);color:var(--gold);font-size:12px;font-weight:bold;" onclick="oppbatGhost()">Don't know — use ordinal placeholder</button><div id="m-oppbat-ghost-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-top:3px;"></div></div>
+<div style="margin-bottom:8px;"><button class="btn btn-full" style="background:var(--bg3);border:1px dashed var(--red2);color:var(--red2);font-size:11px;" onclick="oppbatAutoOut()">+ Auto out (CBO removal — LL 4.04(h))</button></div>
+<div class="sep"></div>
+<div class="mact"><button class="btn btn-full" onclick="oppbatClose()">Cancel</button></div>
+</div></div>
 
 <!-- PITCHER SWITCH MODAL (3.2 + 3.1) -->
 <div class="modal-ov" id="m-pswitch"><div class="modal"><h3 id="psw-title">Change Pitcher</h3>
@@ -1140,9 +1155,15 @@ function openOppBatterPicker(r){
   $('m-oppbat-pending').textContent=_pendOppR?('AB pending: '+_pendOppR+' — pick who batted'):(G.cpitch.length>0?(G.cpitch.length+' pitches queued — pick who batted'):'');
   // Dynamic title and labels based on lineup state
   $('m-oppbat-title').textContent=G.oppLuDone?'Change opponent batter':'Next opponent batter';
-  $('m-oppbat-add-label').textContent=G.oppLuDone?'Substitute player':'Add new batter';
+  $('m-oppbat-add-label').textContent=G.oppLuDone?'Sub in player (jersey # · name optional)':'Add batter (jersey # · name optional)';
   var lu=tlu();// opponent lineup
   var expectedNext=isHB()?G.hbi:G.abi;if(expectedNext<0)expectedNext=0;
+  // Count label and label text adapt to state
+  $('m-oppbat-count').textContent=lu.length>0?'('+lu.length+' added)':'';
+  var listLabel=$('m-oppbat-listlabel');
+  if(listLabel){
+    listLabel.firstChild.nodeValue=lu.length===0?'No batters yet — add their first batter below ':'Tap to select ';
+  }
   var listHtml=lu.map(function(p,i){
     var nm=p.name||p.jersey?p.name||('#'+(p.jersey||'?')):holeLabel(i);
     var jersey=p.jersey?'#'+p.jersey+' ':'';
@@ -1153,10 +1174,11 @@ function openOppBatterPicker(r){
     var badge=isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;background:rgba(224,168,96,.12);padding:1px 5px;border-radius:3px;">skipped</span>':(isNext?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;font-weight:bold;">UP NEXT</span>':'');
     return '<div onclick="oppbatPick('+i+')" style="cursor:pointer;padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;'+nextBg+(isSkip?'opacity:.4;':'')+'"><span style="color:var(--gold);font-family:sans-serif;font-size:13px;min-width:22px;font-weight:bold;">'+(i+1)+'</span><span style="flex:1;font-size:14px;">'+esc(jersey+nm)+'</span>'+badge+skipBtn+'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap →</span></div>';
   }).join('');
-  $('m-oppbat-list').innerHTML=listHtml||'<div class="empty" style="padding:10px;font-size:11px;">No batters yet — add one below.</div>';
+  // Empty-state hint inside the list box
+  $('m-oppbat-list').innerHTML=listHtml||'<div style="padding:14px 10px;font-size:12px;font-family:sans-serif;color:var(--text3);text-align:center;line-height:1.5;">No batters in lineup yet.<br>Type a jersey # below and tap <strong style="color:var(--green2);">Add</strong>, or use the placeholder option.</div>';
   // Update the placeholder hint to show the next ordinal label that would be used
   var nextOrd=lu.length;// new ghost lands at this index
-  $('m-oppbat-ghost-hint').textContent='Will add: '+holeLabel(nextOrd)+' (rename later on Lineup tab)';
+  $('m-oppbat-ghost-hint').textContent='Will add: "'+holeLabel(nextOrd)+'" (rename later on Lineup tab)';
   $('m-oppbat-end').style.display=(lu.length>0&&!G.oppLuDone)?'':'none';
   $('m-oppbat-jn').value='';$('m-oppbat-nm').value='';
   om('m-oppbat');
