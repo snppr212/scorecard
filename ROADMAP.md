@@ -12,16 +12,21 @@
 
 ---
 
-## v39 — Next Up
+## v39 — HIGH PRIORITY (after testing wraps)
+
+These are the items the user surfaced during the Lugnuts game testing on 2026-04-26. Hold for implementation until further test feedback is collected.
 
 | # | Issue | Priority | Notes |
 |---|---|---|---|
-| 1 | **Per-fielder error count in box / stats** | 📋 Medium | `G.errs[]` is fully populated now (v37) — surface a per-player error tally on the Box / Stats page so you can see who's making errors at a glance. |
-| 2 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | If home is leading after top of last inning, app still asks for bottom half. Should auto-end. Walk-off in bottom of last when home takes lead also not auto-detected. |
-| 3 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts. |
-| 4 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | Now that OPP_ROSTERS auto-populate is removed, add an opt-in "Pre-fill from saved roster" button to the opp lineup entry screen for known opponents (Hot Rods, etc.) |
-| 5 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
-| 6 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. |
+| 1 | **Move "Call game" out of end-of-inning popup** | 🔥 High | Currently the m-innend modal has a red "Call game (time / darkness)" button — too easy to fat-finger when ending a half-inning. Remove from m-innend; relocate to **the bottom of the Rules tab**. The gear menu's "🏁 Call game (end early)" button stays as the primary entry point. Goal: prevent accidental game-ends. |
+| 2 | **Placeholder name format and propagation** | 🔥 High | Multiple parts: (a) When "Don't know — use ordinal placeholder" is tapped, the name should be stored as **`(Leadoff)`, `(2-hole)`, `(3-hole)`, `(Cleanup)`, `(5-hole)`** etc. — parentheses included. Currently labels like "Leadoff Hole" / "Cleanup Hole" are displayed but the underlying `name` field is empty, leading to inconsistent rendering across pages. (b) The placeholder should appear on **every** screen — Plays log, Box score, At Bat tab, Lineup tab — not just some. **Bug observed:** user added a placeholder, edited it on the Lineup tab to a real name, the box score updated but the Plays log did not. (c) Visual: render placeholders in **light red text** so they stand out. (d) Editing the placeholder on the Lineup tab should propagate the new name everywhere immediately — including any already-logged ABs that referenced the placeholder. |
+| 3 | **Box score: jersey # ahead of name in Player column** | 🔥 High | Currently the Box score "Player" column shows just the name (or `F. Lastname` short form). Should be `#12  Leo Kesselman` or `(12) Leo Kesselman` so it's easier to confirm against a paper scorebook or umpire calls. Apply to both batting and pitching tables, both teams. |
+| 4 | **Per-fielder error count in box / stats** | 📋 Medium | `G.errs[]` is fully populated now (v37) — surface a per-player error tally on the Box / Stats page so you can see who's making errors at a glance. |
+| 5 | **Walk-off / top-of-last-inning game end detection** | 📋 Medium | If home is leading after top of last inning, app still asks for bottom half. Should auto-end. Walk-off in bottom of last when home takes lead also not auto-detected. |
+| 6 | Replace remaining native `confirm()` / `prompt()` dialogs with non-blocking modals | 📋 Medium | Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` prompt for manually adding a runner, `markDNP()`, recalc stats confirm, addTaxi prompt, addGB prompts. |
+| 7 | **Pre-fill from saved opponent roster (opt-in)** | 💡 Low | Now that OPP_ROSTERS auto-populate is removed, add an opt-in "Pre-fill from saved roster" button to the opp lineup entry screen for known opponents. Note: v38.7 already shows OPP_ROSTERS as a live menu inside the m-oppbat picker, which may have made this less needed. |
+| 8 | **Per-CS pitcher attribution** | 📋 Low | `recalcPitcherStats()` credits CS outs to the half's last AB pitcher — works in most cases but could be wrong if the pitcher changed mid-inning right before the CS. Add `cs.pitcher` field, set at log time. |
+| 9 | Backfill pitcher stamps for e2 and e4 | 💡 Low | Old games (Hot Rods, Thunder) don't have per-AB pitcher stamps. Plays log shows no transition lines for those games. |
 
 ### ✅ Recently Completed (v35-v38.4)
 
