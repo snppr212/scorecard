@@ -499,7 +499,20 @@ function sn(n){if(!n)return'';var p=n.trim().split(' ');return p.length>1?p[0].c
 function ini(n){if(!n)return'?';var p=n.trim().split(' ');return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
 var _ORD=['Leadoff','Second','Third','Cleanup','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
 function holeLabel(i){return(_ORD[i]||''+(i+1))+' Hole';}
-function oppDisplay(p,idx){if(!p)return'?';if(p.autoOut)return'⚪ Auto Out';if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
+// Placeholder name format: (Leadoff), (Cleanup), or (N-hole) for other slots.
+// Stored as the actual `name` field on the lineup entry, parens included, so
+// every render path picks it up automatically.
+function placeholderName(i){
+  if(i===0)return'(Leadoff)';
+  if(i===3)return'(Cleanup)';
+  return'('+(i+1)+'-hole)';
+}
+// Detect a placeholder name. Used for rendering in light red.
+function isPlaceholder(name){return!!(name&&name.charAt(0)==='('&&name.charAt(name.length-1)===')');}
+function oppDisplay(p,idx){if(!p)return'?';if(p.autoOut)return'⚪ Auto Out';if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';
+// Placeholder names render as-is (already in parens form)
+if(isPlaceholder(p.name))return(p.jersey?'('+p.jersey+') ':'')+p.name;
+var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
 function theyBat(){return isOH()!==isHB();}// true when opponent is currently batting
 function isPast(ev){try{return new Date(ev.date+' '+ev.time)<new Date();}catch(e){return false;}}
 function fmt3(n){return n.toFixed(3).replace(/^0/,'');}
@@ -902,7 +915,7 @@ function renderABDetail(){
       var pSeq=ab.pitches.map(c=>'<span class="ps-'+c+'">'+c+'</span>').join(' ');
       var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
       h+='<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);align-items:baseline;">';
-      h+='<span style="min-width:70px;font-size:12px;">'+esc(abBatterDisplay(ab))+'</span>';
+      h+='<span style="min-width:70px;font-size:12px;">'+abBatterHtml(ab)+'</span>';
       h+='<span style="flex:1;font-size:10px;color:var(--text3);font-family:monospace;">'+pSeq+'</span>';
       h+='<span class="badge '+bc+'" style="min-width:50px;text-align:center;">'+esc(abNotation(ab))+'</span>';
       h+='<span style="min-width:30px;text-align:center;font-weight:bold;color:var(--amber2);">'+ab.rbi+'</span>';
@@ -1014,10 +1027,12 @@ $('mu-pd').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer
 // Batter name: tappable when opponent is at bat — opens the picker so the
 // user can switch to a different batter or add a placeholder.
 var batLabel=b?(theyBat()?oppDisplay(b):sn(b.name||'#'+b.jersey)):'Select batter';
+var isPh=b&&isPlaceholder(b.name);
+var batLabelHtml=isPh?'<span style="color:#ff8888;font-style:italic;">'+esc(batLabel)+'</span>':esc(batLabel);
 if(theyBat()){
-  $('mu-b').innerHTML='<span onclick="openOppBatterPicker()" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--text3);text-underline-offset:3px;">'+esc(batLabel)+'</span>';
+  $('mu-b').innerHTML='<span onclick="openOppBatterPicker()" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--text3);text-underline-offset:3px;">'+batLabelHtml+'</span>';
 }else{
-  $('mu-b').textContent=batLabel;
+  $('mu-b').innerHTML=batLabelHtml;
 }
 if(b&&G.cbi>=0){var st=gps(G.cbi,isHB()?'home':'away');var paStr=st.pa>0?(st.h+'-'+st.ab+(st.pa!==st.ab?' ('+st.pa+'PA)':'')):'';$('mu-bd').textContent=paStr;}else $('mu-bd').textContent='';}
 
@@ -1140,7 +1155,8 @@ var _tni=isHB()?G.hbi:G.abi;var ni=_tni>=0?_tni:0;
 var rows=lu.map(function(p,i){var act=G.cbi===i,nx=!act&&i===ni&&G.cbi<0&&!_oppOpen;var t=isHB()?'home':'away',st=gps(i,t);var m=st.pa>0?(st.h+'/'+st.ab+(st.pa!==st.ab?' ('+st.pa+'PA)':'')):'';
 var isSkip=p.skipped&&!p.dnp;
 var selectable=G.cbi<0&&!_opp&&!p.dnp;
-var dispName=_opp?oppDisplay(p,i):(p.name||p.jersey?esc(p.name||'#'+p.jersey):'?');
+var rawDisp=_opp?oppDisplay(p,i):(p.name||p.jersey?(p.name||'#'+p.jersey):'?');
+var dispName=isPlaceholder(p.name)?'<span style="color:#ff8888;font-style:italic;">'+esc(rawDisp)+'</span>':esc(rawDisp);
 // Skip link for our team (mid-inning bathroom-kid scenario). Tapping toggles skip on/off.
 var skipLink=!_opp&&!p.dnp?'<span onclick="event.stopPropagation();skipBatter('+i+')" style="font-size:9px;color:var(--amber2);font-family:sans-serif;padding:3px 6px;cursor:pointer;border:1px solid var(--amber2);border-radius:3px;margin-left:4px;">'+(isSkip?'un-skip':'skip')+'</span>':'';
 return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+(isSkip?' skipped':'')+(selectable?' selectable':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;">SKIP</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+skipLink+'</div>';}).join('');
@@ -1190,7 +1206,7 @@ function openOppBatterPicker(r){
     var btnClass=inLineup?'btn-sm':'btn-sm btn-green';
     var jerseyId='oppr-j-'+rowIdx;
     return '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);'+rowBg+(isSkip?'opacity:.4;':'')+'">'
-      +'<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+'">'+esc(row.name)+'</span>'
+      +'<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+(isPlaceholder(row.name)?'color:#ff8888;':'')+'">'+esc(row.name)+'</span>'
       +badge
       +'<input id="'+jerseyId+'" type="text" placeholder="#" value="'+esc(row.jersey)+'" inputmode="numeric" style="width:46px;font-size:14px;text-align:center;font-weight:bold;" onchange="oppbatSetJersey('+rowIdx+',this.value)">'
       +'<button class="btn '+btnClass+'" style="padding:4px 10px;font-weight:bold;min-width:36px;" onclick="oppbatSelectFromRoster('+rowIdx+')">'+btnLabel+'</button>'
@@ -1263,12 +1279,16 @@ function oppbatAdd(){
   cm('m-oppbat');_oppbatResume();
 }
 function oppbatGhost(){
-  // Add placeholder slot — shows as "Fourth Hole" etc; editable later via lineup tab
+  // Add placeholder slot with a parens-formatted ordinal name like "(Leadoff)"
+  // or "(5-hole)". The name is real (not empty) so it propagates everywhere
+  // via the existing render paths. Edit later on the Lineup tab to replace.
   var lu=tlu();
-  lu.push({jersey:'',name:''});
+  var idx=lu.length;
+  var phName=placeholderName(idx);
+  lu.push({jersey:'',name:phName,isPlaceholder:true});
   G.cbi=lu.length-1;
   cm('m-oppbat');_oppbatResume();
-  toast(holeLabel(G.cbi)+' added — fill in later on Lineup tab',3000);
+  toast(phName+' added — rename later on Lineup tab',3000);
 }
 function oppbatAutoOut(){
   // Add an automatic-out slot for a player removed from the CBO mid-game
@@ -2154,14 +2174,23 @@ $('their-lu-list').innerHTML=tlu2.map(function(p,i){
     ? '<button class="btn btn-xs" onclick="moveLuThem('+i+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+'>↑</button>'
       +'<button class="btn btn-xs" onclick="moveLuThem('+i+',1)" '+(canDn?'':'disabled style="opacity:.3;"')+'>↓</button>'
     : '';
+  var nameStyle=isPlaceholder(p.name)?'color:#ff8888;font-style:italic;':'';
   return '<div class="lu-row"><span class="lu-ord">'+(i+1)+'</span>'
-  +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'jersey\',this.value)" style="width:46px;">'
-  +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'name\',this.value)" style="flex:1;">'
+  +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'jersey\',this.value);_propagateLineupEdit();" style="width:46px;">'
+  +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'name\',this.value);_propagateLineupEdit();" style="flex:1;'+nameStyle+'">'
   +reorderBtns
   +'<div class="lu-del" onclick="rmGLP(\''+themT()+'\','+i+')">✕</div></div>';
 }).join('')||'<div class="empty">None</div>';
 }
 function uGLP(t,i,f,v){(t==='home'?G.hlu:G.alu)[i][f]=v;sv();}
+// Re-render visible views after a lineup name/jersey edit so changes propagate
+// to the Plays log, At Bat, Box score immediately.
+function _propagateLineupEdit(){
+  try{if($('log-panel'))renderLog();}catch(e){}
+  try{if($('st-btbl')&&document.getElementById('tab-stats').style.display!=='none')renderStats();}catch(e){}
+  try{if(document.getElementById('tab-atbat').style.display!=='none')renderSC();}catch(e){}
+  try{renderLT();}catch(e){}// also re-render the lineup tab itself for placeholder color updates
+}
 function rmGLP(t,i){(t==='home'?G.hlu:G.alu).splice(i,1);sv();renderLT();}
 function markDNP(i){var lu=olu();if(!lu[i])return;if(!confirm('Mark '+(lu[i].name||'player')+' as did not play (DNP)?\nThey will be skipped in the batting order.'))return;lu[i].dnp=true;sv();renderLT();toast(sn(lu[i].name)+' marked DNP');}
 function reinstateDNP(i){var lu=olu();if(!lu[i])return;delete lu[i].dnp;sv();renderLT();toast(sn(lu[i].name)+' reinstated');}
@@ -2194,8 +2223,15 @@ s.obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;s.slg=s
 function setST(t,el){G.stv=t;document.querySelectorAll('#tab-stats .team-toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderStats();}
 // Helper: find jersey # for a player name (looks lineup first, then roster)
 function _findJersey(name){if(!name)return'';var f=G.hlu.find(function(p){return p.name===name;});if(f&&f.jersey)return f.jersey;f=G.alu.find(function(p){return p.name===name;});if(f&&f.jersey)return f.jersey;f=A.roster.find(function(r){return r.name===name;});if(f&&f.jersey)return f.jersey;return'';}
-// Helper: render player name in box score with jersey # prefix
-function boxName(p){if(!p)return'?';var j=p.jersey||_findJersey(p.name);var nm=p.name?sn(p.name):'';if(j&&nm)return'#'+j+' '+nm;if(j)return'#'+j;return nm||'?';}
+// Helper: render player name in box score with jersey # prefix.
+// Returns HTML — placeholders are wrapped in a light-red span.
+function boxName(p){if(!p)return'?';
+var j=p.jersey||_findJersey(p.name);
+var nmRaw=p.name||'';
+var nm=nmRaw?(isPlaceholder(nmRaw)?nmRaw:sn(nmRaw)):'';
+var combined=(j&&nm)?'#'+j+' '+nm:(j?'#'+j:(nm||'?'));
+if(isPlaceholder(nmRaw))return'<span style="color:#ff8888;font-style:italic;">'+esc(combined)+'</span>';
+return esc(combined);}
 function renderStats(){var who=G.stv||'us';var t=who==='us'?usT():themT();var lu=t==='home'?G.hlu:G.alu;var tn=who==='us'?ourName():theirName();
 // update toggle labels with real team names
 if($('st-tog-us'))$('st-tog-us').textContent=ourName();
@@ -2203,7 +2239,7 @@ if($('st-tog-them'))$('st-tog-them').textContent=theirName();
 $('st-bt').textContent=tn+' batting';
 var h='<thead><tr><th>Player</th><th>AB</th><th>PA</th><th>R</th><th>H</th><th>RBI</th><th>XBH</th><th>HR</th><th>BB</th><th>K</th><th>SB</th><th>OBP</th><th>SLG</th></tr></thead><tbody>';
 var bt={ab:0,pa:0,r:0,h:0,rbi:0,xbh:0,hr:0,bb:0,k:0,sb:0};
-lu.forEach(function(p,i){var s=gps(i,t);h+='<tr><td>'+esc(boxName(p))+'</td><td>'+s.ab+'</td><td>'+s.pa+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.xbh+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.sb+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
+lu.forEach(function(p,i){var s=gps(i,t);h+='<tr><td>'+boxName(p)+'</td><td>'+s.ab+'</td><td>'+s.pa+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.xbh+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.sb+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
 bt.ab+=s.ab;bt.pa+=s.pa;bt.r+=s.r;bt.h+=s.h;bt.rbi+=s.rbi;bt.xbh+=s.xbh;bt.hr+=s.hr;bt.bb+=s.bb;bt.k+=s.k;bt.sb+=s.sb;});
 h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TOTAL</td><td>'+bt.ab+'</td><td>'+bt.pa+'</td><td>'+bt.r+'</td><td>'+bt.h+'</td><td>'+bt.rbi+'</td><td>'+bt.xbh+'</td><td>'+bt.hr+'</td><td>'+bt.bb+'</td><td>'+bt.k+'</td><td>'+bt.sb+'</td><td>—</td><td>—</td></tr></tfoot>';
 $('st-btbl').innerHTML=h;
@@ -2220,7 +2256,29 @@ $('err-body').innerHTML=G.errs.map(function(e){return '<tr><td>'+esc(e.player)+'
 $('st-err').style.display=who==='us'?'block':'none';}
 
 // LOG
-function abBatterDisplay(ab){var opp=ab.team===themT();if(opp){var lu=tlu();var p=lu.find(function(p){return(p.name||'')===ab.batter;});return p?oppDisplay(p):ab.batter;}return sn(ab.batter);}
+// abBatterDisplay: look up the CURRENT lineup entry for this AB so name edits
+// (e.g., renaming "(Leadoff)" to "Joey") propagate to all already-logged ABs.
+// Lookup by bi index first, then fall back to name match for safety.
+function abBatterDisplay(ab){
+  var opp=ab.team===themT();
+  var lu=opp?(ab.team==='home'?G.hlu:G.alu):(ab.team==='home'?G.hlu:G.alu);
+  var p=(typeof ab.bi==='number'&&lu&&lu[ab.bi])?lu[ab.bi]:null;
+  if(!p&&lu)p=lu.find(function(x){return(x.name||'')===ab.batter;});
+  if(opp)return p?oppDisplay(p,ab.bi):ab.batter;
+  return p?sn(p.name||'#'+p.jersey):sn(ab.batter);
+}
+// True if the AB's current batter (per latest lineup) is a placeholder
+function abBatterIsPlaceholder(ab){
+  var lu=ab.team==='home'?G.hlu:G.alu;
+  var p=(typeof ab.bi==='number'&&lu&&lu[ab.bi])?lu[ab.bi]:null;
+  return p?isPlaceholder(p.name):isPlaceholder(ab.batter);
+}
+// Return HTML with light-red styling if the batter is a placeholder, else plain escaped text
+function abBatterHtml(ab){
+  var t=abBatterDisplay(ab);
+  if(abBatterIsPlaceholder(ab))return'<span style="color:#ff8888;font-style:italic;">'+esc(t)+'</span>';
+  return esc(t);
+}
 // 4.1: derive display notation — prefer user-entered not, fall back to standard codes
 function abNotation(ab){
   var r=ab.result,n=(ab.not||'').trim();
@@ -2259,7 +2317,7 @@ function mkHalf(abs,label,inn,half){
     var pitchCell=pcount?'<span style="font-size:10px;color:var(--text3);font-family:monospace;">'+seq+' ('+pcount+')</span>':'';
     pieces.push('<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;'+runStyle+'">'
     +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;min-width:18px;">'+(i+1)+'</span>'
-    +'<span style="font-size:13px;min-width:80px;">'+esc(abBatterDisplay(ab))+'</span>'
+    +'<span style="font-size:13px;min-width:80px;">'+abBatterHtml(ab)+'</span>'
     +pitchCell
     +'<span style="flex:1;"></span>'
     +'<span class="badge '+bc+'" style="font-size:11px;">'+esc(notation)+'</span>'
