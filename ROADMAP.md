@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v39 (`731a8b9`, 2026-04-26)
-**Status as of:** 2026-04-26, after Batch 1-4 (Call-game relocation, PA counter, jersey #s, placeholders, plays log 4-col + sub-lines, edit/swap ABs)
+**Current version:** v41-part-1 (`3e48091`, 2026-04-26)
+**Status as of:** 2026-04-26, after Season Aggregation + date-aware Avail column. Next: retro scorecard export (v41 part 2).
 
 ## Status Key
 - ✅ Done
@@ -258,8 +258,8 @@ After 2026-04-26 review, these moved up from "moonshot" to "yes when ready":
 
 | Priority | Idea | User notes |
 |---|------|-----------|
-| **🔥 v41 candidate** | **Print-friendly retro scorecard export (PDF/image)** | Inspired by [@MlbScorecards](https://x.com/MlbScorecards) on X — hand-drawn-style game scorecards that look like they came from a press box. Generate a single-page export from `G.abs` + box. Diamond grid per AB, pitcher line, totals. **Big delight factor.** |
-| **🔥 v41 candidate** | **Season aggregation** — per-player BA/OBP/SLG/ERA/IP/K/BB across all games | "Definitely want." End-of-season stat sheet. Build a stats screen that walks `A.gameResults` + each game's `G.abs`. |
+| **🔥 v41 IN PROGRESS** | **Print-friendly retro scorecard export (PDF/image)** | Inspired by [@MlbScorecards](https://x.com/MlbScorecards) on X — hand-drawn-style game scorecards that look like they came from a press box. Generate a single-page export from `G.abs` + box. Diamond grid per AB, pitcher line, totals. **Big delight factor. NEXT.** |
+| ✅ **v41 SHIPPED** | **Season aggregation** — per-player BA/OBP/SLG/ERA/IP/K/BB across all games | Done in 3e48091. Home screen "📊 Season Stats" button opens an aggregation screen pulling all finalized Firebase games. Batting + pitching tables sorted by BA / IP. Auto-outs excluded. |
 | **📋 v42** | **AI-generated game recap** | Tap a button at end of game → narrated paragraph. **Append next 2-3 upcoming events** (practices/games — pull from `A.schedule`) with times and locations. So the email reads like a wrap-up + a coach's reminder. |
 | **💡 v42+** | **Live spectator link** | Parked behind "complete a clean game first." Once we know the data is reliable end-to-end, expose a read-only URL. |
 | **💡 future** | **Inning start/end timestamps** | If easy to slot in. Stamp `inn.startTs` / `inn.endTs` automatically when half-inning transitions fire. Don't need a visible 1:45 countdown — just nice-to-know data. |

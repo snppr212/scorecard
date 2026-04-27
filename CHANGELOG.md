@@ -1,5 +1,25 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v41 part 1 (2026-04-26) — 3e48091
+**Season aggregation — per-player career stats**
+
+New "📊 Season Stats" button on the home screen opens a Season Stats screen.
+- Pulls all finalized games from Firebase, excludes test-sandbox
+- Batting table: per-player aggregated stats (G/PA/AB/R/H/RBI/HR/BB/K/SB) plus BA/OBP/SLG, sorted by BA descending. TEAM totals row.
+- Pitching table: per-pitcher aggregated stats (G/IP/PC/H/R/ER/BB/K/HBP/ERA), sorted by IP. STAFF totals row.
+- Player names show jersey # prefix when available
+- "G" (games played) only counts games where player had ≥1 PA or pitcher had ≥1 pitch
+- Auto-out ABs excluded from PA
+
+## v40 prep (2026-04-26) — 81a201c
+**Pitchers tab "Avail?" column — now shows the eligible date**
+
+- Was: ✓ or ✗ per pStatus
+- Now: ✓ if eligible today, "Tomorrow", or "Mon Apr 28" — the actual day name + date the pitcher is next eligible
+- Uses existing rest-days rule (`restD(pitches)`) applied to each pitcher's last outing date in `A.pitchLog`
+- New helpers: `pNextEligibleDate(name)`, `fmtAvailDate(elig, today)`
+- Bumps sw.js to v55
+
 ## v39.1 (2026-04-26)
 **Rules tab — Rest days reformatted**
 - Rest days on the Rules tab now render one threshold per line with bold day counts, instead of bunched together with `·` separators
