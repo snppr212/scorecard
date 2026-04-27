@@ -176,20 +176,21 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 #sc-content td.sc-jer{padding:3px 3px;font-family:'Caveat',cursive;font-size:14px;font-weight:bold;width:24px;}
 #sc-content td.sc-name{text-align:left;padding:3px 6px;font-family:'Caveat',cursive;font-size:17px;font-weight:bold;min-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #sc-content td.sc-pos{padding:3px 3px;font-family:'Caveat',cursive;font-size:14px;width:28px;color:#555;}
-#sc-content td.sc-cell{width:46px;height:42px;position:relative;}
+#sc-content td.sc-cell{width:54px;height:54px;position:relative;}
 #sc-content td.sc-cell.scored{background:#cdc6b3;}
-/* The count box: 3 rows × 2 cols of small DOTS (top-left of cell) */
-#sc-content .sc-count{position:absolute;top:3px;left:3px;display:flex;flex-direction:column;gap:1px;}
-#sc-content .sc-count-row{display:flex;gap:2px;}
-#sc-content .sc-count-dot{width:4px;height:4px;border-radius:50%;background:transparent;border:0.5px solid #999;}
+/* The count box: top-left, dots */
+#sc-content .sc-count{position:absolute;top:2px;left:3px;display:flex;flex-direction:column;gap:1px;z-index:2;}
+#sc-content .sc-count-row{display:flex;gap:1px;}
+#sc-content .sc-count-dot{width:3px;height:3px;border-radius:50%;background:transparent;border:0.5px solid #aaa;}
 #sc-content .sc-count-dot.on{background:#1a1a1a;border-color:#1a1a1a;}
-/* Batter # of inning — top-right of cell, in a small circle */
-#sc-content .sc-bnum{position:absolute;top:2px;right:3px;font-family:'Caveat',cursive;font-size:13px;font-weight:bold;color:#444;width:14px;height:14px;border:1px solid #888;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;}
-/* The diamond is centered, contains the result code */
-#sc-content .sc-diamond{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;}
-#sc-content .sc-result{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Caveat',cursive;font-size:14px;font-weight:bold;text-align:center;line-height:1;color:#1a1a1a;white-space:nowrap;}
+/* Batter # of inning — top-right circle */
+#sc-content .sc-bnum{position:absolute;top:2px;right:2px;font-family:'Caveat',cursive;font-size:11px;font-weight:bold;color:#333;width:12px;height:12px;border:1px solid #777;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;background:#f5f1e6;z-index:2;}
+/* Diamond is offset down a bit so it doesn't overlap the count/bnum corners */
+#sc-content .sc-diamond{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:36px;height:36px;}
+/* Result code is centered over the diamond */
+#sc-content .sc-result{position:absolute;top:32px;left:50%;transform:translate(-50%,-50%);font-family:'Caveat',cursive;font-size:15px;font-weight:bold;text-align:center;line-height:1;color:#1a1a1a;white-space:nowrap;z-index:1;}
 #sc-content .sc-result.long{font-size:11px;}
-#sc-content .sc-rbi{position:absolute;bottom:1px;right:3px;font-family:'Patrick Hand',cursive;font-size:9px;color:#a01818;font-weight:bold;}
+#sc-content .sc-rbi{position:absolute;bottom:1px;right:3px;font-family:'Patrick Hand',cursive;font-size:9px;color:#a01818;font-weight:bold;z-index:2;}
 #sc-content td.sc-tot{padding:3px 5px;font-family:'Patrick Hand',cursive;font-size:13px;font-weight:bold;background:#e8e1ce;}
 /* Per-inning Runs/Hits/Errors footer rows */
 #sc-content tr.sc-summary td{background:#f0eadb;font-family:'Patrick Hand',cursive;font-size:13px;font-weight:bold;padding:3px 4px;border:1px solid #1a1a1a;}
@@ -752,11 +753,15 @@ function renderRetroScorecard(g){
   var theirs=ourSide==='home'?g.as:g.hs;
   var resLabel=ours>theirs?'W':(theirs>ours?'L':'T');
   // HEADER — three-column layout (date / center title / result)
+  // Strip trailing "Field N" or "Field A" etc. from location — just the park name
+  var locClean=ev&&ev.loc?ev.loc.replace(/\s+Field\s+[A-Z0-9]+\s*$/i,'').trim():'';
+  var oppName=ourSide==='home'?g.at:g.ht;
+  var atVs=ourSide==='home'?'vs':'@';
   var html='';
   html+='<div class="sc-hdr">';
-  html+='<div><div class="sc-hdr-l">'+esc(ev?ev.date:'')+'</div><div class="sc-hdr-l-handle">@MightyMussels</div></div>';
-  html+='<div class="sc-hdr-c"><div class="sc-title">Mighty Mussels</div><div class="sc-meta">vs '+esc(ourSide==='home'?g.at:g.ht)+(ev&&ev.loc?' · '+esc(ev.loc):'')+'</div></div>';
-  html+='<div class="sc-hdr-r">'+resLabel+' '+ours+'-'+theirs+'<br><span style="font-size:14px;font-weight:normal;">'+(ourSide==='home'?'vs':'@')+' '+esc(ourSide==='home'?g.at:g.ht).substring(0,18)+'</span></div>';
+  html+='<div><div class="sc-hdr-l">'+esc(ev?ev.date:'')+'</div></div>';
+  html+='<div class="sc-hdr-c"><div class="sc-title">Mighty Mussels</div><div class="sc-meta">'+esc(locClean)+'</div></div>';
+  html+='<div class="sc-hdr-r">'+resLabel+' '+ours+'-'+theirs+'<br><span style="font-size:16px;font-weight:normal;">'+atVs+' '+esc(oppName)+'</span></div>';
   html+='</div>';
   // Helper to compute per-batter row + cells. Returns {rowHtml, totals, cellsByInn}
   function batRow(lu,team,bi){
