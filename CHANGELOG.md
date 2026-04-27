@@ -1,5 +1,21 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v41 part 2 (2026-04-26) — d4510ba
+**Retro scorecard export — printable press-box style**
+
+New "Retro scorecard" section on the Box/Export tab opens a dedicated screen styled like a classic press-box scorebook (inspired by [@MlbScorecards](https://x.com/MlbScorecards)).
+
+- Cream paper background, Georgia serif font, ink-style borders
+- Header: teams, date, location, final score, W/L badge
+- Batting tables for both teams: row per batter, columns for innings 1..N, then AB/R/H/RBI/BB/K totals
+- Each AB cell renders a small diamond SVG showing the batter's path through the bases (red path), with the result code (K, 1B, BB, etc.) inside. Filled red diamond when the batter scored.
+- RBI count in tiny red text in the cell corner
+- Pitching tables (both teams) with IP, PC, H, R, ER, BB, K, HBP, ERA
+- Footer with legend
+- Print support: `@media print` rules, "🖨 Print" button, letter-size page
+
+Bumps sw.js to v56.
+
 ## v41 part 1 (2026-04-26) — 3e48091
 **Season aggregation — per-player career stats**
 

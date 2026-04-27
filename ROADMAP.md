@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v41-part-1 (`3e48091`, 2026-04-26)
-**Status as of:** 2026-04-26, after Season Aggregation + date-aware Avail column. Next: retro scorecard export (v41 part 2).
+**Current version:** v41 (`d4510ba`, 2026-04-26)
+**Status as of:** 2026-04-26, after Season Aggregation + Retro scorecard export. Next: AI game recap (v42).
 
 ## Status Key
 - ✅ Done
@@ -258,7 +258,7 @@ After 2026-04-26 review, these moved up from "moonshot" to "yes when ready":
 
 | Priority | Idea | User notes |
 |---|------|-----------|
-| **🔥 v41 IN PROGRESS** | **Print-friendly retro scorecard export (PDF/image)** | Inspired by [@MlbScorecards](https://x.com/MlbScorecards) on X — hand-drawn-style game scorecards that look like they came from a press box. Generate a single-page export from `G.abs` + box. Diamond grid per AB, pitcher line, totals. **Big delight factor. NEXT.** |
+| ✅ **v41 SHIPPED** | **Print-friendly retro scorecard export** | Done in d4510ba. Box tab → "📋 Open scorecard" → cream/serif press-box style with diamond-per-AB, red-path advance lines, totals, pitching summary. Print button + `@media print` rules. |
 | ✅ **v41 SHIPPED** | **Season aggregation** — per-player BA/OBP/SLG/ERA/IP/K/BB across all games | Done in 3e48091. Home screen "📊 Season Stats" button opens an aggregation screen pulling all finalized Firebase games. Batting + pitching tables sorted by BA / IP. Auto-outs excluded. |
 | **📋 v42** | **AI-generated game recap** | Tap a button at end of game → narrated paragraph. **Append next 2-3 upcoming events** (practices/games — pull from `A.schedule`) with times and locations. So the email reads like a wrap-up + a coach's reminder. |
 | **💡 v42+** | **Live spectator link** | Parked behind "complete a clean game first." Once we know the data is reliable end-to-end, expose a read-only URL. |
