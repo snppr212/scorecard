@@ -155,6 +155,40 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .bat-name{flex:1;font-size:13px;}
 .bat-mini{font-size:10px;color:var(--text3);font-family:sans-serif;}
 .bat-item.skipped{opacity:.4;border:1px dashed var(--amber2)!important;}
+/* RETRO SCORECARD — press-box style, hand-drawn vibe, print-friendly */
+#sc-content{background:#f5f1e6;color:#1a1a1a;padding:12px;font-family:Georgia,serif;}
+#sc-content h2,#sc-content h3{font-family:Georgia,serif;color:#1a1a1a;margin:0 0 4px;}
+#sc-content .sc-hdr{border-bottom:2px solid #1a1a1a;padding-bottom:6px;margin-bottom:10px;text-align:center;}
+#sc-content .sc-title{font-size:18px;font-weight:bold;}
+#sc-content .sc-meta{font-size:11px;color:#444;margin-top:2px;}
+#sc-content .sc-score{font-size:14px;font-weight:bold;margin-top:4px;}
+#sc-content .sc-section-title{font-size:13px;font-weight:bold;border-bottom:1px solid #1a1a1a;margin:10px 0 4px;text-transform:uppercase;letter-spacing:1px;}
+#sc-content table.sc-bat{width:100%;border-collapse:collapse;font-size:9px;font-family:Georgia,serif;}
+#sc-content table.sc-bat th{background:#e8e1ce;padding:3px 4px;border:1px solid #1a1a1a;text-align:center;}
+#sc-content table.sc-bat td{padding:0;border:1px solid #1a1a1a;text-align:center;vertical-align:top;}
+#sc-content td.sc-name{text-align:left;padding:3px 5px;font-weight:bold;min-width:90px;}
+#sc-content td.sc-num{padding:3px 4px;font-weight:bold;width:18px;}
+#sc-content td.sc-cell{width:36px;height:42px;position:relative;}
+#sc-content .sc-diamond{position:relative;width:28px;height:28px;margin:2px auto;}
+#sc-content .sc-diamond svg{display:block;}
+#sc-content .sc-result{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;font-weight:bold;text-align:center;line-height:1;}
+#sc-content .sc-rbi{position:absolute;bottom:1px;right:2px;font-size:7px;color:#a00;font-weight:bold;}
+#sc-content td.sc-tot{padding:3px 5px;font-weight:bold;background:#e8e1ce;}
+#sc-content table.sc-pit{width:100%;border-collapse:collapse;font-size:10px;font-family:Georgia,serif;margin-top:8px;}
+#sc-content table.sc-pit th{background:#e8e1ce;padding:3px 5px;border:1px solid #1a1a1a;}
+#sc-content table.sc-pit td{padding:3px 5px;border:1px solid #1a1a1a;text-align:center;}
+#sc-content table.sc-pit td.sc-pname{text-align:left;font-weight:bold;}
+#sc-content .sc-foot{margin-top:10px;font-size:9px;color:#444;border-top:1px dashed #888;padding-top:6px;font-style:italic;}
+@media print{
+  body{background:#fff;}
+  .no-print{display:none!important;}
+  #screen-scorecard{position:absolute;top:0;left:0;width:100%;display:block!important;}
+  .screen{display:none!important;}
+  #screen-scorecard.active,#screen-scorecard{display:block!important;}
+  #sc-printable{height:auto!important;overflow:visible!important;padding:0!important;}
+  #sc-content{padding:0;}
+  @page{size:letter;margin:0.5in;}
+}
 .fld-grid{width:100%;border-collapse:collapse;font-family:sans-serif;font-size:10px;}
 .fld-grid th,.fld-grid td{border:1px solid var(--border);padding:5px 3px;text-align:center;min-width:42px;}
 .fld-grid th{background:var(--bg3);color:var(--gold);font-weight:bold;font-size:10px;}
@@ -223,6 +257,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-linepick"><div class="modal"><h3 id="lp-title">Pick batter</h3><div id="lp-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-linepick')">Cancel</button></div></div></div>
 </div>
 <!-- OPP LINEUP -->
+<!-- RETRO SCORECARD (printable) -->
+<div class="screen" id="screen-scorecard">
+<div class="hdr no-print"><div><div class="hdr-title">Retro scorecard</div><div class="hdr-sub" id="sc-sub">—</div></div><div class="row" style="gap:6px;"><button class="btn btn-sm btn-gold" onclick="window.print()">🖨 Print</button><button class="btn btn-sm" onclick="ss('screen-sc');stab('box',document.querySelectorAll(\'#screen-sc .tab\')[6])">← Back</button></div></div>
+<div class="scroll" id="sc-printable"><div id="sc-content"></div></div>
+</div>
 <!-- SEASON STATS SCREEN -->
 <div class="screen" id="screen-season">
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
@@ -291,7 +330,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- LOG -->
 <div id="tab-log" style="display:none;"><div class="panel" id="ls-log-panel" style="padding:8px 10px;"></div><div class="panel" id="log-panel"></div></div>
 <!-- BOX -->
-<div id="tab-box" style="display:none;"><div class="panel"><div class="ptitle">Line score</div><div class="scroll-x"><table class="tbl" id="ls-tbl"></table></div></div><div class="panel" id="game-summary" style="font-size:11px;"></div><div class="panel"><div class="ptitle">Share</div><div id="share-txt" style="background:var(--bg3);border-radius:var(--rs);padding:9px;font-family:monospace;font-size:11px;color:var(--text2);white-space:pre-wrap;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div><div class="g2"><button class="btn btn-full btn-gold" onclick="cpShare()">Copy</button><button class="btn btn-full" onclick="mkShare()">Refresh</button></div></div><div class="panel"><div class="ptitle">Notes</div><textarea id="gm-notes" style="min-height:80px;" placeholder="Notes..."></textarea></div>
+<div id="tab-box" style="display:none;"><div class="panel"><div class="ptitle">Line score</div><div class="scroll-x"><table class="tbl" id="ls-tbl"></table></div></div><div class="panel" id="game-summary" style="font-size:11px;"></div><div class="panel"><div class="ptitle">Retro scorecard</div><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Press-box style printable scorecard for this game.</div><button class="btn btn-gold btn-full" onclick="openRetroScorecard()">📋 Open scorecard</button></div><div class="panel"><div class="ptitle">Share</div><div id="share-txt" style="background:var(--bg3);border-radius:var(--rs);padding:9px;font-family:monospace;font-size:11px;color:var(--text2);white-space:pre-wrap;margin-bottom:8px;max-height:180px;overflow-y:auto;"></div><div class="g2"><button class="btn btn-full btn-gold" onclick="cpShare()">Copy</button><button class="btn btn-full" onclick="mkShare()">Refresh</button></div></div><div class="panel"><div class="ptitle">Notes</div><textarea id="gm-notes" style="min-height:80px;" placeholder="Notes..."></textarea></div>
 <div style="margin-top:10px;"><button class="btn btn-full btn-red" onclick="endGame()" style="font-size:14px;padding:12px;">🏁 End Game</button></div></div>
 <!-- RULES -->
 <div id="tab-rules" style="display:none;"><div class="panel">
@@ -593,6 +632,135 @@ return '<div class="sched-item'+(past?' past':'')+'" onclick="'+(ev.type==='game
 +'<div style="text-align:right;flex-shrink:0;"><div class="stime">'+esc(ev.time||'')+'</div>'+rh+'<button class="btn btn-xs" style="margin-top:4px;" onclick="event.stopPropagation();editEv(\''+ev.id+'\')">Edit</button></div></div>';}).join('')||'<div class="empty">No events</div>';}
 function renderRec(){var games=A.schedule.filter(e=>e.type==='game'&&e.id!=='test-sandbox');var w=0,l=0,t=0,g=games.length;games.forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';var hasTest=!!A.gameResults['test-sandbox']||A.schedule.some(e=>e.id==='test-sandbox')||G.eid==='test-sandbox';var btn=$('btn-wipe-test');if(btn)btn.style.display=hasTest?'':'none';}
 
+// RETRO SCORECARD — open the printable scorecard view for the current game
+function openRetroScorecard(){
+  if(!G.eid){toast('No game loaded');return;}
+  ss('screen-scorecard');
+  renderRetroScorecard(G);
+  // Update sub-header
+  var ev=A.schedule.find(function(e){return e.id===G.eid;});
+  $('sc-sub').textContent=(ev?ev.date:'')+' · '+G.at+' @ '+G.ht+' · '+G.as+'-'+G.hs;
+}
+// Diamond SVG for a single AB cell. `bases` = array of true/false for [1B,2B,3B] reached, `scored` = bool, `result` = AB result code.
+function _scDiamondSVG(ab){
+  if(!ab)return '';
+  var r=ab.result;
+  var reachedBase=({'1B':1,'2B':2,'3B':3,'HR':3,'LLHR':3,'BB':1,'HBP':1,'1B':1,'FC':1,'E':1}[r])||0;
+  var scored=(ab.pscored&&ab.pscored.length>=0)?false:false;// placeholder; will compute differently
+  // Actually: scored if the batter reached and eventually crossed home — best signal is HR/LLHR or batter is in this AB's pscored... but pscored tracks runners, not the batter.
+  // Use logged runs: if any G.runs entry has bi===ab.bi+team within this same AB's inn/half AND came from this batter's slot.
+  // Simpler heuristic: HR or LLHR = scored; otherwise check if batter has a R count via pscored
+  if(r==='HR'||r==='LLHR')scored=true;
+  // Build path through the bases. SVG diamond: 28x28, home at bottom (14,28), 1B right (28,14), 2B top (14,0), 3B left (0,14)
+  var pts={H:[14,28],'1':[28,14],'2':[14,0],'3':[0,14]};
+  var s='<svg width="28" height="28" viewBox="0 0 28 28" style="display:block;">';
+  // Diamond outline
+  s+='<polygon points="14,2 26,14 14,26 2,14" fill="none" stroke="#1a1a1a" stroke-width="0.7"/>';
+  // Bases
+  ['H','1','2','3'].forEach(function(b){var p=pts[b];s+='<rect x="'+(p[0]-2)+'" y="'+(p[1]-2)+'" width="4" height="4" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>';});
+  // Path through bases reached
+  if(reachedBase>0){
+    var path='M14,28';
+    if(reachedBase>=1)path+=' L28,14';
+    if(reachedBase>=2)path+=' L14,0';
+    if(reachedBase>=3)path+=' L0,14';
+    if(scored)path+=' L14,28';
+    s+='<path d="'+path+'" fill="'+(scored?'rgba(180,30,30,0.18)':'none')+'" stroke="#b41e1e" stroke-width="1.4"/>';
+  }
+  s+='</svg>';
+  return s;
+}
+// Result label for the cell center (compact)
+function _scResultLabel(r){
+  var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',FO:'F',GO:'G',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',AO:'AO'};
+  return map[r]||r;
+}
+function renderRetroScorecard(g){
+  var totalInn=g.ti||6;
+  var ourSide=g.ht==='Mighty Mussels'?'home':'away';
+  var theirSide=ourSide==='home'?'away':'home';
+  var ourLu=ourSide==='home'?g.hlu:g.alu;
+  var theirLu=theirSide==='home'?g.hlu:g.alu;
+  var ourPit=ourSide==='home'?g.hp:g.ap;
+  var theirPit=theirSide==='home'?g.hp:g.ap;
+  var ev=A.schedule.find(function(e){return e.id===g.eid;});
+  var winner=g.as>g.hs?g.at:(g.hs>g.as?g.ht:'Tied');
+  var ours=ourSide==='home'?g.hs:g.as;
+  var theirs=ourSide==='home'?g.as:g.hs;
+  var resLabel=ours>theirs?'W':(theirs>ours?'L':'T');
+  // HEADER
+  var html='';
+  html+='<div class="sc-hdr">';
+  html+='<div class="sc-title">'+esc(g.at)+' @ '+esc(g.ht)+'</div>';
+  html+='<div class="sc-meta">'+esc((ev?ev.date:''))+(ev&&ev.loc?' · '+esc(ev.loc):'')+'</div>';
+  html+='<div class="sc-score">FINAL — '+esc(g.at)+' '+g.as+', '+esc(g.ht)+' '+g.hs+(g.final?' · '+resLabel+' for '+esc(ourSide==='home'?g.ht:g.at):'')+'</div>';
+  html+='</div>';
+  // Build batting tables for both teams
+  function batTable(lu,team,heading){
+    var h='<div class="sc-section-title">'+esc(heading)+'</div>';
+    h+='<table class="sc-bat"><thead><tr><th>#</th><th>Player</th>';
+    for(var i=1;i<=totalInn;i++)h+='<th>'+i+'</th>';
+    h+='<th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th></tr></thead><tbody>';
+    lu.forEach(function(p,bi){
+      if(!p.name&&!p.jersey)return;
+      var rowAB=0,rowR=0,rowH=0,rowRBI=0,rowBB=0,rowK=0;
+      // Build row first to compute totals
+      var cells='';
+      for(var inn=1;inn<=totalInn;inn++){
+        // Find AB(s) by this batter in this inning
+        var abs=(g.abs||[]).filter(function(ab){return ab.bi===bi&&ab.team===team&&ab.inn===inn;});
+        if(!abs.length){cells+='<td class="sc-cell"></td>';continue;}
+        // Render the first AB in the cell. If multiple ABs in same inning (rare with batting around), stack notation.
+        var inner='';
+        abs.forEach(function(ab,k){
+          var rcode=ab.result;
+          if(!['BB','HBP','SAC'].includes(rcode))rowAB++;
+          if(['1B','2B','3B','HR','LLHR'].includes(rcode))rowH++;
+          if(rcode==='BB')rowBB++;
+          if(rcode==='K'||rcode==='KL')rowK++;
+          rowRBI+=(ab.rbi||0);
+          // Did this batter score? Check G.runs for matching bi+team+inn
+          var scoredInRun=(g.runs||[]).some(function(rn){return rn.bi===bi&&rn.team===team&&rn.inn===inn;});
+          if(scoredInRun)rowR++;
+          if(k===0){
+            inner+='<div class="sc-diamond">'+_scDiamondSVG(ab)+'<div class="sc-result">'+esc(_scResultLabel(rcode))+'</div></div>';
+            if(ab.rbi>0)inner+='<div class="sc-rbi">'+ab.rbi+' RBI</div>';
+          }else{
+            // Stacked second AB in same inning
+            inner+='<div style="font-size:8px;border-top:1px dashed #888;margin-top:2px;padding-top:1px;">'+esc(_scResultLabel(rcode))+(ab.rbi>0?' +'+ab.rbi:'')+'</div>';
+          }
+        });
+        cells+='<td class="sc-cell">'+inner+'</td>';
+      }
+      var jersey=p.jersey?'#'+p.jersey+' ':'';
+      h+='<tr><td class="sc-num">'+(bi+1)+'</td><td class="sc-name">'+esc(jersey+(p.name||''))+'</td>'+cells+'<td class="sc-tot">'+rowAB+'</td><td class="sc-tot">'+rowR+'</td><td class="sc-tot">'+rowH+'</td><td class="sc-tot">'+rowRBI+'</td><td class="sc-tot">'+rowBB+'</td><td class="sc-tot">'+rowK+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    return h;
+  }
+  html+=batTable(ourLu,ourSide,(ourSide==='home'?g.ht:g.at)+' batting');
+  if(theirLu&&theirLu.length)html+=batTable(theirLu,theirSide,(theirSide==='home'?g.ht:g.at)+' batting');
+  // PITCHING — show our pitchers
+  function pitTable(pl,heading){
+    if(!pl||!pl.length)return'';
+    var h='<div class="sc-section-title">'+esc(heading)+'</div>';
+    h+='<table class="sc-pit"><thead><tr><th>Pitcher</th><th>IP</th><th>PC</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HBP</th><th>ERA</th></tr></thead><tbody>';
+    pl.forEach(function(p){
+      if(!p.name)return;
+      var ip_o=p.ip_outs||0;var ip=Math.floor(ip_o/3)+'.'+(ip_o%3);
+      var era=ip_o>0?fmt3((p.er||0)/(ip_o/3)*6):'—';
+      var j=_findJersey(p.name);var nm=j?'#'+j+' '+p.name:p.name;
+      h+='<tr><td class="sc-pname">'+esc(nm)+'</td><td>'+ip+'</td><td>'+(p.total||0)+'</td><td>'+(p.hits||0)+'</td><td>'+(p.runs_allowed||0)+'</td><td>'+(p.er||0)+'</td><td>'+(p.bb_allowed||0)+'</td><td>'+(p.k_pitched||0)+'</td><td>'+(p.hbp_allowed||0)+'</td><td>'+era+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    return h;
+  }
+  html+=pitTable(ourPit,(ourSide==='home'?g.ht:g.at)+' pitching');
+  if(theirPit&&theirPit.length)html+=pitTable(theirPit,(theirSide==='home'?g.ht:g.at)+' pitching');
+  // FOOTNOTES — explain symbols
+  html+='<div class="sc-foot">Diamond shows base reached on each AB · red path = runner advanced · filled = scored · '+(g.abs?g.abs.length:0)+' total ABs logged</div>';
+  $('sc-content').innerHTML=html;
+}
 // SEASON STATS — aggregate across all finalized games from Firebase
 async function openSeasonStats(){
   ss('screen-season');
