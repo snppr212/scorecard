@@ -391,6 +391,10 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-next"><div class="modal" style="text-align:center;"><h3 id="nb-res" style="font-size:16px;margin-bottom:14px;"></h3><div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;">Up next: <strong id="nb-1" style="color:var(--gold);">—</strong></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:2px;">On deck: <span id="nb-2">—</span></div><div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">In the hole: <span id="nb-3">—</span></div><button class="btn btn-gold btn-full" onclick="ackNext()">Got it</button></div></div>
 <div class="modal-ov" id="m-innend"><div class="modal" style="text-align:center;"><h3>3 Outs — End half-inning?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;" id="ie-detail"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmInnEnd()">Yes, next half</button><button class="btn btn-full" onclick="cm('m-innend')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-callgame"><div class="modal" style="text-align:center;"><h3 style="color:var(--red2);">Call the game?</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:6px;">Score: <strong id="cg-score"></strong></div><div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;">Will finalize after <span id="cg-inn"></span>.<br>Use for time / darkness / weather / mercy. Cannot be undone.</div><div class="mact"><button class="btn btn-red btn-full" onclick="confirmCallGame()">Yes — call it now</button><button class="btn btn-full" onclick="cm('m-callgame')">Go back</button></div></div></div>
+<!-- B1: Generic confirm modal — replaces native confirm() across the app -->
+<div class="modal-ov" id="m-confirm"><div class="modal" style="text-align:center;"><h3 id="m-confirm-title">Confirm</h3><div id="m-confirm-body" style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;white-space:pre-line;"></div><div class="mact"><button class="btn btn-gold btn-full" id="m-confirm-yes" onclick="_confirmYes()">Yes</button><button class="btn btn-full" id="m-confirm-no" onclick="_confirmNo()">Cancel</button></div></div></div>
+<!-- B1: Generic prompt modal — replaces native prompt() across the app -->
+<div class="modal-ov" id="m-prompt"><div class="modal"><h3 id="m-prompt-title">Enter</h3><div class="mrow"><label id="m-prompt-label"></label><input type="text" id="m-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();_promptSubmit();}"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="_promptSubmit()">OK</button><button class="btn btn-full" onclick="_promptCancel()">Cancel</button></div></div></div>
 <!-- EDIT-AB MODAL: fix a logged at-bat (wrong batter, wrong result, wrong RBI) -->
 <div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
 <!-- SWAP-AB MODAL: swap two ABs in the same half-inning (out-of-order fix) -->
@@ -574,6 +578,34 @@ function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function toast(m,d){var e=$('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),d||2200);}
+// B1: Replace native confirm() / prompt() with styled modals.
+// confirmModal(title, body, onYes, onNo, opts={yesLabel, noLabel, danger})
+// promptModal(title, label, defaultVal, onSubmit, onCancel)
+var _confirmCb=null;
+function confirmModal(title,body,onYes,onNo,opts){
+  opts=opts||{};
+  $('m-confirm-title').textContent=title||'Confirm';
+  $('m-confirm-body').textContent=body||'';
+  var yes=$('m-confirm-yes'),no=$('m-confirm-no');
+  yes.textContent=opts.yesLabel||'Yes';
+  no.textContent=opts.noLabel||'Cancel';
+  yes.className='btn btn-full '+(opts.danger?'btn-red':'btn-gold');
+  _confirmCb={yes:onYes,no:onNo};
+  om('m-confirm');
+}
+function _confirmYes(){var cb=_confirmCb;_confirmCb=null;cm('m-confirm');if(cb&&cb.yes)cb.yes();}
+function _confirmNo(){var cb=_confirmCb;_confirmCb=null;cm('m-confirm');if(cb&&cb.no)cb.no();}
+var _promptCb=null;
+function promptModal(title,label,defaultVal,onSubmit,onCancel){
+  $('m-prompt-title').textContent=title||'Enter';
+  $('m-prompt-label').textContent=label||'';
+  var inp=$('m-prompt-input');inp.value=defaultVal||'';
+  _promptCb={submit:onSubmit,cancel:onCancel};
+  om('m-prompt');
+  setTimeout(function(){inp.focus();inp.select();},80);
+}
+function _promptSubmit(){var v=$('m-prompt-input').value;var cb=_promptCb;_promptCb=null;cm('m-prompt');if(cb&&cb.submit)cb.submit(v);}
+function _promptCancel(){var cb=_promptCb;_promptCb=null;cm('m-prompt');if(cb&&cb.cancel)cb.cancel();}
 function om(id){$(id).classList.add('open');}
 function cm(id){$(id).classList.remove('open');}
 function ss(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
@@ -1680,7 +1712,7 @@ el.innerHTML=banner+changeTile+rows+addTile;}
 function selBat(i){if(G.cbi===i)return;
 // cbi<0: preserve any pitches accumulated while waiting to assign a batter (opp on-the-fly)
 var preservePitches=G.cbi<0&&G.cpitch.length>0;
-if(G.cbi>=0&&G.cpitch.length>0){if(!confirm('Switch? Pitches lost.'))return;}
+if(G.cbi>=0&&G.cpitch.length>0){confirmModal('Switch batter?','Pitches logged on the current AB will be discarded.',function(){G.cbi=i;G.cpitch=[];G.balls=0;G.strikes=0;sv();renderSC();},null,{yesLabel:'Switch',noLabel:'Cancel',danger:true});return;}
 G.cbi=i;
 if(!preservePitches){G.cpitch=[];G.balls=0;G.strikes=0;}
 sv();renderSC();}
@@ -1850,7 +1882,7 @@ function logAutoOut(){
 function oppbatEndOrder(){
   var lu=tlu();
   if(!lu.length){toast('Add at least one batter first');return;}
-  if(!confirm('End of order — from now on, cycle back through the '+lu.length+' batters you\u2019ve already added?'))return;
+  confirmModal('End of order?','Cycle back through the '+lu.length+' batter'+(lu.length===1?'':'s')+' added so far.',function(){G.oppLuDone=true;G.cbi=0;cm('m-oppbat');_oppbatResume();});return;
   G.oppLuDone=true;
   // This batter is the first slot (wrapped back to #1)
   G.cbi=0;
@@ -1950,6 +1982,13 @@ function recalcPitcherStats(){
   //  handling. For now we just walk G.css and credit the AB's pitcher
   //  closest to that inning/half.)
   (G.css||[]).forEach(function(cs){
+    // Prefer the stamped pitcher (B5 fix) — fall back to "last AB pitcher of
+    // the half-inning" heuristic for older CS records that don't have one.
+    if(cs.pitcher){
+      var list=cs.pitcherTeam==='home'?G.hp:G.ap;
+      var p=list.find(function(x){return x.name===cs.pitcher;});
+      if(p){p.ip_outs++;return;}
+    }
     var sameHalf=G.abs.filter(function(a){return a.inn===cs.inn&&a.half===cs.half;});
     var lastAB=sameHalf[sameHalf.length-1];
     var p=lastAB?abPitcher(lastAB):null;
@@ -2227,7 +2266,12 @@ if(G.half==='top'){G.as+=n;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||
 else{G.hs+=n;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+n;}
 var newR=G.half==='top'?(G.inns.a[G.inn-1]||0):(G.inns.h[G.inn-1]||0);
 if(!isLast&&newR>=6){sv();renderSB();$('sixrun-msg').textContent=(G.half==='top'?(G.at):(G.ht))+' has scored 6 runs — inning is over.';om('m-6run');}
-chkMercy();}
+chkMercy();
+// B2: Walk-off prompt — when home takes the lead in the bottom of the last inning
+if(G.half==='bottom'&&G.inn>=(G.ti||6)&&G.hs>G.as&&!G._walkoffShown){
+  G._walkoffShown=true;sv();
+  setTimeout(function(){walkOffPrompt();},700);
+}}
 function logRun(bi,team){if(!G.runs)G.runs=[];G.runs.push({bi:bi,team:team,inn:G.inn,half:G.half});
 // If we're inside finAB, also stash the runner's name on the in-progress AB.
 if(G._abScoredBuffer){var lu=team==='home'?G.hlu:G.alu;var p=lu[bi];if(p&&p.name)G._abScoredBuffer.push(p.name);}
@@ -2248,10 +2292,11 @@ function chkMercy(){
 var _lastGSnap=null;
 function saveSnap(){_lastGSnap=JSON.parse(JSON.stringify(G));}
 function undoAB(){if(!_lastGSnap){toast('Nothing to undo');return;}
-  if(!confirm('Undo last at-bat? This will restore bases, score, and batting order to before that AB.'))return;
-  G=_lastGSnap;_lastGSnap=null;
-  if($('undo-ab-btn'))$('undo-ab-btn').style.display='none';
-  sv();renderSC();toast('Last AB undone');}
+  confirmModal('Undo last AB?','Restores bases, score, and batting order to before that AB.',function(){
+    G=_lastGSnap;_lastGSnap=null;
+    if($('undo-ab-btn'))$('undo-ab-btn').style.display='none';
+    sv();renderSC();toast('Last AB undone');
+  },null,{yesLabel:'Undo',danger:true});}
 
 // MANUAL RUN MODAL
 function openManualRun(){$('manrun-us').textContent=ourName();$('manrun-them').textContent=theirName();om('m-manrun');}
@@ -2302,14 +2347,20 @@ toast((rm[r]||r)+' — Now: '+bName,2500);}
 
 function showIE(){
   var d='';
+  var ti=G.ti||6;
   if(G.half==='top'){
+    // B2: After top of last inning, if home is leading, prompt to call the game
+    // (no need to play bottom half — home already won). User can dismiss to keep playing.
+    if(G.inn>=ti&&G.hs>G.as&&!G._endGamePromptShown){
+      G._endGamePromptShown=true;sv();
+      setTimeout(function(){endGamePrompt('top');},500);
+      return;
+    }
     d='Switch to '+G.ht+' batting';
   }else{
     // Bottom of inning — check if game should end
-    var minInn=G.ti||6; // play through the scheduled number of innings
-    var oneAhead=(G.hs>G.as)||(G.as>G.hs); // One team winning
-    if(G.inn>=minInn&&oneAhead){
-      // Game is over — show final summary
+    var oneAhead=(G.hs>G.as)||(G.as>G.hs);
+    if(G.inn>=ti&&oneAhead){
       endGame();
       return;
     }
@@ -2317,6 +2368,22 @@ function showIE(){
   }
   $('ie-detail').textContent=d;om('m-innend');renderSC();
 }
+// B2: Prompts that suggest ending the game when conditions are met.
+// "top" = end of top of last inning, home leading. "walkoff" = home took lead in bottom of last.
+function endGamePrompt(reason){
+  var msg;
+  if(reason==='walkoff'){msg=esc(G.ht)+' walked off! Score '+G.hs+'-'+G.as+'. Call the game?';}
+  else{msg=esc(G.ht)+' leads '+G.hs+'-'+G.as+' after the top of the last inning. Call the game?';}
+  confirmModal('Game over?',msg,
+    function(){confirmCallGame();},
+    function(){
+      // User wants to keep playing
+      G._walkoffShown=false;G._endGamePromptShown=false;sv();
+      if(reason==='top'){$('ie-detail').textContent='Switch to '+G.ht+' batting';om('m-innend');renderSC();}
+    }
+  );
+}
+function walkOffPrompt(){endGamePrompt('walkoff');}
 function openCallGame(){
   // Populate the confirm modal with current score and inning info
   $('cg-score').textContent=G.at+' '+G.as+' – '+G.hs+' '+G.ht;
@@ -2377,9 +2444,11 @@ function chkFW(inn){
 // RUNNERS
 function runnerM(b){var r=G.bases[b-1];
 if(!r){
-  var nm=prompt('Add runner to '+['','1st','2nd','3rd'][b]+':\nEnter name (or blank to cancel):');
-  if(!nm)return;
-  G.bases[b-1]={name:nm,jerseyNum:'',bi:-1,team:isHB()?'home':'away'};sv();renderSC();return;
+  promptModal('Add runner to '+['','1st','2nd','3rd'][b],'Player name','',function(nm){
+    if(!nm)return;
+    G.bases[b-1]={name:nm,jerseyNum:'',bi:-1,team:isHB()?'home':'away'};sv();renderSC();
+  });
+  return;
 }
 $('mr-t').textContent='Runner on '+['','1st','2nd','3rd'][b]+(r.name!=='?'?' — '+r.name:'');
 var opts=[];
@@ -2490,7 +2559,10 @@ var csBi=csRunner?csRunner.bi:null;
 var fromLabel=at==='2'?'1st':'2nd';
 if(at==='2'&&G.bases[0])G.bases[0]=null;else if(at==='3'&&G.bases[1])G.bases[1]=null;
 var _fp=curPitcher();if(_fp)_fp.ip_outs=(_fp.ip_outs||0)+1;
-G.css.push({at:at,inn:G.inn,half:G.half,name:csName,bi:csBi,from:fromLabel,during_ab_num:G.abc+1});
+// B5: Stamp the pitcher (and team) on the CS so recalcPitcherStats can
+// attribute the out correctly even if the pitcher changes mid-inning later.
+var _pTeam=G.half==='top'?'home':'away';
+G.css.push({at:at,inn:G.inn,half:G.half,name:csName,bi:csBi,from:fromLabel,during_ab_num:G.abc+1,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null});
 G.outs=Math.min(3,G.outs+1);cm('m-cs');sv();
 if(G.outs>=3){
   // batter's AB was never completed — they lead off next time their team bats
@@ -2602,7 +2674,7 @@ $('mpos-list').innerHTML=olu().filter(p=>{var k=p.name||p.jersey;return k&&(take
 return '<div class="pos-row" onclick="asgPos(\''+pos+'\',\''+esc(k).replace(/'/g,"\\'")+'\');cm(\'m-pos\')" style="cursor:pointer;"><div class="bat-jersey">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;color:'+(w?'var(--red2)':'var(--text)')+';">'+esc(p.name||'#'+p.jersey)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+c+'i</span></div>';}).join('')
 +'<div class="sep"></div><div class="pos-row" onclick="addTaxi(\''+pos+'\')" style="cursor:pointer;"><span style="font-size:12px;color:var(--amber2);font-family:sans-serif;">+ Taxi squad</span></div>';
 om('m-pos');}
-function addTaxi(pos){var n=prompt('Name:');if(!n)return;cm('m-pos');olu().push({name:n,jersey:'',rid:null});asgPos(pos,n);}
+function addTaxi(pos){promptModal('Add taxi-squad player to '+pos,'Player name','',function(n){if(!n)return;cm('m-pos');olu().push({name:n,jersey:'',rid:null});asgPos(pos,n);});}
 function asgPos(pos,k){
 // Check for position conflicts
 var vi=viewInn();
@@ -2708,13 +2780,37 @@ $('their-lu-list').innerHTML=tlu2.map(function(p,i){
     ? '<button class="btn btn-xs" onclick="moveLuThem('+i+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+'>↑</button>'
       +'<button class="btn btn-xs" onclick="moveLuThem('+i+',1)" '+(canDn?'':'disabled style="opacity:.3;"')+'>↓</button>'
     : '';
+  // B3: Hide ✕ delete unless in edit mode (prevents accidental remove)
+  var delBtn=editThem?'<div class="lu-del" onclick="rmGLP(\''+themT()+'\','+i+')">✕</div>':'';
   var nameStyle=isPlaceholder(p.name)?'color:#ff8888;font-style:italic;':'';
   return '<div class="lu-row"><span class="lu-ord">'+(i+1)+'</span>'
-  +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'jersey\',this.value);_propagateLineupEdit();" style="width:46px;">'
-  +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'name\',this.value);_propagateLineupEdit();" style="flex:1;'+nameStyle+'">'
-  +reorderBtns
-  +'<div class="lu-del" onclick="rmGLP(\''+themT()+'\','+i+')">✕</div></div>';
+  +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'jersey\',this.value);_propagateLineupEdit();" style="width:46px;"'+(editThem?'':' readonly')+'>'
+  +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'name\',this.value);_propagateLineupEdit();" style="flex:1;'+nameStyle+'"'+(editThem?'':' readonly')+'>'
+  +reorderBtns+delBtn+'</div>';
 }).join('')||'<div class="empty">None</div>';
+// B4: Show "Saved roster — not in lineup yet" section for opp team
+var oppName=isOH()?G.at:G.ht;
+var savedRoster=(typeof OPP_ROSTERS!=='undefined'&&OPP_ROSTERS[oppName])||[];
+if(savedRoster.length){
+  var inLineup=tlu2.map(function(p){return(p.name||'').toLowerCase();});
+  var notIn=savedRoster.filter(function(n){return inLineup.indexOf(n.toLowerCase())<0;});
+  if(notIn.length){
+    var savedHtml='<div class="ptitle" style="margin:14px 0 4px;font-size:10px;color:var(--text3);">Saved '+esc(oppName)+' roster — not in lineup yet</div>';
+    notIn.forEach(function(name){
+      var safeName=name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      savedHtml+='<div class="lu-row" style="opacity:0.85;"><span class="lu-ord">+</span><span style="flex:1;font-size:13px;color:var(--text2);padding:5px 0;">'+esc(name)+'</span><button class="btn btn-xs btn-green" onclick="addSavedToOpp(\''+safeName+'\')" style="font-size:11px;padding:5px 9px;">+ Add</button></div>';
+    });
+    $('their-lu-list').innerHTML+=savedHtml;
+  }
+}
+}
+// B4: Add a saved-roster player to the opp lineup (called from "+ Add" button)
+function addSavedToOpp(name){
+  var lu=tlu();
+  if(lu.find(function(p){return(p.name||'').toLowerCase()===name.toLowerCase();})){toast('Already in lineup');return;}
+  lu.push({name:name,jersey:''});
+  sv();renderLT();
+  toast(name+' added — set jersey on the input');
 }
 function uGLP(t,i,f,v){(t==='home'?G.hlu:G.alu)[i][f]=v;sv();}
 // Re-render visible views after a lineup name/jersey edit so changes propagate
@@ -2726,20 +2822,20 @@ function _propagateLineupEdit(){
   try{renderLT();}catch(e){}// also re-render the lineup tab itself for placeholder color updates
 }
 function rmGLP(t,i){(t==='home'?G.hlu:G.alu).splice(i,1);sv();renderLT();}
-function markDNP(i){var lu=olu();if(!lu[i])return;if(!confirm('Mark '+(lu[i].name||'player')+' as did not play (DNP)?\nThey will be skipped in the batting order.'))return;lu[i].dnp=true;sv();renderLT();toast(sn(lu[i].name)+' marked DNP');}
+function markDNP(i){var lu=olu();if(!lu[i])return;confirmModal('Mark as DNP?','Mark '+(lu[i].name||'this player')+' as did not play. They will be skipped in the batting order.',function(){lu[i].dnp=true;sv();renderLT();toast(sn(lu[i].name)+' marked DNP');},null,{yesLabel:'Mark DNP',danger:true});}
 function reinstateDNP(i){var lu=olu();if(!lu[i])return;delete lu[i].dnp;sv();renderLT();toast(sn(lu[i].name)+' reinstated');}
 function addGB(who){
   if(who==='us'){
     var lu=olu();
-    // Show roster players not already in lineup
     var avail=A.roster.filter(r=>!lu.find(p=>p.rid===r.id));
     if(!avail.length){toast('All roster players already in lineup');return;}
     var opts=avail.map((p,i)=>(i+1)+'. '+(p.name||'#'+p.jersey)).join('\n');
-    var pick=prompt('Late arrival — choose player:\n'+opts+'\n\nEnter number:');
-    if(!pick)return;
-    var idx=parseInt(pick)-1;
-    if(avail[idx]){lu.push({name:avail[idx].name,jersey:avail[idx].jersey,rid:avail[idx].id});sv();renderLT();toast(sn(avail[idx].name)+' added to lineup');}
-    else toast('Invalid selection');
+    promptModal('Late arrival','Pick a number from the list:\n\n'+opts,'',function(pick){
+      if(!pick)return;
+      var idx=parseInt(pick)-1;
+      if(avail[idx]){lu.push({name:avail[idx].name,jersey:avail[idx].jersey,rid:avail[idx].id});sv();renderLT();toast(sn(avail[idx].name)+' added to lineup');}
+      else toast('Invalid selection');
+    });
   }else{tlu().push({name:'',jersey:''});sv();renderLT();}
 }
 function addOppInGame(){tlu().push({name:'',jersey:''});sv();renderLT();}
@@ -2808,6 +2904,9 @@ function openEditAB(idx){
 function confirmEditAB(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
+  // Capture old values BEFORE mutation so we can compute deltas
+  var oldRbi=ab.rbi||0;
+  var oldTeam=ab.team;var oldInn=ab.inn;
   var newBi=parseInt($('editab-bat').value);
   var newRes=$('editab-res').value;
   var newRbi=parseInt($('editab-rbi').value)||0;
@@ -2815,6 +2914,25 @@ function confirmEditAB(){
   var lu=ab.team==='home'?G.hlu:G.alu;
   if(lu[newBi]){ab.bi=newBi;ab.batter=lu[newBi].name||('#'+(lu[newBi].jersey||'?'));}
   ab.result=newRes;ab.rbi=newRbi;ab.not=newNot;
+  // A1 FIX: adjust team score and inning total by RBI delta — keeps the box
+  // score in sync with the edit. Manual runs (added via "+ Run") are
+  // preserved because we only adjust by the delta, not rebuild from scratch.
+  // Note: per-player R count (derived from G.runs) is not adjusted here —
+  // if an edit changes WHO scored, use Manual Run / runner picker for full
+  // accuracy. This delta fix handles 90% of the common cases.
+  var rbiDelta=newRbi-oldRbi;
+  if(rbiDelta!==0){
+    var ti=G.ti||6;
+    if(oldTeam==='home'){
+      G.hs=Math.max(0,(G.hs||0)+rbiDelta);
+      if(oldInn>=1&&oldInn<=ti&&G.inns&&G.inns.h){G.inns.h[oldInn-1]=Math.max(0,(G.inns.h[oldInn-1]||0)+rbiDelta);}
+    }else{
+      G.as=Math.max(0,(G.as||0)+rbiDelta);
+      if(oldInn>=1&&oldInn<=ti&&G.inns&&G.inns.a){G.inns.a[oldInn-1]=Math.max(0,(G.inns.a[oldInn-1]||0)+rbiDelta);}
+    }
+    // Sync gameResults so the home-screen W/L badge updates too
+    if(G.eid){if(!A.gameResults[G.eid])A.gameResults[G.eid]={};A.gameResults[G.eid].hs=G.hs;A.gameResults[G.eid].as=G.as;syncP();}
+  }
   // Recalculate pitcher stats from the (now-updated) AB list
   if(typeof recalcPitcherStats==='function')recalcPitcherStats();
   cm('m-editab');sv();
@@ -2822,12 +2940,18 @@ function confirmEditAB(){
   if(typeof renderLog==='function')renderLog();
   if(typeof renderStats==='function')try{renderStats();}catch(e){}
   if(typeof renderSC==='function')renderSC();
-  toast('AB #'+ab.num+' updated');
+  if(typeof renderSB==='function')try{renderSB();}catch(e){}
+  if(typeof renderLS==='function')try{renderLS();}catch(e){}
+  toast('AB #'+ab.num+' updated'+(rbiDelta!==0?' · score '+(rbiDelta>0?'+':'')+rbiDelta:''));
 }
 function confirmDeleteAB(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
-  if(!confirm('Delete AB #'+ab.num+'? This cannot be undone. Pitcher stats will be recalculated.'))return;
+  confirmModal('Delete AB #'+ab.num+'?','This cannot be undone. Pitcher stats will be recalculated.',function(){_doDeleteAB();},null,{yesLabel:'Delete',danger:true});
+}
+function _doDeleteAB(){
+  if(_editAbIdx<0)return;
+  var ab=G.abs[_editAbIdx];if(!ab)return;
   G.abs.splice(_editAbIdx,1);
   // Renumber subsequent ABs in the same half-inning so the # stays sequential
   // (we just renumber globally to keep simple)
@@ -2867,8 +2991,9 @@ function confirmSwapAB(otherIdx){
   if(!a||!b)return;
   var nameA=(a.team==='home'?G.hlu:G.alu)[a.bi];nameA=nameA?(nameA.name||'?'):a.batter;
   var nameB=(b.team==='home'?G.hlu:G.alu)[b.bi];nameB=nameB?(nameB.name||'?'):b.batter;
-  if(!confirm('Swap batter on AB#'+a.num+' ('+nameA+') ↔ AB#'+b.num+' ('+nameB+')?\n\nPitches/result/RBI stay with each AB; only the batter attribution changes.'))return;
-  // Swap bi and batter only
+  confirmModal('Swap batters?','AB#'+a.num+' ('+nameA+') ↔ AB#'+b.num+' ('+nameB+')\n\nPitches / result / RBI stay with each AB. Only the batter attribution swaps.',function(){_doSwapAB(a,b);});
+}
+function _doSwapAB(a,b){
   var tmpBi=a.bi,tmpBatter=a.batter;
   a.bi=b.bi;a.batter=b.batter;
   b.bi=tmpBi;b.batter=tmpBatter;
