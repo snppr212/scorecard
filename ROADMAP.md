@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v64 (`9b1dae0`, 2026-04-27)
-**Status as of:** 2026-04-27, after font switch to Roboto, ID-collision fix, e7 wipe, gameResults restore. Retro scorecard parked as WIP behind Rules-tab link. Season record back to **2-1**.
+**Current version:** v65 (`c68cb54`, 2026-04-27)
+**Status as of:** 2026-04-27. **All v40 game-day items shipped:** A1 Edit-AB RBI sync, B1 native dialog cleanup, B2 walk-off prompt, B3 hide ✕ behind Edit, B4 saved-roster section, B5 per-CS pitcher. Season record back to **2-1**. Retro scorecard parked as WIP behind Rules-tab link.
 
 ## Status Key
 - ✅ Done
@@ -12,42 +12,49 @@
 
 ---
 
-## 🏟 Game-day readiness — what to nail before the next live game
+## 🏟 Game-day readiness
 
-Curated subset of v40 items, ranked by how much they affect actual scoring on the field.
+### ✅ All v40 must-haves and nice-to-haves shipped (v65)
 
-### 🚨 CRUCIAL (silent bugs / scoring correctness)
+| # | Item | Status |
+|---|------|--------|
+| **A1** | Edit-AB RBI doesn't rebuild G.runs / score | ✅ v65 — RBI delta applied to team total + inning total; A.gameResults synced |
+| **B1** | Native `confirm()` / `prompt()` cleanup | ✅ v65 — `confirmModal` and `promptModal` helpers; in-game dialogs replaced |
+| **B2** | Walk-off / end-of-last-inning PROMPT | ✅ v65 — both top-of-last and bottom-of-last walk-off paths covered |
+| **B3** | Lineup tab — hide ✕ delete behind Edit toggle | ✅ v65 — opp lineup ✕ only shows when in edit mode |
+| **B4** | "Saved roster — not in lineup yet" section | ✅ v65 — Lineup tab shows OPP_ROSTERS players not yet added with + Add |
+| **B5** | Per-CS pitcher attribution | ✅ v65 — `cs.pitcher` stamped at log time |
+| **A2** | End-to-end sandbox test before next game | 🔄 PENDING — needs to be run by user |
 
-| # | Issue | Why it matters at the field |
-|---|------|---|
-| **A1** | **Edit-AB RBI doesn't rebuild G.runs / score** | If you edit an AB to fix RBI count after the fact, the team score (G.hs / G.as) and the inning-by-inning totals don't update. You'd notice the linescore is wrong — you'd have to use "+ Run" / "Manual Run" to patch the score. **Silent bug.** Fix: on Edit-AB save, walk all ABs and rebuild G.runs / inning totals from scratch. |
-| **A2** | **End-to-end live test before the next game** | We've done a lot of work since the Bulls game (v39 batches, Plays log redesign, opp picker overhaul, edit/swap, font switch, ID collision fix). Run a full sandbox game start-to-finish: setup → opp lineup → log all pitch types → SB/CS/FC/HR → mid-inning pitcher change → call inning end → end game. Catch any regressions before the real thing. |
+### Remaining: just the sandbox smoke test
 
-### 🔧 NICE-TO-HAVE (small annoyances live)
+The only thing left for game-day readiness is a full sandbox game run-through to verify no regressions from the recent refactors (Plays log 4-col, opp picker overhaul, font switch, ID collision fix, all the v65 modals).
 
-| # | Issue | Why |
-|---|------|-----|
-| **B1** | **Native confirm() / prompt() cleanup** | iOS blocks the UI weirdly during native dialogs. Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` runner prompt, `markDNP()`, addTaxi prompt, addGB prompts, Edit/Swap/Delete-AB confirms. Polish, not blocking. |
-| **B2** | **Walk-off / end-game PROMPT** | Not auto-end. If home is leading after top of last or walks off in bottom of last, modal asks "Call it now?" with "Keep playing" escape. Saves a tap or two via gear menu. |
-| **B3** | **Lineup tab — hide ✕ delete behind Edit toggle** | Currently the X button is always visible. Easy to fat-finger and remove a player mid-game. Mirror the existing `_luEdit` state that controls reorder buttons. |
-| **B4** | **Lineup tab — "Saved roster — not in lineup yet" for opp** | Section below the live opp lineup showing roster players not yet added, with + buttons. Speeds up live entry when the saved roster has matches. |
-| **B5** | **Per-CS pitcher attribution** | Stamp `cs.pitcher` at log time so `recalcPitcherStats()` doesn't have to use the "last AB pitcher in the half" heuristic. Edge case but easy fix. |
+Suggested test sequence:
+1. Start test sandbox
+2. Build lineup (should see new Saved-roster + Add option for known opponents)
+3. Confirm opp lineup popup ("Pre-enter" / "Add live")
+4. Log a few pitches → result → switch batter (modal: "Switch batter?")
+5. Try out-of-order: mid-AB switch via selBat
+6. Steal + CS, verify sub-lines on Plays log
+7. Edit an AB (✎), change RBI by 1, confirm score updates
+8. Swap two ABs (⇄)
+9. Delete an AB
+10. End an inning, switch sides
+11. Mark a player DNP — should show modal
+12. Call game from gear menu
 
-### 💡 Cosmetic / future
+If any step misbehaves, surface the issue.
+
+### 💡 Cosmetic / future (parked)
 
 | # | Issue | Why deferred |
 |---|------|---|
-| C1 | Pitchers tab — collapsible pitch-type breakdown | Big UX redesign; current Pitchers tab works |
-| C2 | Backfill pitcher stamps for e2 / e4 | Old games, plays log won't show pitcher transitions for them — purely cosmetic |
-| C3 | ⚠️ Yellow-! error indicator on Plays log | In-AB errors don't surface visually right now. Standalone errors do as sub-lines. |
-| C4 | Per-fielder error count column on Box | Already shown per-error in the Fielding Errors panel |
+| C1 | Pitchers tab — collapsible pitch-type breakdown | Big UX redesign; current works |
+| C2 | Backfill pitcher stamps for e2 / e4 | Old games, plays log transitions are cosmetic |
+| C3 | ⚠️ Yellow-! error indicator on Plays log | In-AB errors don't surface visually; standalone do as sub-lines |
+| C4 | Per-fielder error count column on Box | Already shown per-error in Fielding Errors panel |
 | C5 | Retro scorecard (parked as WIP) | See `RETRO_SCORECARD_TODO.md` for the 14-item list |
-
-### My honest recommendation
-
-**Before the next game, do A1 and A2.** A1 is a 30-minute fix that prevents a silent score-drift bug. A2 is the "trust your tools" verification that everything still works after the recent refactors. Total: maybe 60-90 min.
-
-The rest can wait until after the season or after another testing pass.
 
 ---
 

@@ -1,5 +1,44 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v65 (2026-04-27) — c68cb54
+**v40 — A1 fix + all 5 nice-to-haves shipped**
+
+### A1: Edit-AB RBI sync (silent score-drift bug fix)
+- `confirmEditAB` now applies the RBI delta to `G.hs` / `G.as` / `G.inns` when RBI changes
+- Manual runs preserved (we only apply the delta, not rebuild)
+- `A.gameResults` synced so home-screen W/L badge stays current
+- Toast confirms the score adjustment: `"AB #N updated · score +1"`
+
+### B1: Styled confirm/prompt modals replace native dialogs
+- New `confirmModal(title, body, onYes, onNo, opts)` — opts: `yesLabel`, `noLabel`, `danger:true` for red Yes button
+- New `promptModal(title, label, defaultVal, onSubmit, onCancel)` with Enter-to-submit
+- Replaced in-game native dialogs: `selBat` "Switch? Pitches lost", `oppbatEndOrder` "End of order", `undoAB` "Undo last AB", `runnerM` add-runner prompt, `addTaxi` name prompt, `markDNP`, `addGB` late-arrival picker, `confirmDeleteAB`, `confirmSwapAB`
+- Pre-game / setup confirms (clearTestData, delPl, asgPos catcher warnings) still use native — lower priority
+
+### B2: Walk-off / end-of-last-inning PROMPT
+- New `endGamePrompt(reason)` triggered from two paths:
+  - After top of last inning ends with home leading → "Home leads X-Y after the top of the last inning. Call the game?"
+  - Home takes the lead in bottom of last inning → "Home walked off! Score X-Y. Call the game?"
+- Both use `confirmModal` so user can dismiss with "Keep playing"
+- NOT auto-end — the user always confirms
+
+### B3: Hide ✕ delete behind Edit toggle (Lineup tab opp side)
+- Opp lineup row only shows ✕ when `editThem` is on
+- Jersey/name inputs go readonly when not editing
+- Prevents accidental removal mid-game
+
+### B4: "Saved roster — not in lineup yet" section
+- Below the opp lineup on the Lineup tab, render `OPP_ROSTERS` players that aren't in `alu` yet
+- Each row has a "+ Add" button to drop them into the lineup
+- New `addSavedToOpp(name)` helper
+
+### B5: Per-CS pitcher attribution
+- `confirmCS` stamps `cs.pitcher` and `cs.pitcherTeam` at log time
+- `recalcPitcherStats` prefers the stamped pitcher; falls back to the half's-last-AB heuristic for older records
+- Mirrors the per-AB pitcher stamp work from v36
+
+Bumps sw.js to v65.
+
 ## v64 (2026-04-27) — 9b1dae0
 **Base font switched to Roboto**
 - Body font changed from Georgia (serif) to Roboto with system fallbacks (`-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif`)
