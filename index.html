@@ -541,6 +541,29 @@ function restD(p){if(p<=20)return 0;if(p<=35)return 1;if(p<=50)return 2;if(p<=65
 function daysBtwn(d1,d2){var a=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()),b=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate());return Math.round((b-a)/864e5);}
 function pSeason(name){return(A.pitchLog[name]||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));}
 function pStatus(name,gd){var log=pSeason(name);if(!log.length)return{ok:true,rest:0,last:0,tot:0,over40:false};var l=log[log.length-1],ld=new Date(l.date),ds=daysBtwn(ld,gd||new Date()),req=restD(l.pitches),rl=Math.max(0,req-ds);return{ok:rl===0,rest:rl,last:l.pitches,tot:log.reduce((s,e)=>s+e.pitches,0),over40:l.pitches>=40};}
+// Compute the actual calendar date when a pitcher is next eligible to pitch.
+// Uses last outing date + restD(pitches) per the existing rest-days rule.
+// Returns null if the pitcher has never pitched (always eligible).
+function pNextEligibleDate(name){
+  var log=pSeason(name);if(!log.length)return null;
+  var l=log[log.length-1];var ld=new Date(l.date);
+  // Strip time-of-day so we operate on calendar days
+  var elig=new Date(ld.getFullYear(),ld.getMonth(),ld.getDate());
+  elig.setDate(elig.getDate()+restD(l.pitches));
+  return elig;
+}
+// Format the eligible date relative to today: "✓", "Today", "Tomorrow", or "Mon Apr 28"
+function fmtAvailDate(elig,today){
+  if(!elig)return'✓';
+  var t=today||new Date();
+  var todayOnly=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+  var diffDays=Math.round((elig-todayOnly)/864e5);
+  if(diffDays<=0)return'✓';
+  if(diffDays===1)return'Tomorrow';
+  var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MOS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return DAYS[elig.getDay()]+' '+MOS[elig.getMonth()]+' '+elig.getDate();
+}
 function recP(name,pitches,date,eid){if(!A.pitchLog[name])A.pitchLog[name]=[];var i=A.pitchLog[name].findIndex(e=>e.eventId===eid);var entry={date,pitches,eventId:eid};if(i>=0)A.pitchLog[name][i]=entry;else A.pitchLog[name].push(entry);sa();}
 function syncP(){if(!G.eid)return;var ev=A.schedule.find(e=>e.id===G.eid);var d=ev?ev.date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});(isOH()?G.hp:G.ap).forEach(p=>{if(!p.total)return;var rp=A.roster.find(r=>r.name===p.rn||r.name===p.name);if(rp)recP(rp.name,p.total,d,G.eid);});}
 
@@ -2122,7 +2145,11 @@ if(who==='us')$('hp-label').textContent=sn(p.name)+' — '+c+'p';
 var st=p.stk||0;var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);
 el.innerHTML='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;"><span style="font-size:24px;font-weight:bold;color:'+col+';">'+c+'</span><span style="font-size:12px;color:var(--text2);font-family:sans-serif;">/ 75</span><span style="font-size:12px;font-family:sans-serif;margin-left:auto;">'+sn(p.name)+'</span></div><div class="pitcher-limit-bar"><div class="pitcher-limit-fill" style="width:'+pct+'%;background:'+col+';"></div></div><div style="font-size:10px;font-family:sans-serif;color:var(--text3);margin-top:4px;">PC:'+c+' St:'+st+' Ba:'+(p.ba||0)+' BIP:'+(p.bip||0)+' HBP:'+(p.hbp||0)+' IP:'+ip+'</div>';}
 function renderPS(who){var l=who==='us'?ourP():theirP(),c=who==='us'?ourPI():theirPI();$(who==='us'?'hp-sel':'ap-sel').innerHTML=l.map(function(p,i){var st=p.stk||0;var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);return '<div class="row-b" style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:'+(i===c?'var(--gold)':'var(--text)')+';">'+(i===c?'▶ ':'')+esc(sn(p.name))+' PC:'+(p.total||0)+' St:'+st+' Ba:'+(p.ba||0)+' IP:'+ip+'</span><button class="btn btn-xs" onclick="setAP(\''+who+'\','+i+')">'+(i===c?'Active':'Set')+'</button></div>';}).join('');}
-function renderSPT(){var td=new Date();$('sp-body').innerHTML=A.roster.map(function(p){var log=pSeason(p.name),cp=ourP().find(h=>h.name===p.name),cur=cp?cp.total||0:0;if(!log.length&&cur===0)return'';var s=pStatus(p.name,td),ok=s.ok&&!s.over40;return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+cur+'</td><td class="'+(s.rest>0?'warn':'ok')+'">'+s.rest+'d</td><td class="'+(ok?'ok':'warn')+'">'+(ok?'✓':'✗')+'</td><td class="'+(s.over40?'warn':'ok')+'">'+(s.over40?'⚠':'—')+'</td></tr>';}).filter(Boolean).join('')||'<tr><td colspan="5" class="empty">No data</td></tr>';}
+function renderSPT(){var td=new Date();$('sp-body').innerHTML=A.roster.map(function(p){var log=pSeason(p.name),cp=ourP().find(h=>h.name===p.name),cur=cp?cp.total||0:0;if(!log.length&&cur===0)return'';var s=pStatus(p.name,td),ok=s.ok&&!s.over40;
+  // Compute the actual eligible-to-pitch date, not just yes/no
+  var elig=pNextEligibleDate(p.name);
+  var availStr=ok?'✓':fmtAvailDate(elig,td);
+  return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+cur+'</td><td class="'+(s.rest>0?'warn':'ok')+'">'+s.rest+'d</td><td class="'+(ok?'ok':'warn')+'" style="font-family:sans-serif;font-size:11px;">'+availStr+'</td><td class="'+(s.over40?'warn':'ok')+'">'+(s.over40?'⚠':'—')+'</td></tr>';}).filter(Boolean).join('')||'<tr><td colspan="5" class="empty">No data</td></tr>';}
 function addP(who){if(who==='us'){var v=$('hp-inp').value;if(!v)return;var _ic2=getInningsCaught(v);if(_ic2>=4&&!confirm(sn(v)+' has caught '+_ic2+' innings this game.\n\nLL Rule: 4+ innings catching = cannot pitch.\n\nAdd as pitcher anyway?'))return;var rp=A.roster.find(r=>r.name===v);ourP().push({name:rp?rp.name:v,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(ourPI()<0)setOurPI(0);$('hp-inp').value='';}else{var v=$('ap-inp').value;if(!v)return;if(v==='__custom__'){v=prompt('Enter pitcher name:');if(!v)return;}theirP().push({name:v,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(theirPI()<0)setTheirPI(0);$('ap-inp').value='';}sv();renderPT();}
 function setAP(who,i){if(who==='us'){setOurPI(i);var p=ourP()[i];if(p&&p.name){if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=p.name;}}else setTheirPI(i);sv();renderPT();renderMU();}
 
