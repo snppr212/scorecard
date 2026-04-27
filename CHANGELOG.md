@@ -1,5 +1,31 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v41 part 4 (2026-04-26) — 3f00489
+**Retro scorecard polish round 2 — dot rendering, name compaction, layout tightening**
+
+Iterating on the press-box style after first-look review. All 7 issues from the review fixed:
+
+1. **Count box** — replaced 6×6 squares (which rendered as solid blobs at small size) with proper circular dots. Empty: thin grey outline circle. Filled: solid dark fill. Layout: 3 rows × 2 cols, 4×4px dots, 1px gaps. Clearly readable now.
+2. **Batter # of inning** — bumped to 13px Caveat with a circle outline around it (matches @MlbScorecards aesthetic).
+3. **Row spacing** — cell height reduced 50→42px; ~20% more compact overall.
+4. **Position column** — fixed `_scPlayerPos` to scan all innings of `G.fa` (was only checking inning 1). Now finds first inning where the player has a position assigned.
+5. **Long result codes** (HBP, LLHR, GIDP, SAC) — auto-shrink via `.sc-result.long` class (11px instead of 14px).
+6. **Filled-diamond outline** — thicker (1.6px) so it pops against the grey fill.
+7. **Name shortening** — new `_scShortName()` helper returns last name only, except when there's a duplicate last name in the lineup (Bresson family) where it falls back to "H. Bresson" / "C. Bresson". Saves horizontal space.
+
+Bumps sw.js to v58.
+
+## v41 part 3 (2026-04-26) — d4bc9c7
+**Retro scorecard major polish — Caveat font, scored detection, count box, batter # marker, per-inning footer**
+
+- Google Fonts: **Caveat** (handwriting) + **Patrick Hand** (small text). Player names render in Caveat script, result codes in Caveat bold.
+- Cell anatomy: count box top-left, batter # top-right, diamond center, RBI bottom-right.
+- **Scored detection**: cross-references `G.runs[]` for matching `bi+team+inn+half`. Diamond fills with grey background when batter eventually scored.
+- Per-inning Runs/Hits/Errors footer rows.
+- TEAM totals row at the bottom of each batting table.
+- Pitcher TBF column (counts batters faced via `ab.pitcher` stamp).
+- Print: `@page` set to landscape letter for the wider grid.
+
 ## v41 part 2 (2026-04-26) — d4510ba
 **Retro scorecard export — printable press-box style**
 
