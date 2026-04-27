@@ -9,6 +9,10 @@
 <meta name="apple-mobile-web-app-title" content="Mussels SC">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<!-- Google Fonts: Caveat for hand-written scorecard feel, Patrick Hand for stat cells -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Patrick+Hand&display=swap" rel="stylesheet">
 <title>Mighty Mussels</title>
 <style>
 :root{--bg:#0d1b2a;--bg2:#132233;--bg3:#1a2d42;--bg4:#223550;--gold:#c8a96e;--gold2:#e8c98e;--text:#e2ddd4;--text2:#8fa5bc;--text3:#4a6278;--green:#2a7d52;--green2:#36a066;--red:#b83228;--red2:#e04535;--blue:#1f5fa0;--blue2:#3080d0;--amber:#b87020;--amber2:#e09030;--purple:#6040a0;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--r:10px;--rs:6px;}
@@ -155,30 +159,44 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .bat-name{flex:1;font-size:13px;}
 .bat-mini{font-size:10px;color:var(--text3);font-family:sans-serif;}
 .bat-item.skipped{opacity:.4;border:1px dashed var(--amber2)!important;}
-/* RETRO SCORECARD — press-box style, hand-drawn vibe, print-friendly */
-#sc-content{background:#f5f1e6;color:#1a1a1a;padding:12px;font-family:Georgia,serif;}
-#sc-content h2,#sc-content h3{font-family:Georgia,serif;color:#1a1a1a;margin:0 0 4px;}
-#sc-content .sc-hdr{border-bottom:2px solid #1a1a1a;padding-bottom:6px;margin-bottom:10px;text-align:center;}
-#sc-content .sc-title{font-size:18px;font-weight:bold;}
-#sc-content .sc-meta{font-size:11px;color:#444;margin-top:2px;}
-#sc-content .sc-score{font-size:14px;font-weight:bold;margin-top:4px;}
-#sc-content .sc-section-title{font-size:13px;font-weight:bold;border-bottom:1px solid #1a1a1a;margin:10px 0 4px;text-transform:uppercase;letter-spacing:1px;}
-#sc-content table.sc-bat{width:100%;border-collapse:collapse;font-size:9px;font-family:Georgia,serif;}
-#sc-content table.sc-bat th{background:#e8e1ce;padding:3px 4px;border:1px solid #1a1a1a;text-align:center;}
+/* RETRO SCORECARD — press-box style with hand-written typography */
+#sc-content{background:#f5f1e6;color:#1a1a1a;padding:14px;font-family:'Patrick Hand',Georgia,serif;}
+#sc-content .sc-hdr{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;border-bottom:2px solid #1a1a1a;padding-bottom:8px;margin-bottom:10px;}
+#sc-content .sc-hdr-l{font-family:'Caveat',cursive;font-size:22px;font-weight:700;}
+#sc-content .sc-hdr-l-handle{font-family:'Patrick Hand',cursive;font-size:11px;color:#777;margin-top:-6px;}
+#sc-content .sc-hdr-c{text-align:center;}
+#sc-content .sc-title{font-family:'Caveat',cursive;font-size:30px;font-weight:700;line-height:1;color:#a01818;}
+#sc-content .sc-meta{font-family:'Patrick Hand',cursive;font-size:13px;color:#444;margin-top:4px;}
+#sc-content .sc-hdr-r{text-align:right;font-family:'Caveat',cursive;font-size:24px;font-weight:700;line-height:1.05;}
+#sc-content .sc-section-title{font-family:'Patrick Hand',cursive;font-size:13px;font-weight:bold;border-bottom:1px solid #1a1a1a;margin:12px 0 4px;text-transform:uppercase;letter-spacing:1.5px;}
+#sc-content table.sc-bat{width:100%;border-collapse:collapse;font-family:'Patrick Hand',cursive;}
+#sc-content table.sc-bat th{background:#e8e1ce;padding:4px 4px;border:1px solid #1a1a1a;text-align:center;font-size:12px;font-weight:bold;}
 #sc-content table.sc-bat td{padding:0;border:1px solid #1a1a1a;text-align:center;vertical-align:top;}
-#sc-content td.sc-name{text-align:left;padding:3px 5px;font-weight:bold;min-width:90px;}
-#sc-content td.sc-num{padding:3px 4px;font-weight:bold;width:18px;}
-#sc-content td.sc-cell{width:36px;height:42px;position:relative;}
-#sc-content .sc-diamond{position:relative;width:28px;height:28px;margin:2px auto;}
-#sc-content .sc-diamond svg{display:block;}
-#sc-content .sc-result{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;font-weight:bold;text-align:center;line-height:1;}
-#sc-content .sc-rbi{position:absolute;bottom:1px;right:2px;font-size:7px;color:#a00;font-weight:bold;}
-#sc-content td.sc-tot{padding:3px 5px;font-weight:bold;background:#e8e1ce;}
-#sc-content table.sc-pit{width:100%;border-collapse:collapse;font-size:10px;font-family:Georgia,serif;margin-top:8px;}
-#sc-content table.sc-pit th{background:#e8e1ce;padding:3px 5px;border:1px solid #1a1a1a;}
-#sc-content table.sc-pit td{padding:3px 5px;border:1px solid #1a1a1a;text-align:center;}
-#sc-content table.sc-pit td.sc-pname{text-align:left;font-weight:bold;}
-#sc-content .sc-foot{margin-top:10px;font-size:9px;color:#444;border-top:1px dashed #888;padding-top:6px;font-style:italic;}
+#sc-content td.sc-num{padding:4px 4px;font-family:'Caveat',cursive;font-size:16px;font-weight:bold;width:20px;}
+#sc-content td.sc-jer{padding:4px 4px;font-family:'Caveat',cursive;font-size:14px;font-weight:bold;width:30px;}
+#sc-content td.sc-name{text-align:left;padding:4px 6px;font-family:'Caveat',cursive;font-size:18px;font-weight:bold;min-width:110px;}
+#sc-content td.sc-pos{padding:4px 4px;font-family:'Caveat',cursive;font-size:14px;width:30px;color:#555;}
+#sc-content td.sc-cell{width:48px;height:50px;position:relative;}
+#sc-content td.sc-cell.scored{background:#cdc6b3;}
+/* The count box in the top-left of each cell */
+#sc-content .sc-count{position:absolute;top:2px;left:2px;display:grid;grid-template-columns:6px 6px;grid-gap:1px;width:13px;}
+#sc-content .sc-count > div{width:6px;height:6px;border:1px solid #1a1a1a;background:#fff;}
+#sc-content .sc-count > div.on{background:#1a1a1a;}
+/* Batter # of inning — circled top-right of cell */
+#sc-content .sc-bnum{position:absolute;top:1px;right:3px;font-family:'Caveat',cursive;font-size:11px;font-weight:bold;color:#666;}
+/* The diamond is centered, contains the result code */
+#sc-content .sc-diamond{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:32px;height:32px;}
+#sc-content .sc-result{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Caveat',cursive;font-size:14px;font-weight:bold;text-align:center;line-height:1;color:#1a1a1a;white-space:nowrap;}
+#sc-content .sc-rbi{position:absolute;bottom:1px;right:3px;font-family:'Patrick Hand',cursive;font-size:9px;color:#a01818;font-weight:bold;}
+#sc-content td.sc-tot{padding:4px 6px;font-family:'Patrick Hand',cursive;font-size:13px;font-weight:bold;background:#e8e1ce;}
+/* Per-inning Runs/Hits/Errors footer rows */
+#sc-content tr.sc-summary td{background:#f0eadb;font-family:'Patrick Hand',cursive;font-size:13px;font-weight:bold;padding:3px 4px;border:1px solid #1a1a1a;}
+#sc-content tr.sc-summary td.sc-summary-label{text-align:right;background:#e8e1ce;}
+#sc-content table.sc-pit{width:100%;border-collapse:collapse;font-family:'Patrick Hand',cursive;margin-top:10px;}
+#sc-content table.sc-pit th{background:#e8e1ce;padding:4px 6px;border:1px solid #1a1a1a;font-size:12px;font-weight:bold;}
+#sc-content table.sc-pit td{padding:4px 6px;border:1px solid #1a1a1a;text-align:center;font-size:13px;}
+#sc-content table.sc-pit td.sc-pname{text-align:left;font-family:'Caveat',cursive;font-size:16px;font-weight:bold;}
+#sc-content .sc-foot{margin-top:12px;font-family:'Patrick Hand',cursive;font-size:10px;color:#555;border-top:1px dashed #888;padding-top:6px;}
 @media print{
   body{background:#fff;}
   .no-print{display:none!important;}
@@ -187,7 +205,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   #screen-scorecard.active,#screen-scorecard{display:block!important;}
   #sc-printable{height:auto!important;overflow:visible!important;padding:0!important;}
   #sc-content{padding:0;}
-  @page{size:letter;margin:0.5in;}
+  @page{size:letter landscape;margin:0.4in;}
 }
 .fld-grid{width:100%;border-collapse:collapse;font-family:sans-serif;font-size:10px;}
 .fld-grid th,.fld-grid td{border:1px solid var(--border);padding:5px 3px;text-align:center;min-width:42px;}
@@ -641,39 +659,62 @@ function openRetroScorecard(){
   var ev=A.schedule.find(function(e){return e.id===G.eid;});
   $('sc-sub').textContent=(ev?ev.date:'')+' · '+G.at+' @ '+G.ht+' · '+G.as+'-'+G.hs;
 }
-// Diamond SVG for a single AB cell. `bases` = array of true/false for [1B,2B,3B] reached, `scored` = bool, `result` = AB result code.
-function _scDiamondSVG(ab){
+// Diamond SVG for a single AB cell — fills with grey if batter scored, draws path through bases reached
+function _scDiamondSVG(ab,scored){
   if(!ab)return '';
   var r=ab.result;
-  var reachedBase=({'1B':1,'2B':2,'3B':3,'HR':3,'LLHR':3,'BB':1,'HBP':1,'1B':1,'FC':1,'E':1}[r])||0;
-  var scored=(ab.pscored&&ab.pscored.length>=0)?false:false;// placeholder; will compute differently
-  // Actually: scored if the batter reached and eventually crossed home — best signal is HR/LLHR or batter is in this AB's pscored... but pscored tracks runners, not the batter.
-  // Use logged runs: if any G.runs entry has bi===ab.bi+team within this same AB's inn/half AND came from this batter's slot.
-  // Simpler heuristic: HR or LLHR = scored; otherwise check if batter has a R count via pscored
-  if(r==='HR'||r==='LLHR')scored=true;
-  // Build path through the bases. SVG diamond: 28x28, home at bottom (14,28), 1B right (28,14), 2B top (14,0), 3B left (0,14)
-  var pts={H:[14,28],'1':[28,14],'2':[14,0],'3':[0,14]};
-  var s='<svg width="28" height="28" viewBox="0 0 28 28" style="display:block;">';
-  // Diamond outline
-  s+='<polygon points="14,2 26,14 14,26 2,14" fill="none" stroke="#1a1a1a" stroke-width="0.7"/>';
-  // Bases
-  ['H','1','2','3'].forEach(function(b){var p=pts[b];s+='<rect x="'+(p[0]-2)+'" y="'+(p[1]-2)+'" width="4" height="4" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>';});
+  var reachedBase=({'1B':1,'2B':2,'3B':3,'HR':3,'LLHR':3,'BB':1,'HBP':1,'FC':1}[r])||0;
+  // Diamond geometry: 32x32, home bottom (16,32), 1B right (32,16), 2B top (16,0), 3B left (0,16)
+  var s='<svg width="32" height="32" viewBox="0 0 32 32" style="display:block;">';
+  // Filled diamond background if scored — slightly darker than bg
+  if(scored){
+    s+='<polygon points="16,1 31,16 16,31 1,16" fill="#9c9580" stroke="#1a1a1a" stroke-width="1"/>';
+  }else{
+    s+='<polygon points="16,1 31,16 16,31 1,16" fill="none" stroke="#1a1a1a" stroke-width="0.9"/>';
+  }
   // Path through bases reached
   if(reachedBase>0){
-    var path='M14,28';
-    if(reachedBase>=1)path+=' L28,14';
-    if(reachedBase>=2)path+=' L14,0';
-    if(reachedBase>=3)path+=' L0,14';
-    if(scored)path+=' L14,28';
-    s+='<path d="'+path+'" fill="'+(scored?'rgba(180,30,30,0.18)':'none')+'" stroke="#b41e1e" stroke-width="1.4"/>';
+    var path='M16,32';
+    if(reachedBase>=1)path+=' L32,16';
+    if(reachedBase>=2)path+=' L16,0';
+    if(reachedBase>=3)path+=' L0,16';
+    if(scored)path+=' L16,32';
+    s+='<path d="'+path+'" fill="none" stroke="#1a1a1a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>';
   }
   s+='</svg>';
   return s;
 }
-// Result label for the cell center (compact)
+// Result label for the cell center (short)
 function _scResultLabel(r){
   var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',FO:'F',GO:'G',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',AO:'AO'};
   return map[r]||r;
+}
+// Count box: shows balls (left col) and strikes (right col) as filled cells
+function _scCountBox(ab){
+  if(!ab||!ab.pitches||!ab.pitches.length)return'<div class="sc-count"><div></div><div></div><div></div><div></div><div></div><div></div></div>';
+  // Compute final count when AB ended
+  var b=0,s=0;
+  ab.pitches.forEach(function(c){
+    if(c==='B')b=Math.min(3,b+1);
+    else if(c==='S'||c==='L')s=Math.min(2,s+1);
+    else if(c==='F'||c==='FT'){if(s<2)s++;}
+    // X (BIP), H (HBP) end the AB without changing count
+  });
+  // 3 rows × 2 cols: left = balls (3 max), right = strikes (2 max)
+  var html='<div class="sc-count">';
+  html+='<div class="'+(b>=1?'on':'')+'"></div><div class="'+(s>=1?'on':'')+'"></div>';
+  html+='<div class="'+(b>=2?'on':'')+'"></div><div class="'+(s>=2?'on':'')+'"></div>';
+  html+='<div class="'+(b>=3?'on':'')+'"></div><div></div>';
+  html+='</div>';
+  return html;
+}
+// Position lookup for a player based on G.fa (their starting position)
+function _scPlayerPos(name,team){
+  if(team!=='home'&&team!=='away')return'';
+  // Use first inning's fa entry — that's their starting position
+  var fa=G.fa[1]||{};
+  for(var pos in fa){if(fa[pos]===name)return pos;}
+  return'';
 }
 function renderRetroScorecard(g){
   var totalInn=g.ti||6;
@@ -684,81 +725,124 @@ function renderRetroScorecard(g){
   var ourPit=ourSide==='home'?g.hp:g.ap;
   var theirPit=theirSide==='home'?g.hp:g.ap;
   var ev=A.schedule.find(function(e){return e.id===g.eid;});
-  var winner=g.as>g.hs?g.at:(g.hs>g.as?g.ht:'Tied');
   var ours=ourSide==='home'?g.hs:g.as;
   var theirs=ourSide==='home'?g.as:g.hs;
   var resLabel=ours>theirs?'W':(theirs>ours?'L':'T');
-  // HEADER
+  // HEADER — three-column layout (date / center title / result)
   var html='';
   html+='<div class="sc-hdr">';
-  html+='<div class="sc-title">'+esc(g.at)+' @ '+esc(g.ht)+'</div>';
-  html+='<div class="sc-meta">'+esc((ev?ev.date:''))+(ev&&ev.loc?' · '+esc(ev.loc):'')+'</div>';
-  html+='<div class="sc-score">FINAL — '+esc(g.at)+' '+g.as+', '+esc(g.ht)+' '+g.hs+(g.final?' · '+resLabel+' for '+esc(ourSide==='home'?g.ht:g.at):'')+'</div>';
+  html+='<div><div class="sc-hdr-l">'+esc(ev?ev.date:'')+'</div><div class="sc-hdr-l-handle">@MightyMussels</div></div>';
+  html+='<div class="sc-hdr-c"><div class="sc-title">Mighty Mussels</div><div class="sc-meta">vs '+esc(ourSide==='home'?g.at:g.ht)+(ev&&ev.loc?' · '+esc(ev.loc):'')+'</div></div>';
+  html+='<div class="sc-hdr-r">'+resLabel+' '+ours+'-'+theirs+'<br><span style="font-size:14px;font-weight:normal;">'+(ourSide==='home'?'vs':'@')+' '+esc(ourSide==='home'?g.at:g.ht).substring(0,18)+'</span></div>';
   html+='</div>';
-  // Build batting tables for both teams
+  // Helper to compute per-batter row + cells. Returns {rowHtml, totals, cellsByInn}
+  function batRow(lu,team,bi){
+    var p=lu[bi];
+    if(!p||(!p.name&&!p.jersey))return null;
+    var pos=team===ourSide?_scPlayerPos(p.name,team):'';
+    var totals={ab:0,r:0,h:0,rbi:0,bb:0,k:0};
+    var cells='';
+    for(var inn=1;inn<=totalInn;inn++){
+      var abs=(g.abs||[]).filter(function(ab){return ab.bi===bi&&ab.team===team&&ab.inn===inn;});
+      if(!abs.length){cells+='<td class="sc-cell"></td>';continue;}
+      // Compute totals + per-cell render
+      var didScoreInCell=false;
+      var inner='';
+      abs.forEach(function(ab,k){
+        var rcode=ab.result;
+        if(!['BB','HBP','SAC'].includes(rcode))totals.ab++;
+        if(['1B','2B','3B','HR','LLHR'].includes(rcode))totals.h++;
+        if(rcode==='BB')totals.bb++;
+        if(rcode==='K'||rcode==='KL')totals.k++;
+        totals.rbi+=(ab.rbi||0);
+        // Did this batter score? Cross-reference G.runs by bi+team+inn+half
+        var scored=(g.runs||[]).some(function(rn){return rn.bi===bi&&rn.team===team&&rn.inn===inn&&rn.half===ab.half;});
+        if(scored){totals.r++;didScoreInCell=true;}
+        // Batter # of inning — count batters in this team-half-inning before this AB
+        var bnum=(g.abs||[]).filter(function(a){return a.team===team&&a.inn===inn&&a.half===ab.half&&a.num<=ab.num;}).length;
+        if(k===0){
+          inner+=_scCountBox(ab);
+          inner+='<div class="sc-bnum">'+bnum+'</div>';
+          inner+='<div class="sc-diamond">'+_scDiamondSVG(ab,scored)+'</div>';
+          inner+='<div class="sc-result">'+esc(_scResultLabel(rcode))+'</div>';
+          if(ab.rbi>0)inner+='<div class="sc-rbi">'+ab.rbi+'</div>';
+        }else{
+          inner+='<div style="position:absolute;bottom:1px;left:3px;font-size:9px;font-family:Caveat,cursive;color:#a01818;">+'+_scResultLabel(rcode)+'</div>';
+        }
+      });
+      cells+='<td class="sc-cell'+(didScoreInCell?' scored':'')+'">'+inner+'</td>';
+    }
+    var jerseyDisp=p.jersey||'';
+    var nameDisp=p.name||'#'+p.jersey;
+    var rowHtml='<tr><td class="sc-num">'+(bi+1)+'</td><td class="sc-jer">'+esc(jerseyDisp)+'</td><td class="sc-name">'+esc(nameDisp)+'</td><td class="sc-pos">'+esc(pos)+'</td>'+cells+'<td class="sc-tot">'+totals.ab+'</td><td class="sc-tot">'+totals.r+'</td><td class="sc-tot">'+totals.h+'</td><td class="sc-tot">'+totals.rbi+'</td><td class="sc-tot">'+totals.bb+'</td><td class="sc-tot">'+totals.k+'</td></tr>';
+    return {rowHtml:rowHtml,totals:totals};
+  }
+  // Per-inning summary row (Runs / Hits / Errors)
+  function summaryRow(team,label,colCount){
+    var html='<tr class="sc-summary"><td colspan="'+colCount+'" class="sc-summary-label">'+label+'</td>';
+    var inningsKey=team==='home'?'h':'a';
+    for(var inn=1;inn<=totalInn;inn++){
+      var v=0;
+      if(label==='R'){
+        v=(g.inns&&g.inns[inningsKey]&&g.inns[inningsKey][inn-1])||0;
+      }else if(label==='H'){
+        v=(g.abs||[]).filter(function(ab){return ab.team===team&&ab.inn===inn&&['1B','2B','3B','HR','LLHR'].indexOf(ab.result)>=0;}).length;
+      }else if(label==='E'){
+        v=(g.errs||[]).filter(function(e){
+          // Errors are by OUR fielders during opp's at-bat. So for "their batting team", errors happen when WE field, which is when team OF batting = themT()
+          var theirBatHalf=team==='home'?'bottom':'top';
+          return e.half===theirBatHalf&&e.inn===inn;
+        }).length;
+      }
+      html+='<td>'+v+'</td>';
+    }
+    html+='<td colspan="6"></td></tr>';
+    return html;
+  }
   function batTable(lu,team,heading){
     var h='<div class="sc-section-title">'+esc(heading)+'</div>';
-    h+='<table class="sc-bat"><thead><tr><th>#</th><th>Player</th>';
+    h+='<table class="sc-bat"><thead><tr><th>#</th><th>Jer</th><th>Player</th><th>Pos</th>';
     for(var i=1;i<=totalInn;i++)h+='<th>'+i+'</th>';
     h+='<th>AB</th><th>R</th><th>H</th><th>RBI</th><th>BB</th><th>K</th></tr></thead><tbody>';
+    var teamTotals={ab:0,r:0,h:0,rbi:0,bb:0,k:0};
     lu.forEach(function(p,bi){
-      if(!p.name&&!p.jersey)return;
-      var rowAB=0,rowR=0,rowH=0,rowRBI=0,rowBB=0,rowK=0;
-      // Build row first to compute totals
-      var cells='';
-      for(var inn=1;inn<=totalInn;inn++){
-        // Find AB(s) by this batter in this inning
-        var abs=(g.abs||[]).filter(function(ab){return ab.bi===bi&&ab.team===team&&ab.inn===inn;});
-        if(!abs.length){cells+='<td class="sc-cell"></td>';continue;}
-        // Render the first AB in the cell. If multiple ABs in same inning (rare with batting around), stack notation.
-        var inner='';
-        abs.forEach(function(ab,k){
-          var rcode=ab.result;
-          if(!['BB','HBP','SAC'].includes(rcode))rowAB++;
-          if(['1B','2B','3B','HR','LLHR'].includes(rcode))rowH++;
-          if(rcode==='BB')rowBB++;
-          if(rcode==='K'||rcode==='KL')rowK++;
-          rowRBI+=(ab.rbi||0);
-          // Did this batter score? Check G.runs for matching bi+team+inn
-          var scoredInRun=(g.runs||[]).some(function(rn){return rn.bi===bi&&rn.team===team&&rn.inn===inn;});
-          if(scoredInRun)rowR++;
-          if(k===0){
-            inner+='<div class="sc-diamond">'+_scDiamondSVG(ab)+'<div class="sc-result">'+esc(_scResultLabel(rcode))+'</div></div>';
-            if(ab.rbi>0)inner+='<div class="sc-rbi">'+ab.rbi+' RBI</div>';
-          }else{
-            // Stacked second AB in same inning
-            inner+='<div style="font-size:8px;border-top:1px dashed #888;margin-top:2px;padding-top:1px;">'+esc(_scResultLabel(rcode))+(ab.rbi>0?' +'+ab.rbi:'')+'</div>';
-          }
-        });
-        cells+='<td class="sc-cell">'+inner+'</td>';
-      }
-      var jersey=p.jersey?'#'+p.jersey+' ':'';
-      h+='<tr><td class="sc-num">'+(bi+1)+'</td><td class="sc-name">'+esc(jersey+(p.name||''))+'</td>'+cells+'<td class="sc-tot">'+rowAB+'</td><td class="sc-tot">'+rowR+'</td><td class="sc-tot">'+rowH+'</td><td class="sc-tot">'+rowRBI+'</td><td class="sc-tot">'+rowBB+'</td><td class="sc-tot">'+rowK+'</td></tr>';
+      var row=batRow(lu,team,bi);
+      if(!row)return;
+      h+=row.rowHtml;
+      Object.keys(teamTotals).forEach(function(k){teamTotals[k]+=row.totals[k];});
     });
+    // Per-inning footer rows
+    h+=summaryRow(team,'R',4);
+    h+=summaryRow(team,'H',4);
+    h+=summaryRow(team,'E',4);
+    // TEAM totals row
+    h+='<tr style="background:#d6cfb8;font-weight:bold;"><td colspan="'+(4+totalInn)+'" class="sc-summary-label" style="text-align:right;padding:4px 6px;font-family:Patrick Hand,cursive;font-size:13px;">TEAM</td><td>'+teamTotals.ab+'</td><td>'+teamTotals.r+'</td><td>'+teamTotals.h+'</td><td>'+teamTotals.rbi+'</td><td>'+teamTotals.bb+'</td><td>'+teamTotals.k+'</td></tr>';
     h+='</tbody></table>';
     return h;
   }
-  html+=batTable(ourLu,ourSide,(ourSide==='home'?g.ht:g.at)+' batting');
-  if(theirLu&&theirLu.length)html+=batTable(theirLu,theirSide,(theirSide==='home'?g.ht:g.at)+' batting');
-  // PITCHING — show our pitchers
+  html+=batTable(ourLu,ourSide,(ourSide==='home'?g.ht:g.at)+' Batting');
+  if(theirLu&&theirLu.length)html+=batTable(theirLu,theirSide,(theirSide==='home'?g.ht:g.at)+' Batting');
+  // PITCHING tables
   function pitTable(pl,heading){
     if(!pl||!pl.length)return'';
     var h='<div class="sc-section-title">'+esc(heading)+'</div>';
-    h+='<table class="sc-pit"><thead><tr><th>Pitcher</th><th>IP</th><th>PC</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HBP</th><th>ERA</th></tr></thead><tbody>';
+    h+='<table class="sc-pit"><thead><tr><th>Pitcher</th><th>IP</th><th>PC</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HBP</th><th>TBF</th><th>ERA</th></tr></thead><tbody>';
     pl.forEach(function(p){
       if(!p.name)return;
       var ip_o=p.ip_outs||0;var ip=Math.floor(ip_o/3)+'.'+(ip_o%3);
       var era=ip_o>0?fmt3((p.er||0)/(ip_o/3)*6):'—';
       var j=_findJersey(p.name);var nm=j?'#'+j+' '+p.name:p.name;
-      h+='<tr><td class="sc-pname">'+esc(nm)+'</td><td>'+ip+'</td><td>'+(p.total||0)+'</td><td>'+(p.hits||0)+'</td><td>'+(p.runs_allowed||0)+'</td><td>'+(p.er||0)+'</td><td>'+(p.bb_allowed||0)+'</td><td>'+(p.k_pitched||0)+'</td><td>'+(p.hbp_allowed||0)+'</td><td>'+era+'</td></tr>';
+      // TBF = batters faced = ABs vs this pitcher in the game
+      var tbf=(g.abs||[]).filter(function(ab){return ab.pitcher===p.name;}).length;
+      h+='<tr><td class="sc-pname">'+esc(nm)+'</td><td>'+ip+'</td><td>'+(p.total||0)+'</td><td>'+(p.hits||0)+'</td><td>'+(p.runs_allowed||0)+'</td><td>'+(p.er||0)+'</td><td>'+(p.bb_allowed||0)+'</td><td>'+(p.k_pitched||0)+'</td><td>'+(p.hbp_allowed||0)+'</td><td>'+tbf+'</td><td>'+era+'</td></tr>';
     });
     h+='</tbody></table>';
     return h;
   }
-  html+=pitTable(ourPit,(ourSide==='home'?g.ht:g.at)+' pitching');
-  if(theirPit&&theirPit.length)html+=pitTable(theirPit,(theirSide==='home'?g.ht:g.at)+' pitching');
-  // FOOTNOTES — explain symbols
-  html+='<div class="sc-foot">Diamond shows base reached on each AB · red path = runner advanced · filled = scored · '+(g.abs?g.abs.length:0)+' total ABs logged</div>';
+  html+=pitTable(ourPit,(ourSide==='home'?g.ht:g.at)+' Pitching');
+  if(theirPit&&theirPit.length)html+=pitTable(theirPit,(theirSide==='home'?g.ht:g.at)+' Pitching');
+  // FOOTER
+  html+='<div class="sc-foot">Diamond outline = AB result · path through bases = runner advanced · filled (grey) = batter scored that inning · count box (top-left) shows balls/strikes when AB ended · circled # (top-right) = batter # of the inning · '+(g.abs?g.abs.length:0)+' ABs logged</div>';
   $('sc-content').innerHTML=html;
 }
 // SEASON STATS — aggregate across all finalized games from Firebase
