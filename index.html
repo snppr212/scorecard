@@ -9,10 +9,6 @@
 <meta name="apple-mobile-web-app-title" content="Mussels SC">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<!-- Google Fonts: Caveat for hand-written scorecard feel, Patrick Hand for stat cells -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Patrick+Hand&display=swap" rel="stylesheet">
 <title>Mighty Mussels</title>
 <style>
 :root{--bg:#0d1b2a;--bg2:#132233;--bg3:#1a2d42;--bg4:#223550;--gold:#c8a96e;--gold2:#e8c98e;--text:#e2ddd4;--text2:#8fa5bc;--text3:#4a6278;--green:#2a7d52;--green2:#36a066;--red:#b83228;--red2:#e04535;--blue:#1f5fa0;--blue2:#3080d0;--amber:#b87020;--amber2:#e09030;--purple:#6040a0;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--r:10px;--rs:6px;}
@@ -650,22 +646,49 @@ function goHome(){syncP();if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};sa();s
 function renderHome(){renderSched();renderRec();}
 function setFilter(f,el){A.filter=f;document.querySelectorAll('#screen-home .btn-xs').forEach(b=>{b.style.borderColor='';b.style.color='';});el.style.borderColor='var(--gold)';el.style.color='var(--gold)';renderSched();}
 function renderSched(){
-var list=A.schedule.slice().filter(e=>e.id!=='test-sandbox'),f=A.filter;if(f==='game')list=list.filter(e=>e.type==='game');if(f==='upcoming')list=list.filter(e=>!isPast(e));
-$('schedule-list').innerHTML=list.map(function(ev){var d=new Date(ev.date);var mo=isNaN(d)?'':d.toLocaleString('default',{month:'short'}),dy=isNaN(d)?'?':d.getDate(),dow=isNaN(d)?'':['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+var raw=A.schedule.slice().filter(e=>e.id!=='test-sandbox'),f=A.filter;
+if(f==='game')raw=raw.filter(e=>e.type==='game');
+if(f==='upcoming')raw=raw.filter(e=>!isPast(e));
+// Sort: events with valid dates by date, TBD/postponed (no date or date='TBD') always at the END
+var list=raw.slice().sort(function(a,b){
+  var aTbd=!a.date||a.date==='TBD'||isNaN(new Date(a.date));
+  var bTbd=!b.date||b.date==='TBD'||isNaN(new Date(b.date));
+  if(aTbd&&!bTbd)return 1;
+  if(!aTbd&&bTbd)return -1;
+  if(aTbd&&bTbd)return 0;
+  return new Date(a.date)-new Date(b.date);
+});
+$('schedule-list').innerHTML=list.map(function(ev){
+var isTbd=!ev.date||ev.date==='TBD'||isNaN(new Date(ev.date));
+var d=isTbd?null:new Date(ev.date);
+var mo=isTbd?'TBD':d.toLocaleString('default',{month:'short'}),dy=isTbd?'?':d.getDate(),dow=isTbd?'':['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
 var past=isPast(ev);var res=ev.type==='game'?A.gameResults[ev.id]:null;var rh='';
 if(res&&res.final){var m=ev.ha==='home'?res.hs:res.as,o=ev.ha==='home'?res.as:res.hs;rh='<div style="font-size:12px;font-weight:bold;color:'+(m>o?'var(--green2)':(m<o?'var(--red2)':'var(--text2)'))+';">'+(m>o?'W':(m<o?'L':'T'))+' '+m+'-'+o+'</div>';}
-return '<div class="sched-item'+(past?' past':'')+'" onclick="'+(ev.type==='game'?"startG('"+ev.id+"')":"toast('Practice')")+'">'
-+'<div class="sdate"><div class="sdate-mo">'+mo+'</div><div class="sdate-d">'+dy+'</div><div class="sdate-dow">'+dow+'</div></div>'
-+'<div class="sinfo"><span class="stype '+ev.type+'">'+ev.type+'</span><div class="smatch">Mussels '+esc(ev.title)+'</div><div class="sloc">'+esc(ev.loc||'')+'</div></div>'
-+'<div style="text-align:right;flex-shrink:0;"><div class="stime">'+esc(ev.time||'')+'</div>'+rh+'<button class="btn btn-xs" style="margin-top:4px;" onclick="event.stopPropagation();editEv(\''+ev.id+'\')">Edit</button></div></div>';}).join('')||'<div class="empty">No events</div>';}
+// TBD entries get a red border + "POSTPONED — RESCHEDULE" badge
+var tbdStyle=isTbd?'border:1px solid var(--red2);background:rgba(184,50,40,.08);':'';
+var tbdBadge=isTbd?'<div style="font-size:9px;color:var(--red2);font-family:sans-serif;font-weight:bold;letter-spacing:.5px;margin-top:2px;">POSTPONED · TAP EDIT</div>':'';
+return '<div class="sched-item'+(past?' past':'')+'" style="'+tbdStyle+'" onclick="'+(ev.type==='game'?(isTbd?"toast('Edit to set new date / time / location')":"startG('"+ev.id+"')"):"toast('Practice')")+'">'
++'<div class="sdate"><div class="sdate-mo" style="'+(isTbd?'color:var(--red2);font-weight:bold;':'')+'">'+mo+'</div><div class="sdate-d" style="'+(isTbd?'color:var(--red2);':'')+'">'+dy+'</div><div class="sdate-dow">'+dow+'</div></div>'
++'<div class="sinfo"><span class="stype '+ev.type+'">'+ev.type+'</span><div class="smatch">Mussels '+esc(ev.title)+'</div><div class="sloc">'+esc(ev.loc||(isTbd?'Location TBD':''))+'</div>'+tbdBadge+'</div>'
++'<div style="text-align:right;flex-shrink:0;"><div class="stime">'+esc(ev.time||(isTbd?'Time TBD':''))+'</div>'+rh+'<button class="btn btn-xs" style="margin-top:4px;" onclick="event.stopPropagation();editEv(\''+ev.id+'\')">Edit</button></div></div>';}).join('')||'<div class="empty">No events</div>';}
 function renderRec(){var games=A.schedule.filter(e=>e.type==='game'&&e.id!=='test-sandbox');var w=0,l=0,t=0,g=games.length;games.forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';var hasTest=!!A.gameResults['test-sandbox']||A.schedule.some(e=>e.id==='test-sandbox')||G.eid==='test-sandbox';var btn=$('btn-wipe-test');if(btn)btn.style.display=hasTest?'':'none';}
 
-// RETRO SCORECARD — open the printable scorecard view for the current game
+// RETRO SCORECARD — open the printable scorecard view for the current game.
+// Hidden behind a stealth link in the Rules tab while this feature is WIP.
+// Google Fonts are loaded lazily here so they don't impact the base app at all.
+var _scFontsLoaded=false;
+function _loadScFonts(){
+  if(_scFontsLoaded)return;
+  _scFontsLoaded=true;
+  var preconnect1=document.createElement('link');preconnect1.rel='preconnect';preconnect1.href='https://fonts.googleapis.com';document.head.appendChild(preconnect1);
+  var preconnect2=document.createElement('link');preconnect2.rel='preconnect';preconnect2.href='https://fonts.gstatic.com';preconnect2.crossOrigin='';document.head.appendChild(preconnect2);
+  var fontLink=document.createElement('link');fontLink.rel='stylesheet';fontLink.href='https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Patrick+Hand&display=swap';document.head.appendChild(fontLink);
+}
 function openRetroScorecard(){
   if(!G.eid){toast('No game loaded');return;}
+  _loadScFonts();
   ss('screen-scorecard');
   renderRetroScorecard(G);
-  // Update sub-header
   var ev=A.schedule.find(function(e){return e.id===G.eid;});
   $('sc-sub').textContent=(ev?ev.date:'')+' · '+G.at+' @ '+G.ht+' · '+G.as+'-'+G.hs;
 }
