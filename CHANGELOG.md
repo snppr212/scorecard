@@ -1,5 +1,60 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v64 (2026-04-27) — 9b1dae0
+**Base font switched to Roboto**
+- Body font changed from Georgia (serif) to Roboto with system fallbacks (`-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif`)
+- Loaded from Google Fonts (400 / 500 / 700 weights) with `font-display:swap`
+- All headings, schedule items, panel titles now render in clean Roboto
+- Retro scorecard's Caveat / Patrick Hand fonts are unaffected (still lazy-loaded)
+
+## A.gameResults restore (2026-04-27)
+**Data fix — record was showing 0-0**
+- The home-screen record was rendering as "0-0 (12 games)" because `A.gameResults` had been wiped at some point
+- Rebuilt entries for e2 (Hot Rods W 6-4), e4 (Thunder L 2-5), e6 (Bulls W 6-3) by reading each game's `gdata.as` / `gdata.hs` from Firebase and pushing back to `A`
+- Record now correctly shows **2-1 (12 games)** with proper W/L badges on each schedule entry
+- No code change — pure data restore via runtime eval
+
+## v63 (2026-04-27) — bf8f4c0
+**CRITICAL FIX: ID collision — `sc-content` was being used by both at-bat tab and retro scorecard**
+- Root cause of every "fucked up base app" complaint
+- The retro scorecard's content div was `id="sc-content"`, but the at-bat tab's scroll container was ALSO `id="sc-content"` (predated the scorecard work)
+- Result: every `#sc-content` CSS rule meant for the retro scorecard (cream background, dark text, Patrick Hand font) was leaking onto the at-bat tab via the duplicate ID
+- Fix: renamed all retro scorecard IDs with `rsc-` prefix:
+  - `sc-content` → `rsc-content` (38 CSS selectors + HTML element)
+  - `sc-printable` → `rsc-printable`
+  - `sc-sub` → `rsc-sub`
+- The original at-bat tab IDs (`sc-content`, `sc-title`, `sc-sub`) are unchanged
+
+## v62 (2026-04-26) — 0e1f7bd
+**e7 (Lugnuts) wiped + TBD postponement highlight + lazy fonts**
+- e7 game data deleted from Firebase (game was postponed)
+- Schedule entry reset: date='TBD', time='', location=''
+- TBD events now sort to the END of the schedule
+- Visual highlight: red border + red-tinted background, "POSTPONED · TAP EDIT" badge
+- Tapping a TBD entry toasts "Edit to set new date / time / location" instead of starting a game
+- **Removed Google Fonts `<link>` from `<head>`** — fonts now lazy-load only when retro scorecard is opened. Base app loads zero external fonts.
+
+## Retro scorecard parked as WIP (2026-04-26) — e33e23b
+- Removed prominent "📋 Open scorecard" button from the Box/Export tab
+- Added small (9px, 50% opacity) "retro scorecard preview (WIP)" link at the bottom of the Rules tab
+- Created `RETRO_SCORECARD_TODO.md` documenting all known issues vs the @MlbScorecards source — 14 items with detailed accounting and recommended order of operations for picking it up later
+
+## v41 part 6 (2026-04-26) — c94112d
+**Retro scorecard — fix the actual scoring conventions**
+- Out # now correctly assigned only to ABs that resulted in outs (1, 2, 3 per inning); built `_scComputeOuts(g)` walking ABs and tallying outs per half-inning
+- Count dots laid out horizontally (3 balls top row, 2 strikes bottom row)
+- Result text dead-centered on the cell + diamond
+- End-of-inning diagonal slash via CSS gradient on `.end-inn` class
+- Out notation prefers user-typed `ab.not` (so "F8", "4-3", "6-3" show properly)
+- RBI dots in lower-LEFT (not red text); one filled circle per RBI
+- Borders lightened from #1a1a1a to #888 at 0.75px
+
+## v41 part 5 (2026-04-26) — bb8686c
+**Retro scorecard — fix header redundancy and cell layout**
+- Removed fake "@MightyMussels" handle
+- Stripped "Field N" suffix from location display
+- Cells widened (54×54), diamond positioned below count/bnum corners (no overlap)
+
 ## v41 part 4 (2026-04-26) — 3f00489
 **Retro scorecard polish round 2 — dot rendering, name compaction, layout tightening**
 

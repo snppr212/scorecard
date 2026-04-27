@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v41 (`d4510ba`, 2026-04-26)
-**Status as of:** 2026-04-26, after Season Aggregation + Retro scorecard export. Next: AI game recap (v42).
+**Current version:** v64 (`9b1dae0`, 2026-04-27)
+**Status as of:** 2026-04-27, after font switch to Roboto, ID-collision fix, e7 wipe, gameResults restore. Retro scorecard parked as WIP behind Rules-tab link. Season record back to **2-1**.
 
 ## Status Key
 - ✅ Done
@@ -9,6 +9,45 @@
 - 📋 Planned (next release)
 - 💡 Idea / Future
 - 🐞 Known Bug
+
+---
+
+## 🏟 Game-day readiness — what to nail before the next live game
+
+Curated subset of v40 items, ranked by how much they affect actual scoring on the field.
+
+### 🚨 CRUCIAL (silent bugs / scoring correctness)
+
+| # | Issue | Why it matters at the field |
+|---|------|---|
+| **A1** | **Edit-AB RBI doesn't rebuild G.runs / score** | If you edit an AB to fix RBI count after the fact, the team score (G.hs / G.as) and the inning-by-inning totals don't update. You'd notice the linescore is wrong — you'd have to use "+ Run" / "Manual Run" to patch the score. **Silent bug.** Fix: on Edit-AB save, walk all ABs and rebuild G.runs / inning totals from scratch. |
+| **A2** | **End-to-end live test before the next game** | We've done a lot of work since the Bulls game (v39 batches, Plays log redesign, opp picker overhaul, edit/swap, font switch, ID collision fix). Run a full sandbox game start-to-finish: setup → opp lineup → log all pitch types → SB/CS/FC/HR → mid-inning pitcher change → call inning end → end game. Catch any regressions before the real thing. |
+
+### 🔧 NICE-TO-HAVE (small annoyances live)
+
+| # | Issue | Why |
+|---|------|-----|
+| **B1** | **Native confirm() / prompt() cleanup** | iOS blocks the UI weirdly during native dialogs. Spots: `selBat()` "Switch? Pitches lost", `oppbatEndOrder()` confirm, `runnerM()` runner prompt, `markDNP()`, addTaxi prompt, addGB prompts, Edit/Swap/Delete-AB confirms. Polish, not blocking. |
+| **B2** | **Walk-off / end-game PROMPT** | Not auto-end. If home is leading after top of last or walks off in bottom of last, modal asks "Call it now?" with "Keep playing" escape. Saves a tap or two via gear menu. |
+| **B3** | **Lineup tab — hide ✕ delete behind Edit toggle** | Currently the X button is always visible. Easy to fat-finger and remove a player mid-game. Mirror the existing `_luEdit` state that controls reorder buttons. |
+| **B4** | **Lineup tab — "Saved roster — not in lineup yet" for opp** | Section below the live opp lineup showing roster players not yet added, with + buttons. Speeds up live entry when the saved roster has matches. |
+| **B5** | **Per-CS pitcher attribution** | Stamp `cs.pitcher` at log time so `recalcPitcherStats()` doesn't have to use the "last AB pitcher in the half" heuristic. Edge case but easy fix. |
+
+### 💡 Cosmetic / future
+
+| # | Issue | Why deferred |
+|---|------|---|
+| C1 | Pitchers tab — collapsible pitch-type breakdown | Big UX redesign; current Pitchers tab works |
+| C2 | Backfill pitcher stamps for e2 / e4 | Old games, plays log won't show pitcher transitions for them — purely cosmetic |
+| C3 | ⚠️ Yellow-! error indicator on Plays log | In-AB errors don't surface visually right now. Standalone errors do as sub-lines. |
+| C4 | Per-fielder error count column on Box | Already shown per-error in the Fielding Errors panel |
+| C5 | Retro scorecard (parked as WIP) | See `RETRO_SCORECARD_TODO.md` for the 14-item list |
+
+### My honest recommendation
+
+**Before the next game, do A1 and A2.** A1 is a 30-minute fix that prevents a silent score-drift bug. A2 is the "trust your tools" verification that everything still works after the recent refactors. Total: maybe 60-90 min.
+
+The rest can wait until after the season or after another testing pass.
 
 ---
 
