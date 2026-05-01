@@ -623,10 +623,20 @@ function placeholderName(i){
 }
 // Detect a placeholder name. Used for rendering in light red.
 function isPlaceholder(name){return!!(name&&name.charAt(0)==='('&&name.charAt(name.length-1)===')');}
-function oppDisplay(p,idx){if(!p)return'?';if(p.autoOut)return'⚪ Auto Out';if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';
-// Placeholder names render as-is (already in parens form)
-if(isPlaceholder(p.name))return(p.jersey?'('+p.jersey+') ':'')+p.name;
-var j=p.jersey?'('+p.jersey+') ':'';var nm=p.name?(p.name.charAt(0)+'. '+p.name.trim().split(' ').pop()):(p.jersey?'':'TBD');return j+nm;}
+function oppDisplay(p,idx){
+  if(!p)return typeof idx==='number'?holeLabel(idx):'TBD';
+  if(p.autoOut)return'⚪ Auto Out';
+  if(!p.name&&!p.jersey)return typeof idx==='number'?holeLabel(idx):'TBD';
+  // Placeholder names render as-is (already in parens form)
+  if(isPlaceholder(p.name))return(p.jersey?'('+p.jersey+') ':'')+p.name;
+  // Jersey-only (no name): fall back to "#12" — never just "?"
+  if(!p.name)return'#'+p.jersey;
+  // Name-only or both: build "(jersey) F. Lastname"
+  var j=p.jersey?'('+p.jersey+') ':'';
+  var parts=p.name.trim().split(/\s+/);
+  var nm=parts.length>1?parts[0].charAt(0)+'. '+parts[parts.length-1]:p.name;
+  return j+nm;
+}
 function theyBat(){return isOH()!==isHB();}// true when opponent is currently batting
 function isPast(ev){try{return new Date(ev.date+' '+ev.time)<new Date();}catch(e){return false;}}
 function fmt3(n){return n.toFixed(3).replace(/^0/,'');}
@@ -1554,7 +1564,7 @@ if(wf){
   s+='<text x="'+c[0]+'" y="'+(c[1]+3.2)+'" text-anchor="middle" font-size="8" font-family="sans-serif" fill="'+(nm?'#FFD700':'rgba(255,255,255,0.5)')+'" font-weight="bold">'+(nm||p)+'</text></g>';});}
 // runners (large gold circles directly on the base) — drawn last so they
 // sit on top of everything for maximum visibility
-for(var b=0;b<3;b++){if(G.bases[b]){var bc=rc[b];var rn=fieldFirstName(G.bases[b].name)||'?';
+for(var b=0;b<3;b++){if(G.bases[b]){var bc=rc[b];var rn=fieldFirstName(G.bases[b].name)||(G.bases[b].jerseyNum?'#'+G.bases[b].jerseyNum:'?');
 s+='<circle cx="'+bc[0]+'" cy="'+bc[1]+'" r="13" fill="#FFD700" stroke="#D4A017" stroke-width="1.8" filter="url(#sh)" style="cursor:pointer;" onclick="runnerM('+(b+1)+')"/>';
 s+='<text x="'+bc[0]+'" y="'+(bc[1]+3.2)+'" text-anchor="middle" font-size="8" font-family="sans-serif" fill="#0d1b2a" font-weight="bold" style="pointer-events:none;">'+rn+'</text>';}}
 s+='</svg>';$('field-svg').innerHTML=s;}
@@ -1623,7 +1633,20 @@ function openPSwitch(who,forced){
   var ex=pl.map(p=>p.name);
   var opts='<option value="">Add from lineup…</option>';
   lu.filter(p=>p.name&&ex.indexOf(p.name)<0).forEach(function(p){opts+='<option value="'+esc(p.name)+'">'+esc(who==='us'?sn(p.name):oppDisplay(p))+'</option>';});
-  opts+='<option value="__custom__">+ Enter name…</option>';
+  // For OPP team: also include OPP_ROSTERS players that aren't in alu/hlu yet — useful when
+  // batting first (away game) and we haven't built their lineup yet but need to set their pitcher.
+  if(who==='them'){
+    var oppName=isOH()?G.at:G.ht;
+    var hardcoded=(typeof OPP_ROSTERS!=='undefined'&&OPP_ROSTERS[oppName])||[];
+    var inLuNames=lu.map(function(p){return(p.name||'').toLowerCase();});
+    var fromRoster=hardcoded.filter(function(n){return inLuNames.indexOf(n.toLowerCase())<0&&ex.indexOf(n)<0;});
+    if(fromRoster.length){
+      opts+='<optgroup label="From '+esc(oppName)+' saved roster">';
+      fromRoster.forEach(function(n){opts+='<option value="'+esc(n)+'">'+esc(n)+'</option>';});
+      opts+='</optgroup>';
+    }
+  }
+  opts+='<option value="__custom__">+ Enter name / # manually</option>';
   $('psw-new-sel').innerHTML=opts;
   om('m-pswitch');
 }
@@ -1647,11 +1670,19 @@ function selectPSwitcher(idx){
 }
 function addPSwitchNew(){
   var v=$('psw-new-sel').value;if(!v)return;
-  var name=v;
-  if(v==='__custom__'){name=prompt('Pitcher name:');if(!name)return;}
+  if(v==='__custom__'){
+    promptModal('Add pitcher','Name or jersey # (e.g. "John Smith" or "12")','',function(name){if(!name)return;_doAddPSwitch(name);});
+    return;
+  }
+  _doAddPSwitch(v);
+}
+function _doAddPSwitch(name){
   var pl=_pswWho==='us'?ourP():theirP();
   var rp=A.roster.find(r=>r.name===name);
-  pl.push({name:name,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0,throws:'R'});
+  // If user typed a number-only entry (jersey), store it as jersey not name
+  var entry={name:name,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0,throws:'R'};
+  if(/^\d+$/.test(name.trim())){entry.name='#'+name.trim();entry.jersey=name.trim();}
+  pl.push(entry);
   var newIdx=pl.length-1;
   selectPSwitcher(newIdx);
 }
@@ -1729,15 +1760,22 @@ function openOppBatterPicker(r){
   // Determine opponent name and pull hardcoded roster if known
   var oppName=isOH()?G.at:G.ht;
   var hardcoded=OPP_ROSTERS[oppName]||[];
-  // Build display list: each hardcoded name (with matching alu entry merged in)
-  // plus any live-added entries that aren't in the hardcoded list.
+  // Build display list. In OPEN-lineup mode (still building), HIDE any roster name
+  // that's already been added — the picker is for picking the NEXT new batter.
+  // In LOCKED mode (cycling), show all so user can override / sub.
   var rows=[];
   hardcoded.forEach(function(name){
     var idx=lu.findIndex(function(p){return(p.name||'')===name;});
+    // OPEN-lineup mode: hide already-added players UNLESS they're skipped
+    // (so user can re-insert a skipped player who returned from the bathroom)
+    if(!G.oppLuDone&&idx>=0&&!(lu[idx]&&lu[idx].skipped))return;
     rows.push({name:name,jersey:idx>=0?(lu[idx].jersey||''):'',aluIdx:idx,fromRoster:true});
   });
+  // In LOCKED mode include all live-added entries.
+  // In OPEN mode, only include skipped live-added entries so they can be re-inserted.
   lu.forEach(function(p,i){
     if(!p.name||hardcoded.indexOf(p.name)>=0)return;// already covered above
+    if(!G.oppLuDone&&!p.skipped)return;// hide non-skipped already-added in open mode
     rows.push({name:p.name,jersey:p.jersey||'',aluIdx:i,fromRoster:false});
   });
   // Render rows
@@ -1896,8 +1934,21 @@ function skipBatter(i){
   if(theyBat()){return;}// for opp, use skipOppBatter
   var lu=clu();if(!lu[i])return;
   if(lu[i].dnp){toast('Cannot skip DNP player');return;}
-  // Toggle off if already skipped
-  if(lu[i].skipped){delete lu[i].skipped;sv();renderSC();toast(sn(lu[i].name||'#'+lu[i].jersey)+' un-skipped');return;}
+  // Toggle off if already skipped — AND insert them as the active batter NOW
+  // (bathroom-kid scenario: kid was skipped, now they're back, bring them in out of order)
+  if(lu[i].skipped){
+    delete lu[i].skipped;
+    // If there's no active AB in progress (no pitches logged), or this is at-bat time,
+    // make this player the active batter so they bat next.
+    if(G.cpitch.length===0){
+      G.cbi=i;
+      var key=isHB()?'hbi':'abi';
+      G[key]=i;
+    }
+    sv();renderSC();
+    toast(sn(lu[i].name||'#'+lu[i].jersey)+' un-skipped'+(G.cbi===i?' — now batting':''));
+    return;
+  }
   lu[i].skipped=true;
   // If this is the active or next batter, advance to next non-skipped player
   var key=isHB()?'hbi':'abi';
@@ -3051,10 +3102,16 @@ function mkHalf(abs,label,inn,half){
   var lastPitcher=null;
   var pieces=[];
   abs.forEach(function(ab,i){
-    // Inject a pitcher-change line when the pitcher differs from the previous AB
+    // Inject a pitcher-change line when the pitcher differs from the previous AB.
+    // Append the pitcher's pitch count for this inning in (parens) — sum of pc on
+    // ABs faced by this pitcher within (inn, half).
     var thisPitcher = ab.pitcher || ((G.fa[ab.inn]||{}).P) || null;
     if(thisPitcher && thisPitcher!==lastPitcher){
-      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 22px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+'</div>');
+      var inningPC=(abs||[]).filter(function(a){
+        var ap=a.pitcher||((G.fa[a.inn]||{}).P)||null;
+        return ap===thisPitcher&&a.inn===ab.inn&&a.half===ab.half;
+      }).reduce(function(sum,a){return sum+(a.pc||0);},0);
+      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 22px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+(inningPC>0?' <span style="color:var(--text3);">('+inningPC+')</span>':'')+'</div>');
       lastPitcher=thisPitcher;
     }
     var pitches=ab.pitches||[];
