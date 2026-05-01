@@ -1736,7 +1736,7 @@ var selectable=G.cbi<0&&!_opp&&!p.dnp;
 var rawDisp=_opp?oppDisplay(p,i):(p.name||p.jersey?(p.name||'#'+p.jersey):'?');
 var dispName=isPlaceholder(p.name)?'<span style="color:#ff8888;font-style:italic;">'+esc(rawDisp)+'</span>':esc(rawDisp);
 // Skip link for our team (mid-inning bathroom-kid scenario). Tapping toggles skip on/off.
-var skipLink=!_opp&&!p.dnp?'<span onclick="event.stopPropagation();skipBatter('+i+')" style="font-size:9px;color:var(--amber2);font-family:sans-serif;padding:3px 6px;cursor:pointer;border:1px solid var(--amber2);border-radius:3px;margin-left:4px;">'+(isSkip?'un-skip':'skip')+'</span>':'';
+var skipLink=!_opp&&!p.dnp?'<span onclick="event.stopPropagation();skipBatter('+i+')" style="font-size:10px;font-weight:bold;color:var(--amber2);font-family:sans-serif;padding:4px 8px;cursor:pointer;border:1px solid var(--amber2);border-radius:4px;margin-left:6px;background:rgba(200,169,110,.10);letter-spacing:.5px;">'+(isSkip?'UN-SKIP':'SKIP')+'</span>':'';
 return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+(isSkip?' skipped':'')+(selectable?' selectable':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;">SKIP</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+skipLink+'</div>';}).join('');
 el.innerHTML=banner+changeTile+rows+addTile;}
 
@@ -1790,10 +1790,12 @@ function openOppBatterPicker(r){
     var btnLabel=inLineup?'→':'+';
     var btnClass=inLineup?'btn-sm':'btn-sm btn-green';
     var jerseyId='oppr-j-'+rowIdx;
-    return '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);'+rowBg+(isSkip?'opacity:.4;':'')+'">'
+    var skipBtn=inLineup?'<button class="btn btn-xs" onclick="event.stopPropagation();oppbatSkipFromRoster('+rowIdx+')" style="padding:4px 6px;font-size:10px;font-weight:bold;border:1px solid var(--amber2);color:var(--amber2);background:rgba(200,169,110,.10);min-width:54px;">'+(isSkip?'UN-SKIP':'SKIP')+'</button>':'';
+    return '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);'+rowBg+(isSkip?'opacity:.5;':'')+'">'
       +'<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+(isPlaceholder(row.name)?'color:#ff8888;':'')+'">'+esc(row.name)+'</span>'
       +badge
       +'<input id="'+jerseyId+'" type="text" placeholder="#" value="'+esc(row.jersey)+'" inputmode="numeric" style="width:46px;font-size:14px;text-align:center;font-weight:bold;" onchange="oppbatSetJersey('+rowIdx+',this.value)">'
+      +skipBtn
       +'<button class="btn '+btnClass+'" style="padding:4px 10px;font-weight:bold;min-width:36px;" onclick="oppbatSelectFromRoster('+rowIdx+')">'+btnLabel+'</button>'
       +'</div>';
   }).join('');
@@ -1975,6 +1977,43 @@ function skipOppBatter(i){
   }
   cm('m-oppbat');sv();renderSC();
   toast(oppDisplay(lu[i],i)+' skipped — will bat next time through');
+}
+// Toggle skip on/off from the opp batter picker. Mirrors skipBatter() for our team.
+function oppbatSkipFromRoster(rowIdx){
+  var row=_oppbatRows[rowIdx];if(!row||row.aluIdx<0)return;
+  var lu=tlu();var p=lu[row.aluIdx];if(!p)return;
+  var key=isHB()?'hbi':'abi';
+  if(p.skipped){
+    // UN-SKIP: bring them back. If no AB in progress (or one is pending), insert as active batter.
+    delete p.skipped;
+    if(G.cpitch.length===0||_pendOppR){
+      G.cbi=row.aluIdx;G[key]=row.aluIdx;
+    }
+    sv();
+    toast(oppDisplay(p,row.aluIdx)+' un-skipped'+(G.cbi===row.aluIdx?' — now batting':''));
+    cm('m-oppbat');_oppbatResume();
+    return;
+  }
+  // SKIP: mark + advance hbi/abi if this was active/up
+  p.skipped=true;
+  if(G[key]===row.aluIdx||G.cbi===row.aluIdx){
+    var n=lu.length;
+    for(var s=1;s<=n;s++){
+      var ni=(row.aluIdx+s)%n;
+      if(ni===0&&s>0)clearAllSkipped(lu);
+      if(!lu[ni].skipped&&!lu[ni].dnp){G[key]=ni;if(G.cbi>=0)G.cbi=ni;break;}
+    }
+  }
+  sv();
+  toast(oppDisplay(p,row.aluIdx)+' skipped — will bat next time through');
+  // If picker was opened with a pending AB, reopen so user can still pick who batted
+  if(_pendOppR){
+    var pendingR=_pendOppR;_pendOppR=null;
+    cm('m-oppbat');
+    setTimeout(function(){openOppBatterPicker(pendingR);},150);
+  }else{
+    cm('m-oppbat');renderSC();
+  }
 }
 function clearAllSkipped(lu){lu.forEach(function(p){delete p.skipped;});}
 
@@ -2918,9 +2957,20 @@ function renderStats(){var who=G.stv||'us';var t=who==='us'?usT():themT();var lu
 if($('st-tog-us'))$('st-tog-us').textContent=ourName();
 if($('st-tog-them'))$('st-tog-them').textContent=theirName();
 $('st-bt').textContent=tn+' batting';
+// Highlight current AB or up-next batter in green for this team's box-score table.
+// thisTeamBatting=true → highlight active AB (or current slot when between ABs).
+// thisTeamBatting=false → highlight whoever's up first when this team bats again.
+var thisTeamBatting=(t==='home'&&isHB())||(t==='away'&&!isHB());
+var teamSlotIdx=t==='home'?G.hbi:G.abi;
+var hiIdx=thisTeamBatting?(G.cbi>=0?G.cbi:teamSlotIdx):teamSlotIdx;
+var hiActive=thisTeamBatting&&G.cbi>=0;// true marker = at-bat now; false = on-deck
 var h='<thead><tr><th>Player</th><th>AB</th><th>PA</th><th>R</th><th>H</th><th>RBI</th><th>XBH</th><th>HR</th><th>BB</th><th>K</th><th>SB</th><th>OBP</th><th>SLG</th></tr></thead><tbody>';
 var bt={ab:0,pa:0,r:0,h:0,rbi:0,xbh:0,hr:0,bb:0,k:0,sb:0};
-lu.forEach(function(p,i){var s=gps(i,t);h+='<tr><td>'+boxName(p)+'</td><td>'+s.ab+'</td><td>'+s.pa+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.xbh+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.sb+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
+lu.forEach(function(p,i){var s=gps(i,t);
+var isHi=i===hiIdx&&hiIdx>=0;
+var rowAttr=isHi?' style="background:rgba(42,125,82,.18);color:var(--green2);font-weight:bold;"':'';
+var marker=isHi?'<span style="color:var(--green2);font-weight:bold;margin-right:4px;">'+(hiActive?'▶':'▷')+'</span>':'';
+h+='<tr'+rowAttr+'><td>'+marker+boxName(p)+'</td><td>'+s.ab+'</td><td>'+s.pa+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.xbh+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.sb+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
 bt.ab+=s.ab;bt.pa+=s.pa;bt.r+=s.r;bt.h+=s.h;bt.rbi+=s.rbi;bt.xbh+=s.xbh;bt.hr+=s.hr;bt.bb+=s.bb;bt.k+=s.k;bt.sb+=s.sb;});
 h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TOTAL</td><td>'+bt.ab+'</td><td>'+bt.pa+'</td><td>'+bt.r+'</td><td>'+bt.h+'</td><td>'+bt.rbi+'</td><td>'+bt.xbh+'</td><td>'+bt.hr+'</td><td>'+bt.bb+'</td><td>'+bt.k+'</td><td>'+bt.sb+'</td><td>—</td><td>—</td></tr></tfoot>';
 $('st-btbl').innerHTML=h;
