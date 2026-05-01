@@ -159,6 +159,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .bat-name{flex:1;font-size:13px;}
 .bat-mini{font-size:10px;color:var(--text3);font-family:sans-serif;}
 .bat-item.skipped{opacity:.4;border:1px dashed var(--amber2)!important;}
+.bat-item.batted-ooo{opacity:.55;border:1px dashed var(--text3)!important;}
 /* RETRO SCORECARD — press-box style with hand-written typography */
 #rsc-content{background:#f5f1e6;color:#1a1a1a;padding:14px;font-family:'Patrick Hand',Georgia,serif;}
 #rsc-content .sc-hdr{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;border-bottom:1.5px solid #555;padding-bottom:8px;margin-bottom:10px;}
@@ -1732,15 +1733,31 @@ if(!lu||!lu.length){
 var _tni=isHB()?G.hbi:G.abi;var ni=_tni>=0?_tni:0;
 var rows=lu.map(function(p,i){var act=G.cbi===i,nx=!act&&i===ni&&G.cbi<0&&!_oppOpen;var t=isHB()?'home':'away',st=gps(i,t);var m=st.pa>0?(st.h+'/'+st.ab+(st.pa!==st.ab?' ('+st.pa+'PA)':'')):'';
 var isSkip=p.skipped&&!p.dnp;
-var selectable=G.cbi<0&&!_opp&&!p.dnp;
+var isBatted=p.battedOOO&&!p.dnp;
+var selectable=G.cbi<0&&!_opp&&!p.dnp&&!p.skipped&&!p.battedOOO;
 var rawDisp=_opp?oppDisplay(p,i):(p.name||p.jersey?(p.name||'#'+p.jersey):'?');
 var dispName=isPlaceholder(p.name)?'<span style="color:#ff8888;font-style:italic;">'+esc(rawDisp)+'</span>':esc(rawDisp);
 // Skip link for our team (mid-inning bathroom-kid scenario). Tapping toggles skip on/off.
-var skipLink=!_opp&&!p.dnp?'<span onclick="event.stopPropagation();skipBatter('+i+')" style="font-size:10px;font-weight:bold;color:var(--amber2);font-family:sans-serif;padding:4px 8px;cursor:pointer;border:1px solid var(--amber2);border-radius:4px;margin-left:6px;background:rgba(200,169,110,.10);letter-spacing:.5px;">'+(isSkip?'UN-SKIP':'SKIP')+'</span>':'';
-return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+(isSkip?' skipped':'')+(selectable?' selectable':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;">SKIP</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+skipLink+'</div>';}).join('');
+// Hidden for battedOOO players — they can't be re-toggled until order wraps.
+var skipLink='';
+if(!_opp&&!p.dnp){
+  if(isBatted){
+    skipLink='<span style="font-size:10px;font-weight:bold;color:var(--text3);font-family:sans-serif;padding:4px 8px;border:1px solid var(--text3);border-radius:4px;margin-left:6px;letter-spacing:.5px;">BATTED</span>';
+  }else{
+    skipLink='<span onclick="event.stopPropagation();skipBatter('+i+')" style="font-size:10px;font-weight:bold;color:var(--amber2);font-family:sans-serif;padding:4px 8px;cursor:pointer;border:1px solid var(--amber2);border-radius:4px;margin-left:6px;background:rgba(200,169,110,.10);letter-spacing:.5px;">'+(isSkip?'UN-SKIP':'SKIP')+'</span>';
+  }
+}
+return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+(isSkip?' skipped':'')+(isBatted?' batted-ooo':'')+(selectable?' selectable':'')+'" onclick="selBat('+i+')"><span class="bat-num">'+(i+1)+'</span><div class="bat-jersey">'+(p.jersey||'?')+'</div><span class="bat-name">'+dispName+'</span>'+(m?'<span class="bat-mini">'+m+'</span>':'')+(isSkip?'<span style="font-size:9px;color:var(--amber2);font-family:sans-serif;">SKIP</span>':'')+(isBatted?'<span style="font-size:9px;color:var(--text3);font-family:sans-serif;">OOO</span>':'')+(nx?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;">UP NEXT</span>':'')+skipLink+'</div>';}).join('');
 el.innerHTML=banner+changeTile+rows+addTile;}
 
-function selBat(i){if(G.cbi===i)return;
+function selBat(i){
+if(G.cbi===i)return;
+var _slu=clu();
+if(_slu[i]){
+  if(_slu[i].dnp){toast('Cannot bat — DNP');return;}
+  if(_slu[i].battedOOO){toast('Already batted this cycle');return;}
+  if(_slu[i].skipped){toast('Player skipped — tap UN-SKIP to insert them');return;}
+}
 // cbi<0: preserve any pitches accumulated while waiting to assign a batter (opp on-the-fly)
 var preservePitches=G.cbi<0&&G.cpitch.length>0;
 if(G.cbi>=0&&G.cpitch.length>0){confirmModal('Switch batter?','Pitches logged on the current AB will be discarded.',function(){G.cbi=i;G.cpitch=[];G.balls=0;G.strikes=0;sv();renderSC();},null,{yesLabel:'Switch',noLabel:'Cancel',danger:true});return;}
@@ -1785,18 +1802,29 @@ function openOppBatterPicker(r){
     var isNext=inLineup&&G.oppLuDone&&row.aluIdx===expectedNext;
     var p=inLineup?lu[row.aluIdx]:null;
     var isSkip=p&&p.skipped&&!p.dnp;
+    var isBatted=p&&p.battedOOO&&!p.dnp;
     var rowBg=isCurrent?'background:rgba(200,169,110,.18);':(isNext?'background:rgba(42,125,82,.12);':'');
-    var badge=isCurrent?'<span style="font-size:9px;color:var(--gold);font-family:sans-serif;font-weight:bold;">AT BAT</span>':(isNext?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;font-weight:bold;">UP</span>':(inLineup?'<span style="font-size:9px;color:var(--text3);font-family:sans-serif;">in</span>':''));
+    var rowDim=isSkip?'opacity:.5;':(isBatted?'opacity:.55;':'');
+    var badge=isCurrent?'<span style="font-size:9px;color:var(--gold);font-family:sans-serif;font-weight:bold;">AT BAT</span>':(isNext?'<span style="font-size:9px;color:var(--green2);font-family:sans-serif;font-weight:bold;">UP</span>':(isBatted?'<span style="font-size:9px;color:var(--text3);font-family:sans-serif;">OOO</span>':(inLineup?'<span style="font-size:9px;color:var(--text3);font-family:sans-serif;">in</span>':'')));
     var btnLabel=inLineup?'→':'+';
     var btnClass=inLineup?'btn-sm':'btn-sm btn-green';
     var jerseyId='oppr-j-'+rowIdx;
-    var skipBtn=inLineup?'<button class="btn btn-xs" onclick="event.stopPropagation();oppbatSkipFromRoster('+rowIdx+')" style="padding:4px 6px;font-size:10px;font-weight:bold;border:1px solid var(--amber2);color:var(--amber2);background:rgba(200,169,110,.10);min-width:54px;">'+(isSkip?'UN-SKIP':'SKIP')+'</button>':'';
-    return '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);'+rowBg+(isSkip?'opacity:.5;':'')+'">'
+    var skipBtn='';
+    if(inLineup){
+      if(isBatted){
+        skipBtn='<span style="padding:4px 6px;font-size:10px;font-weight:bold;color:var(--text3);border:1px solid var(--text3);border-radius:3px;min-width:54px;text-align:center;display:inline-block;letter-spacing:.5px;">BATTED</span>';
+      }else{
+        skipBtn='<button class="btn btn-xs" onclick="event.stopPropagation();oppbatSkipFromRoster('+rowIdx+')" style="padding:4px 6px;font-size:10px;font-weight:bold;border:1px solid var(--amber2);color:var(--amber2);background:rgba(200,169,110,.10);min-width:54px;">'+(isSkip?'UN-SKIP':'SKIP')+'</button>';
+      }
+    }
+    // Disable → for battedOOO players (already had their AB this cycle)
+    var arrowAttr=isBatted?'disabled style="padding:4px 10px;font-weight:bold;min-width:36px;opacity:.4;cursor:not-allowed;"':'style="padding:4px 10px;font-weight:bold;min-width:36px;" onclick="oppbatSelectFromRoster('+rowIdx+')"';
+    return '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);'+rowBg+rowDim+'">'
       +'<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+(isPlaceholder(row.name)?'color:#ff8888;':'')+'">'+esc(row.name)+'</span>'
       +badge
       +'<input id="'+jerseyId+'" type="text" placeholder="#" value="'+esc(row.jersey)+'" inputmode="numeric" style="width:46px;font-size:14px;text-align:center;font-weight:bold;" onchange="oppbatSetJersey('+rowIdx+',this.value)">'
       +skipBtn
-      +'<button class="btn '+btnClass+'" style="padding:4px 10px;font-weight:bold;min-width:36px;" onclick="oppbatSelectFromRoster('+rowIdx+')">'+btnLabel+'</button>'
+      +'<button class="btn '+btnClass+'" '+arrowAttr+'>'+btnLabel+'</button>'
       +'</div>';
   }).join('');
   // Empty-state hint when there's no hardcoded roster AND no live entries
@@ -1831,10 +1859,13 @@ function oppbatSelectFromRoster(rowIdx){
   // Pull the latest jersey from the input (in case onchange hasn't fired)
   var jin=$('oppr-j-'+rowIdx);if(jin)row.jersey=(jin.value||'').trim();
   if(row.aluIdx>=0){
-    // Already in lineup — just select them
-    if(lu[row.aluIdx].skipped)delete lu[row.aluIdx].skipped;
+    if(lu[row.aluIdx].battedOOO){toast('Already batted this cycle');return;}
+    var wasSkipped=!!lu[row.aluIdx].skipped;
+    if(wasSkipped)delete lu[row.aluIdx].skipped;
     if(row.jersey)lu[row.aluIdx].jersey=row.jersey;
     G.cbi=row.aluIdx;
+    // If they were skipped, this is an OOO insert — mark so endAB preserves natural pointer
+    if(wasSkipped){G._oooBatter=row.aluIdx;G._oooTeam=isHB()?'home':'away';}
   }else{
     // Not in lineup yet — add them
     lu.push({name:row.name,jersey:row.jersey||''});
@@ -1850,8 +1881,12 @@ function _oppbatResume(){
 }
 function oppbatPick(i){
   var lu=tlu();if(!lu[i])return;
-  if(lu[i].skipped)delete lu[i].skipped;// un-skip if manually picked
-  G.cbi=i;cm('m-oppbat');
+  if(lu[i].battedOOO){toast('Already batted this cycle');return;}
+  var wasSkipped=!!lu[i].skipped;
+  if(wasSkipped)delete lu[i].skipped;// un-skip if manually picked
+  G.cbi=i;
+  if(wasSkipped){G._oooBatter=i;G._oooTeam=isHB()?'home':'away';}
+  cm('m-oppbat');
   // Auto-out: log immediately
   if(lu[i].autoOut){_pendOppR=null;sv();renderSC();setTimeout(logAutoOut,200);return;}
   _oppbatResume();
@@ -1907,12 +1942,19 @@ function logAutoOut(){
   // Advance batter index
   (function(){
     var lup=isHB()?G.hlu:G.alu;
+    // Out-of-order auto-out: just-batted player was un-skipped for a one-off AB.
+    // Don't advance hbi/abi (it was preserved); mark battedOOO so they're skipped
+    // in natural rotation for the rest of this cycle.
+    var curTeam=isHB()?'home':'away';
+    var ooo=(G._oooBatter!=null&&G._oooBatter===G.cbi&&G._oooTeam===curTeam);
+    G._oooBatter=null;G._oooTeam=null;
+    if(ooo){if(lup[G.cbi])lup[G.cbi].battedOOO=true;return;}
     if(theyBat()&&!G.oppLuDone){
       if(isHB())G.hbi=G.cbi+1;else G.abi=G.cbi+1;
       return;
     }
     var n=Math.max(1,lup.length),start=(G.cbi+1)%n;
-    for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(ni<start&&_s>0)clearAllSkipped(lup);if(!lup[ni]||(!lup[ni].dnp&&!lup[ni].skipped)){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
+    for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(ni<start&&_s>0)clearAllSkipped(lup);if(!lup[ni]||(!lup[ni].dnp&&!lup[ni].skipped&&!lup[ni].battedOOO)){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
   })();
   G.cbi=-1;G.cpitch=[];G.balls=0;G.strikes=0;
   if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
@@ -1933,79 +1975,87 @@ function oppbatClose(){_pendOppR=null;cm('m-oppbat');}
 // over for one cycle through the order; when the order wraps, all skips clear
 // so the kid bats normally next time through.
 function skipBatter(i){
-  if(theyBat()){return;}// for opp, use skipOppBatter
+  if(theyBat()){return;}// for opp, use skipOppBatter / oppbatSkipFromRoster
   var lu=clu();if(!lu[i])return;
   if(lu[i].dnp){toast('Cannot skip DNP player');return;}
-  // Toggle off if already skipped — AND insert them as the active batter NOW
-  // (bathroom-kid scenario: kid was skipped, now they're back, bring them in out of order)
+  if(lu[i].battedOOO){toast('Already batted this cycle — will reset on order wrap');return;}
+  // UN-SKIP: insert as active batter NOW (out of order). DON'T touch hbi/abi —
+  // it still points at the natural next, which we resume after this player's AB ends.
   if(lu[i].skipped){
+    if(G.cpitch.length>0){toast('Finish current AB first, then UN-SKIP');return;}
     delete lu[i].skipped;
-    // If there's no active AB in progress (no pitches logged), or this is at-bat time,
-    // make this player the active batter so they bat next.
-    if(G.cpitch.length===0){
-      G.cbi=i;
-      var key=isHB()?'hbi':'abi';
-      G[key]=i;
-    }
+    G.cbi=i;
+    G._oooBatter=i;G._oooTeam=isHB()?'home':'away';
     sv();renderSC();
-    toast(sn(lu[i].name||'#'+lu[i].jersey)+' un-skipped'+(G.cbi===i?' — now batting':''));
+    var natIdx=isHB()?G.hbi:G.abi;
+    var nat=(natIdx>=0&&natIdx<lu.length)?lu[natIdx]:null;
+    var natName=nat?sn(nat.name||'#'+nat.jersey):'next batter';
+    toast(sn(lu[i].name||'#'+lu[i].jersey)+' batting now — '+natName+' up after',3500);
     return;
   }
+  // SKIP — remove from natural rotation
   lu[i].skipped=true;
-  // If this is the active or next batter, advance to next non-skipped player
+  if(G._oooBatter===i&&G._oooTeam===(isHB()?'home':'away'))G._oooBatter=null;// cancel pending OOO
   var key=isHB()?'hbi':'abi';
   if(G[key]===i||G.cbi===i){
     var n=lu.length;
     for(var s=1;s<=n;s++){
       var ni=(i+s)%n;
-      if(ni===0&&s>0)clearAllSkipped(lu);// wrapped — new cycle clears skips
-      if(!lu[ni].skipped&&!lu[ni].dnp){G[key]=ni;if(G.cbi>=0)G.cbi=ni;break;}
+      if(ni===0&&s>0)clearAllSkipped(lu);
+      if(!lu[ni].skipped&&!lu[ni].dnp&&!lu[ni].battedOOO){G[key]=ni;if(G.cbi>=0)G.cbi=ni;break;}
     }
   }
   sv();renderSC();
-  toast(sn(lu[i].name||'#'+lu[i].jersey)+' skipped this cycle');
+  toast(sn(lu[i].name||'#'+lu[i].jersey)+' skipped — tap UN-SKIP when they\'re back');
 }
 function skipOppBatter(i){
   var lu=tlu();if(!lu[i])return;
+  if(lu[i].battedOOO){toast('Already batted this cycle');cm('m-oppbat');return;}
   lu[i].skipped=true;
-  // advance to next non-skipped batter
+  if(G._oooBatter===i&&G._oooTeam===(isHB()?'home':'away'))G._oooBatter=null;
+  // advance to next non-skipped/non-battedOOO batter
   var n=lu.length,key=isHB()?'hbi':'abi';
   for(var s=1;s<=n;s++){
     var ni=(i+s)%n;
-    if(ni===0&&s>0)clearAllSkipped(lu);// wrapped — new cycle, clear skips
-    if(!lu[ni].skipped&&!lu[ni].dnp){G[key]=ni;G.cbi=ni;break;}
+    if(ni===0&&s>0)clearAllSkipped(lu);
+    if(!lu[ni].skipped&&!lu[ni].dnp&&!lu[ni].battedOOO){G[key]=ni;G.cbi=ni;break;}
   }
   cm('m-oppbat');sv();renderSC();
-  toast(oppDisplay(lu[i],i)+' skipped — will bat next time through');
+  toast(oppDisplay(lu[i],i)+' skipped — tap UN-SKIP when they\'re back');
 }
 // Toggle skip on/off from the opp batter picker. Mirrors skipBatter() for our team.
 function oppbatSkipFromRoster(rowIdx){
   var row=_oppbatRows[rowIdx];if(!row||row.aluIdx<0)return;
   var lu=tlu();var p=lu[row.aluIdx];if(!p)return;
+  if(p.battedOOO){toast('Already batted this cycle');return;}
   var key=isHB()?'hbi':'abi';
   if(p.skipped){
-    // UN-SKIP: bring them back. If no AB in progress (or one is pending), insert as active batter.
+    // UN-SKIP: insert as active batter NOW. Don't touch hbi/abi — natural next preserved.
+    if(G.cpitch.length>0&&!_pendOppR){toast('Finish current AB first, then UN-SKIP');return;}
     delete p.skipped;
-    if(G.cpitch.length===0||_pendOppR){
-      G.cbi=row.aluIdx;G[key]=row.aluIdx;
-    }
+    G.cbi=row.aluIdx;
+    G._oooBatter=row.aluIdx;G._oooTeam=isHB()?'home':'away';
     sv();
-    toast(oppDisplay(p,row.aluIdx)+' un-skipped'+(G.cbi===row.aluIdx?' — now batting':''));
+    var natIdx=isHB()?G.hbi:G.abi;
+    var nat=(natIdx>=0&&natIdx<lu.length)?lu[natIdx]:null;
+    var natName=nat?oppDisplay(nat,natIdx):'next batter';
+    toast(oppDisplay(p,row.aluIdx)+' batting now — '+natName+' up after',3500);
     cm('m-oppbat');_oppbatResume();
     return;
   }
-  // SKIP: mark + advance hbi/abi if this was active/up
+  // SKIP — remove from natural rotation
   p.skipped=true;
+  if(G._oooBatter===row.aluIdx&&G._oooTeam===(isHB()?'home':'away'))G._oooBatter=null;
   if(G[key]===row.aluIdx||G.cbi===row.aluIdx){
     var n=lu.length;
     for(var s=1;s<=n;s++){
       var ni=(row.aluIdx+s)%n;
       if(ni===0&&s>0)clearAllSkipped(lu);
-      if(!lu[ni].skipped&&!lu[ni].dnp){G[key]=ni;if(G.cbi>=0)G.cbi=ni;break;}
+      if(!lu[ni].skipped&&!lu[ni].dnp&&!lu[ni].battedOOO){G[key]=ni;if(G.cbi>=0)G.cbi=ni;break;}
     }
   }
   sv();
-  toast(oppDisplay(p,row.aluIdx)+' skipped — will bat next time through');
+  toast(oppDisplay(p,row.aluIdx)+' skipped — tap UN-SKIP when they\'re back');
   // If picker was opened with a pending AB, reopen so user can still pick who batted
   if(_pendOppR){
     var pendingR=_pendOppR;_pendOppR=null;
@@ -2015,7 +2065,7 @@ function oppbatSkipFromRoster(rowIdx){
     cm('m-oppbat');renderSC();
   }
 }
-function clearAllSkipped(lu){lu.forEach(function(p){delete p.skipped;});}
+function clearAllSkipped(lu){lu.forEach(function(p){delete p.skipped;delete p.battedOOO;});}
 
 // PITCH
 function curPitcher(){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;return(i>=0&&l[i])?l[i]:null;}
@@ -2297,16 +2347,23 @@ else if(r==='BB'||r==='HBP'){
 }
 else{if(rbi>0)addR(rbi);}
 if(G.outs>=3)G.outs=3;
-// update per-team batter index, skipping DNP players
+// update per-team batter index, skipping DNP/skipped/battedOOO players
 (function(){
   var lup=isHB()?G.hlu:G.alu;
+  // Out-of-order insert: just-batted player was un-skipped for a one-off AB.
+  // hbi/abi was preserved during un-skip; mark battedOOO so they're skipped in
+  // natural rotation for the rest of this cycle, then return without advancing.
+  var curTeam=isHB()?'home':'away';
+  var ooo=(G._oooBatter!=null&&G._oooBatter===G.cbi&&G._oooTeam===curTeam);
+  G._oooBatter=null;G._oooTeam=null;// always consume the flag
+  if(ooo){if(lup[G.cbi])lup[G.cbi].battedOOO=true;return;}
   // Opponent open lineup: advance past the end so next AB triggers the picker
   if(theyBat()&&!G.oppLuDone){
     if(isHB())G.hbi=G.cbi+1;else G.abi=G.cbi+1;
     return;
   }
   var n=Math.max(1,lup.length),start=(G.cbi+1)%n;
-  for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(ni<start&&_s>0)clearAllSkipped(lup);if(!lup[ni]||(!lup[ni].dnp&&!lup[ni].skipped)){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
+  for(var _s=0;_s<n;_s++){var ni=(start+_s)%n;if(ni<start&&_s>0)clearAllSkipped(lup);if(!lup[ni]||(!lup[ni].dnp&&!lup[ni].skipped&&!lup[ni].battedOOO)){if(isHB())G.hbi=ni;else G.abi=ni;break;}}
 })();
 // Flush who-scored buffer onto the just-pushed AB record
 if(G._abScoredBuffer&&G._abScoredBuffer.length){var _justAb=G.abs[G.abs.length-1];if(_justAb)_justAb.pscored=G._abScoredBuffer.slice();}
@@ -2422,10 +2479,10 @@ if(theyBat()&&!G.oppLuDone&&ni>=lu.length){
   setTimeout(function(){openOppBatterPicker();},300);
   return;
 }
-// Skip over skipped batters
+// Skip over skipped/battedOOO batters
 if(ni<0||ni>=lu.length)ni=0;
-if(theyBat()&&lu[ni]&&lu[ni].skipped){
-  for(var _sk=1;_sk<=lu.length;_sk++){var _ni2=(ni+_sk)%lu.length;if(_ni2===0&&_sk>0)clearAllSkipped(lu);if(!lu[_ni2].skipped&&!lu[_ni2].dnp){ni=_ni2;break;}}
+if(theyBat()&&lu[ni]&&(lu[ni].skipped||lu[ni].battedOOO)){
+  for(var _sk=1;_sk<=lu.length;_sk++){var _ni2=(ni+_sk)%lu.length;if(_ni2===0&&_sk>0)clearAllSkipped(lu);if(!lu[_ni2].skipped&&!lu[_ni2].dnp&&!lu[_ni2].battedOOO){ni=_ni2;break;}}
   if(isHB())G.hbi=ni;else G.abi=ni;
 }
 G.cbi=ni;sv();renderSC();
