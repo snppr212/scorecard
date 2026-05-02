@@ -3447,13 +3447,21 @@ fbReady=true;
 async function fbSaveGame(){
   if(!fbReady||!G.eid)return;
   try{
-    // Guard: don't overwrite populated remote data with blank/default local state
+    // Guard: don't overwrite populated remote data with blank/default/stale local state
     var snap=await db.collection('games').doc(G.eid).get();
     if(snap.exists&&snap.data()&&snap.data().gdata){
       var remote=snap.data().gdata;
+      var localAbs=(G.abs||[]).length, remoteAbs=(remote.abs||[]).length;
       // Block if remote has ABs and local has none (most common race)
-      if(remote.abs&&remote.abs.length>0&&(!G.abs||G.abs.length===0)){
-        console.log('fbSaveGame blocked: remote has '+remote.abs.length+' ABs, local has 0');
+      if(remoteAbs>0&&localAbs===0){
+        console.log('fbSaveGame blocked: remote has '+remoteAbs+' ABs, local has 0');
+        return;
+      }
+      // Block if local has FEWER ABs than remote (stale local state — prevents
+      // a phone with old data from overwriting the canonical remote box-score
+      // after offline patches or another device's updates have landed).
+      if(remoteAbs>localAbs){
+        console.log('fbSaveGame blocked: remote has '+remoteAbs+' ABs, local has '+localAbs+' (remote is newer)');
         return;
       }
       // Block if remote has fielding script and local has none (preloaded data race)
