@@ -2810,17 +2810,19 @@ function confirmSB(){
   // Validate: 1st→2nd requires 2nd to be empty or also stealing
   if(go12 && G.bases[1] && !go23){toast('Cannot steal 2nd — 2nd is occupied');return;}
   // Execute lead-to-trail so 2nd vacates before 1st advances
+  // Stamp the running team on each steal so box-score stats can filter correctly.
+  var _stTeam=isHB()?'home':'away';
   if(go23){
     var r2 = G.bases[1];
     G.bases[2] = r2;
     G.bases[1] = null;
-    G.steals.push({from:2,to:3,bi:r2.bi,inn:G.inn,half:G.half,name:r2.name,during_ab_num:G.abc+1});
+    G.steals.push({from:2,to:3,bi:r2.bi,inn:G.inn,half:G.half,name:r2.name,team:_stTeam,during_ab_num:G.abc+1});
   }
   if(go12){
     var r1 = G.bases[0];
     G.bases[1] = r1;
     G.bases[0] = null;
-    G.steals.push({from:1,to:2,bi:r1.bi,inn:G.inn,half:G.half,name:r1.name,during_ab_num:G.abc+1});
+    G.steals.push({from:1,to:2,bi:r1.bi,inn:G.inn,half:G.half,name:r1.name,team:_stTeam,during_ab_num:G.abc+1});
   }
   G.isu = true;
   cm('m-steal');sv();renderSC();
@@ -3161,7 +3163,11 @@ G.abs.forEach(function(ab){if(ab.bi!==i||ab.team!==t)return;var r=ab.result;
   if(!ab.autoOut)s.pa++;
   if(!['BB','HBP','SAC'].includes(r))s.ab++;
   if(['1B','2B','3B','HR','LLHR'].includes(r))s.h++;if(['2B','3B','HR','LLHR'].includes(r))s.xbh++;if(r==='HR'||r==='LLHR')s.hr++;if(r==='BB')s.bb++;if(r==='K'||r==='KL')s.k++;if(r==='HBP')s.hbp++;if(r==='SAC')s.sf++;s.rbi+=(ab.rbi||0);if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;});
-G.steals.forEach(e=>{if(e.bi==i)s.sb++;});G.css.forEach(e=>{if(e.bi==i)s.cs++;});
+// Filter steals + CS by TEAM (derive from inn/half if team field is missing on
+// older records). Without this, a steal at bi=8 from either team would credit
+// both teams' slot 9 in the box score.
+function _eTeam(e){return e.team||(e.half==='top'?'away':'home');}
+G.steals.forEach(e=>{if(e.bi==i&&_eTeam(e)===t)s.sb++;});G.css.forEach(e=>{if(e.bi==i&&_eTeam(e)===t)s.cs++;});
 if(G.runs)G.runs.forEach(function(r){if(r.bi===i&&r.team===t)s.r++;});
 s.obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;s.slg=s.ab>0?s.tb/s.ab:0;return s;}
 function setST(t,el){G.stv=t;document.querySelectorAll('#tab-stats .team-toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderStats();}
@@ -3666,7 +3672,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v77';
+var APP_VERSION='v78';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
