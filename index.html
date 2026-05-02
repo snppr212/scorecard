@@ -1851,26 +1851,23 @@ function openOppBatterPicker(r){
   // Determine opponent name and pull hardcoded roster if known
   var oppName=isOH()?G.at:G.ht;
   var hardcoded=OPP_ROSTERS[oppName]||[];
-  // Build display list. In OPEN-lineup mode (still building), HIDE any roster name
-  // that's already been added — the picker is for picking the NEXT new batter.
-  // In LOCKED mode (cycling), show all so user can override / sub.
+  // Build display list — show ALL roster + live-added entries in both OPEN and
+  // LOCKED modes so the manager can manage the full lineup (insert / remove /
+  // skip / rename). Already-added hardcoded names appear with an "in" badge.
   var rows=[];
   hardcoded.forEach(function(name){
     var idx=lu.findIndex(function(p){return(p.name||'')===name;});
-    // OPEN-lineup mode: hide already-added players UNLESS they're skipped
-    // (so user can re-insert a skipped player who returned from the bathroom)
-    if(!G.oppLuDone&&idx>=0&&!(lu[idx]&&lu[idx].skipped))return;
     rows.push({name:name,jersey:idx>=0?(lu[idx].jersey||''):'',aluIdx:idx,fromRoster:true});
   });
-  // In LOCKED mode include all live-added entries.
-  // In OPEN mode, only include skipped live-added entries so they can be re-inserted —
-  // EXCEPT placeholder slots (e.g. "(5-hole)") which we always include so the user can
-  // rename them in place when the actual player's name is recalled.
+  // Live-added entries (custom names + placeholders) get appended after hardcoded.
+  // Sort by aluIdx so they appear in lineup order.
+  var liveRows=[];
   lu.forEach(function(p,i){
     if(!p.name||hardcoded.indexOf(p.name)>=0)return;// already covered above
-    if(!G.oppLuDone&&!p.skipped&&!isPlaceholder(p.name))return;// hide non-skipped, non-placeholder already-added in open mode
-    rows.push({name:p.name,jersey:p.jersey||'',aluIdx:i,fromRoster:false});
+    liveRows.push({name:p.name,jersey:p.jersey||'',aluIdx:i,fromRoster:false});
   });
+  liveRows.sort(function(a,b){return a.aluIdx-b.aluIdx;});
+  rows=rows.concat(liveRows);
   // Render rows
   var listHtml=rows.map(function(row,rowIdx){
     var inLineup=row.aluIdx>=0;
@@ -1900,11 +1897,20 @@ function openOppBatterPicker(r){
     var nameSpan=isPh
       ? '<span style="flex:1;font-size:13px;font-style:italic;color:#ff8888;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;" onclick="event.stopPropagation();oppbatRenameSlot('+rowIdx+')" title="Tap to rename">'+esc(row.name)+' ✎</span>'
       : '<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+'">'+esc(row.name)+'</span>';
-    return '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);'+rowBg+rowDim+'">'
+    // Manage buttons (insert above/below, remove) — shown only for batters already in lineup.
+    var manageBtns='';
+    if(inLineup){
+      manageBtns=''
+        +'<button class="btn btn-xs" onclick="event.stopPropagation();oppbatInsertAt('+rowIdx+',\'above\')" style="padding:3px 5px;font-size:11px;min-width:24px;border-color:var(--text3);color:var(--text2);" title="Insert new batter above">↑</button>'
+        +'<button class="btn btn-xs" onclick="event.stopPropagation();oppbatInsertAt('+rowIdx+',\'below\')" style="padding:3px 5px;font-size:11px;min-width:24px;border-color:var(--text3);color:var(--text2);" title="Insert new batter below">↓</button>'
+        +'<button class="btn btn-xs" onclick="event.stopPropagation();oppbatRemoveSlot('+rowIdx+')" style="padding:3px 5px;font-size:11px;min-width:24px;border-color:var(--red2);color:var(--red2);" title="Remove from lineup">✕</button>';
+    }
+    return '<div style="display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid var(--border);flex-wrap:wrap;'+rowBg+rowDim+'">'
       +nameSpan
       +badge
       +'<input id="'+jerseyId+'" type="text" placeholder="#" value="'+esc(row.jersey)+'" inputmode="numeric" style="width:46px;font-size:14px;text-align:center;font-weight:bold;" onchange="oppbatSetJersey('+rowIdx+',this.value)">'
       +skipBtn
+      +manageBtns
       +'<button class="btn '+btnClass+'" '+arrowAttr+'>'+btnLabel+'</button>'
       +'</div>';
   }).join('');
@@ -1932,6 +1938,65 @@ function oppbatSetJersey(rowIdx,val){
   var row=_oppbatRows[rowIdx];if(!row)return;
   row.jersey=(val||'').trim();
   if(row.aluIdx>=0){var lu=tlu();if(lu[row.aluIdx]){lu[row.aluIdx].jersey=row.jersey;sv();}}
+}
+// Shift bi references for one team by `delta` for any record where bi >= threshold.
+// Used after a lineup insert (delta=+1) or remove (delta=-1) so that ABs / steals /
+// runs / pinch-runs continue pointing at the right slot after the lineup shifts.
+function _shiftTeamBis(team,threshold,delta){
+  (G.abs||[]).forEach(function(ab){if(ab.team===team&&ab.bi>=threshold)ab.bi+=delta;});
+  (G.steals||[]).forEach(function(s){var sTeam=s.team||(s.half==='top'?'away':'home');if(sTeam===team&&s.bi>=threshold)s.bi+=delta;});
+  (G.css||[]).forEach(function(c){var cTeam=c.team||(c.half==='top'?'away':'home');if(cTeam===team&&c.bi>=threshold)c.bi+=delta;});
+  (G.runs||[]).forEach(function(r){if(r.team===team&&r.bi>=threshold)r.bi+=delta;});
+  (G.pinchRuns||[]).forEach(function(pr){var prTeam=pr.half==='top'?'away':'home';if(prTeam!==team)return;if(pr.fromBi>=threshold)pr.fromBi+=delta;if(pr.toBi>=threshold)pr.toBi+=delta;});
+  // Shift batting order pointers for this team
+  if(team==='home'){if(G.hbi>=threshold)G.hbi+=delta;if(G.cbi>=threshold&&isHB())G.cbi+=delta;}
+  else{if(G.abi>=threshold)G.abi+=delta;if(G.cbi>=threshold&&!isHB())G.cbi+=delta;}
+}
+// Insert a new opp batter above or below an existing slot in the lineup.
+function oppbatInsertAt(rowIdx,position){
+  var row=_oppbatRows[rowIdx];if(!row||row.aluIdx<0)return;
+  var lu=tlu();var team=themT();
+  var insertIdx=position==='above'?row.aluIdx:row.aluIdx+1;
+  var refName=lu[row.aluIdx]?(lu[row.aluIdx].name||'this slot'):'this slot';
+  promptModal('Insert '+position+' '+refName,'Player name (jersey can be edited after)','',function(name){
+    if(!name||!name.trim())return;
+    _shiftTeamBis(team,insertIdx,+1);
+    lu.splice(insertIdx,0,{name:name.trim(),jersey:''});
+    sv();
+    var pending=_pendOppR;
+    cm('m-oppbat');
+    setTimeout(function(){openOppBatterPicker(pending);},120);
+    toast('Inserted '+name.trim()+' at slot '+(insertIdx+1));
+  });
+}
+// Remove an opp batter from the lineup. Warns if the batter has logged ABs.
+function oppbatRemoveSlot(rowIdx){
+  var row=_oppbatRows[rowIdx];if(!row||row.aluIdx<0)return;
+  var lu=tlu();var p=lu[row.aluIdx];if(!p)return;
+  var team=themT();
+  var abCount=(G.abs||[]).filter(function(ab){return ab.team===team&&ab.bi===row.aluIdx;}).length;
+  var displayName=p.name||'(unnamed)';
+  function _doRemove(){
+    if(abCount>0){
+      G.abs=G.abs.filter(function(ab){return !(ab.team===team&&ab.bi===row.aluIdx);});
+      // Also drop any steals/css/runs/pinchRuns at this slot
+      G.steals=(G.steals||[]).filter(function(s){var sTeam=s.team||(s.half==='top'?'away':'home');return !(sTeam===team&&s.bi===row.aluIdx);});
+      G.css=(G.css||[]).filter(function(c){var cTeam=c.team||(c.half==='top'?'away':'home');return !(cTeam===team&&c.bi===row.aluIdx);});
+      G.runs=(G.runs||[]).filter(function(r){return !(r.team===team&&r.bi===row.aluIdx);});
+    }
+    _shiftTeamBis(team,row.aluIdx+1,-1);
+    lu.splice(row.aluIdx,1);
+    sv();
+    var pending=_pendOppR;
+    cm('m-oppbat');
+    setTimeout(function(){openOppBatterPicker(pending);},120);
+    toast('Removed '+displayName+' from lineup');
+  }
+  if(abCount>0){
+    confirmModal('Remove '+displayName+'?','⚠️ This batter has '+abCount+' at-bat'+(abCount===1?'':'s')+' logged. Removing will:\n\n• Delete those at-bats from the box score\n• Shift slot indices for subsequent batters\n\nReally remove?',_doRemove,null,{yesLabel:'Delete & Remove',noLabel:'Cancel',danger:true});
+  }else{
+    _doRemove();
+  }
 }
 // Rename a placeholder slot in place (e.g. "(5-hole)" → "Yasine Berriche").
 // Triggered by tapping a placeholder name in the picker. The row's existing ABs
@@ -3672,7 +3737,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v78';
+var APP_VERSION='v79';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
