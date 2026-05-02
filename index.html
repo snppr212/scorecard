@@ -386,6 +386,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-pos"><div class="modal"><h3 id="mpos-t">Assign</h3><div id="mpos-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-pos')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-runner"><div class="modal"><h3 id="mr-t">Runner</h3><div id="mr-btns"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-runner')">Close</button></div></div></div>
+<!-- PINCH-RUN MODAL: swap a runner on base for another player so SB/run credits go to the right kid -->
+<div class="modal-ov" id="m-prun"><div class="modal" style="max-width:380px;"><h3 id="prun-title">Pinch run</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;" id="prun-sub"></div><div id="prun-list" style="max-height:300px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-prun')">Cancel</button></div></div></div>
 <!-- STANDALONE FIELDING ERROR MODAL — for errors not tied to an AB (overthrow on a steal, missed pickoff, etc.) -->
 <div class="modal-ov" id="m-serr"><div class="modal"><h3>Log fielding error</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">For errors during baserunning (overthrow, missed cutoff). For errors during an AB, use the play modal instead.</div><div class="mrow"><label>Position</label><select id="serr-p"></select></div><div class="mrow"><label>Type</label><select id="serr-t"><option value="F">Fielding (booted)</option><option value="T">Throwing</option><option value="M">Mental (missed cutoff/cover)</option><option value="C">Catching (drop)</option></select></div><div class="mrow"><label>Description (optional)</label><input type="text" id="serr-d" placeholder="e.g. overthrow on SB allowed runner to 3rd"></div><div class="mrow"><label>Bases advanced (extra)</label><select id="serr-adv"><option value="0">None</option><option value="1">1 base</option><option value="2">2 bases (LL: only 1 on overthrow per Rules)</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmStandaloneErr()">Log error</button><button class="btn btn-full" onclick="cm('m-serr')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-phist"><div class="modal"><h3>Season Pitching</h3><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Total</th><th>Last</th><th>Rest</th><th>Avail?</th></tr></thead><tbody id="ph-body"></tbody></table></div><div class="mact"><button class="btn btn-full" onclick="cm('m-phist')">Close</button></div></div></div>
@@ -531,7 +533,7 @@ var OPP_ROSTERS={
 var A={roster:[],schedule:[],gameResults:{},pitchLog:{},filter:'all',epId:null,eeId:null};
 var G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
 inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
-cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
+cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],pinchRuns:[],
 fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
 
 function $(id){return document.getElementById(id);}
@@ -550,7 +552,7 @@ try{
     // wipe any in-progress game state and any non-final test results
     G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
        inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
-       cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
+       cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],pinchRuns:[],
        fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
     if(A.gameResults){
       Object.keys(A.gameResults).forEach(function(k){
@@ -567,7 +569,7 @@ fix();APOS=POS.slice();if(G.ef)APOS.push(G.ef);
 function fix(){
 if(!G.inns||!G.inns.h)G.inns={h:Array(G.ti||6).fill(0),a:Array(G.ti||6).fill(0)};
 if(!G.bases)G.bases=[null,null,null];
-['hlu','alu','hp','ap','abs','steals','css','errs','pp','runs'].forEach(k=>{if(!G[k])G[k]=[];});
+['hlu','alu','hp','ap','abs','steals','css','errs','pp','runs','pinchRuns'].forEach(k=>{if(!G[k])G[k]=[];});
 if(!G.fa)G.fa={};
 if(G.hbi===undefined)G.hbi=-1;if(G.abi===undefined)G.abi=-1;
 if(G.pscored===undefined)G.pscored=[];
@@ -1126,7 +1128,7 @@ function clearTestData(){
   if(G.eid==='test-sandbox'){
     G={eid:null,ht:'Mighty Mussels',at:'Visitors',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,
        inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
-       cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],
+       cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],pinchRuns:[],
        fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
   }
   if(A.gameResults)delete A.gameResults['test-sandbox'];
@@ -1211,7 +1213,7 @@ function enterLineupFlow(ev){
   goToLineupBuild();ss('screen-avail');
 }
 function resetG(ev){var ih=ev.ha==='home',op=ev.opponent||'Visitors';
-G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false};APOS=POS.slice();sg();}
+G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],pinchRuns:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false};APOS=POS.slice();sg();}
 function r2lu(){return A.roster.map(p=>({name:p.name||'',jersey:p.jersey||'',rid:p.id}));}
 
 // AVAILABILITY — Step 1: mark present/absent
@@ -2602,6 +2604,7 @@ var opts=[];
 if(b<3&&!G.bases[b])opts.push({l:'Advance to '+['','2nd','3rd'][b],f:'advRun('+b+','+(b+1)+')'});
 if(b>1&&!G.bases[b-2])opts.push({l:'Back to '+['','1st','2nd'][b-1],f:'backRun('+b+','+(b-1)+')'});
 opts.push({l:'Scores (+1 run)',f:'scoreRun('+b+')'});
+opts.push({l:'Pinch run for '+(r.name||'this runner'),f:'openPinchRun('+b+')'});
 opts.push({l:'Out on bases',f:'outRun('+b+')'});
 opts.push({l:'Remove runner',f:'rmRun('+b+')'});
 $('mr-btns').innerHTML=opts.map(o=>'<button class="btn btn-full" style="margin-bottom:5px;" onclick="'+o.f+';cm(\'m-runner\')">'+o.l+'</button>').join('');om('m-runner');}
@@ -2610,6 +2613,47 @@ function backRun(f,t){if(G.bases[t-1]){toast('Base '+t+' is occupied!');return;}
 function scoreRun(b){var r=G.bases[b-1];if(r)logRun(r.bi,r.team);G.bases[b-1]=null;addR(1);sv();renderSC();}
 function outRun(b){G.bases[b-1]=null;G.outs=Math.min(3,G.outs+1);sv();if(G.outs>=3)showIE();else renderSC();}
 function rmRun(b){G.bases[b-1]=null;sv();renderSC();}
+
+// PINCH RUN — replace the runner on base with another player so SB / run credit goes to the right kid.
+// Used when a player gets banged up after reaching base and a teammate runs for them.
+// Uses the current batting team's lineup as the picker source.
+var _prunBase=0;
+function openPinchRun(b){
+  var r=G.bases[b-1];if(!r){toast('No runner on base '+b);return;}
+  _prunBase=b;
+  $('prun-title').textContent='Pinch run for '+(r.name||'runner');
+  $('prun-sub').innerHTML='Pick the runner. Stats (SB / run scored) will credit them, not '+esc(r.name||'the original')+'.';
+  var lu=clu();
+  // Filter out players already on a base (can't pinch-run for someone you're already running for)
+  var onBaseBis={};G.bases.forEach(function(rb){if(rb&&rb.bi!=null&&rb.bi>=0)onBaseBis[rb.bi]=1;});
+  var rows=lu.map(function(p,i){
+    if(!p.name&&!p.jersey)return null;
+    if(p.dnp)return null;
+    var blocked=(i===r.bi)||(onBaseBis[i]===1);
+    var blockedNote=blocked?(i===r.bi?' <span style="font-size:10px;color:var(--red2);">(already the runner)</span>':' <span style="font-size:10px;color:var(--red2);">(already on base)</span>'):'';
+    return '<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:sans-serif;font-size:13px;'+(blocked?'opacity:.4;':'cursor:pointer;')+'" '+(blocked?'':'onclick="confirmPinchRun('+i+')"')+'><strong style="color:var(--gold);">'+(p.jersey?'#'+esc(p.jersey)+' ':'')+'</strong>'+esc(p.name||'?')+blockedNote+'</div>';
+  }).filter(Boolean).join('');
+  $('prun-list').innerHTML=rows||'<div style="padding:14px;text-align:center;font-size:12px;color:var(--text3);font-family:sans-serif;">No players available</div>';
+  om('m-prun');
+}
+function confirmPinchRun(idx){
+  var b=_prunBase;if(!b)return;
+  var r=G.bases[b-1];if(!r){cm('m-prun');return;}
+  var lu=clu();var p=lu[idx];if(!p){toast('Player not found');return;}
+  // Build new runner record, preserving team
+  var fromName=r.name,fromBi=r.bi;
+  G.bases[b-1]={name:p.name||('#'+p.jersey),jerseyNum:p.jersey||'',bi:idx,team:r.team};
+  // Log the pinch-run event for the play log
+  if(!G.pinchRuns)G.pinchRuns=[];
+  G.pinchRuns.push({
+    inn:G.inn,half:G.half,base:b,
+    fromName:fromName,fromBi:fromBi,
+    toName:p.name||'#'+p.jersey,toBi:idx,
+    during_ab_num:G.abc+1,
+  });
+  cm('m-prun');sv();renderSC();
+  toast(sn(p.name||'#'+p.jersey)+' pinch ran for '+sn(fromName||'?'));
+}
 
 // STEALS
 function logSteal(){
@@ -3242,9 +3286,14 @@ function mkHalf(abs,label,inn,half){
     +'<span class="badge '+bc+'" style="font-size:11px;text-align:center;">'+esc(notation)+'</span>'
     +editBtns
     +'</div>');
-    // Sub-lines for this AB (steals + CS + scored)
+    // Sub-lines for this AB (pinch-run + steals + CS + scored)
     var subPieces=[];
     var abNum=ab.num;
+    // Pinch-run events during this AB (purple, no emoji per scorebook style)
+    var prDuring=(G.pinchRuns||[]).filter(function(pr){return pr.during_ab_num===abNum;});
+    prDuring.forEach(function(pr){
+      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:#b88aff;font-family:sans-serif;">↳ '+esc(_shortName(pr.toName))+' pinch ran for '+esc(_shortName(pr.fromName))+'</div>');
+    });
     // Steals during this AB (before the AB ended)
     var sbDuring=(G.steals||[]).filter(function(s){return s.during_ab_num===abNum;});
     sbDuring.forEach(function(s){
