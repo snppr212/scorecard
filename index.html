@@ -1156,17 +1156,25 @@ function openPitchHistoryModal(){var td=new Date();$('ph-body').innerHTML=A.rost
 // GAME START
 var _pendingEv=null;
 async function startG(eid){var ev=A.schedule.find(e=>e.id===eid);if(!ev||ev.type==='practice'){toast('Practice');return;}
-// First check local state for an in-progress game
+// Check local state for an in-progress game
 var has=G.eid===eid&&G.abs&&G.abs.length>0;
-// If no local state, check Firebase for preloaded or saved data
-if(!has&&fbReady){
+// Check remote unconditionally: if remote has more ABs than local, prefer it
+// (handles stale-local cases where the phone has been offline or another
+// device / server-side patch has pushed newer state).
+if(fbReady){
   try{
     var snap=await db.collection('games').doc(eid).get();
     if(snap.exists&&snap.data()&&snap.data().gdata){
       var remote=snap.data().gdata;
       var hasMeaningful=(remote.hlu&&remote.hlu.length>0)||(remote.alu&&remote.alu.length>0)||(remote.fa&&Object.keys(remote.fa).length>0)||(remote.hp&&remote.hp.length>0)||(remote.ap&&remote.ap.length>0)||(remote.abs&&remote.abs.length>0);
-      if(hasMeaningful){
-        // Pull remote into G so the resume modal previews it correctly
+      var remoteAbs=(remote.abs||[]).length;
+      var localAbs=has?(G.abs||[]).length:0;
+      // Pull remote when:
+      //   - local has nothing for this game, OR
+      //   - remote has STRICTLY MORE ABs than local (remote is newer)
+      // Equal AB counts → use local (covers the normal sync case where we
+      // just pushed our latest state).
+      if(hasMeaningful&&(!has||remoteAbs>localAbs)){
         Object.assign(G,remote);
         has=true;
       }
