@@ -1791,10 +1791,12 @@ function openOppBatterPicker(r){
     rows.push({name:name,jersey:idx>=0?(lu[idx].jersey||''):'',aluIdx:idx,fromRoster:true});
   });
   // In LOCKED mode include all live-added entries.
-  // In OPEN mode, only include skipped live-added entries so they can be re-inserted.
+  // In OPEN mode, only include skipped live-added entries so they can be re-inserted —
+  // EXCEPT placeholder slots (e.g. "(5-hole)") which we always include so the user can
+  // rename them in place when the actual player's name is recalled.
   lu.forEach(function(p,i){
     if(!p.name||hardcoded.indexOf(p.name)>=0)return;// already covered above
-    if(!G.oppLuDone&&!p.skipped)return;// hide non-skipped already-added in open mode
+    if(!G.oppLuDone&&!p.skipped&&!isPlaceholder(p.name))return;// hide non-skipped, non-placeholder already-added in open mode
     rows.push({name:p.name,jersey:p.jersey||'',aluIdx:i,fromRoster:false});
   });
   // Render rows
@@ -1821,8 +1823,13 @@ function openOppBatterPicker(r){
     }
     // Disable → for battedOOO players (already had their AB this cycle)
     var arrowAttr=isBatted?'disabled style="padding:4px 10px;font-weight:bold;min-width:36px;opacity:.4;cursor:not-allowed;"':'style="padding:4px 10px;font-weight:bold;min-width:36px;" onclick="oppbatSelectFromRoster('+rowIdx+')"';
+    // Placeholder names (e.g. "(5-hole)") are tappable to rename in-place
+    var isPh=isPlaceholder(row.name)&&inLineup;
+    var nameSpan=isPh
+      ? '<span style="flex:1;font-size:13px;font-style:italic;color:#ff8888;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;" onclick="event.stopPropagation();oppbatRenameSlot('+rowIdx+')" title="Tap to rename">'+esc(row.name)+' ✎</span>'
+      : '<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+'">'+esc(row.name)+'</span>';
     return '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);'+rowBg+rowDim+'">'
-      +'<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+(isPlaceholder(row.name)?'color:#ff8888;':'')+'">'+esc(row.name)+'</span>'
+      +nameSpan
       +badge
       +'<input id="'+jerseyId+'" type="text" placeholder="#" value="'+esc(row.jersey)+'" inputmode="numeric" style="width:46px;font-size:14px;text-align:center;font-weight:bold;" onchange="oppbatSetJersey('+rowIdx+',this.value)">'
       +skipBtn
@@ -1853,6 +1860,23 @@ function oppbatSetJersey(rowIdx,val){
   var row=_oppbatRows[rowIdx];if(!row)return;
   row.jersey=(val||'').trim();
   if(row.aluIdx>=0){var lu=tlu();if(lu[row.aluIdx]){lu[row.aluIdx].jersey=row.jersey;sv();}}
+}
+// Rename a placeholder slot in place (e.g. "(5-hole)" → "Yasine Berriche").
+// Triggered by tapping a placeholder name in the picker. The row's existing ABs
+// stay attributed to the slot — only the display name + jersey change.
+function oppbatRenameSlot(rowIdx){
+  var row=_oppbatRows[rowIdx];if(!row||row.aluIdx<0)return;
+  var lu=tlu();var p=lu[row.aluIdx];if(!p)return;
+  promptModal('Rename '+row.name,'Player name (jersey is editable on the row)','',function(name){
+    if(!name)return;
+    p.name=name.trim();
+    sv();
+    toast('Renamed to '+p.name);
+    // Re-render picker in place so the row updates without losing pending state
+    var pending=_pendOppR;
+    cm('m-oppbat');
+    setTimeout(function(){openOppBatterPicker(pending);},120);
+  });
 }
 // Tap the ADD/→ button on a roster row
 function oppbatSelectFromRoster(rowIdx){
@@ -2193,12 +2217,19 @@ if(c>=75&&lastN<75){p._lastNotif=75;
 // Use >= for thresholds so jumps over a boundary still trigger the warning
 // (e.g. 19 → 22 pitches via a 3-pitch K still fires the 21-pitch warning).
 // The dedup flag (p._lastNotif) prevents the same threshold from re-firing.
+// Heads-up toasts (5 pitches before each rest threshold) for OUR pitcher only —
+// they help the manager plan a substitution. Opponent toasts would just be noise.
+else if(c>=70&&lastN<70){p._lastNotif=70;if(weField)toast('⚠️ '+nm+' — 5 pitches to daily limit (75)',3500);}
 else if(c>=66&&lastN<66){p._lastNotif=66;showPWarn(nm,'⚠️ Rest Required — 66+ pitches','Requires 4 calendar days rest after this game.','Limit: 75 pitches today.');}
 else if(c>=65&&lastN<65){p._lastNotif=65;showPWarn(nm,'⚠️ 65 Pitches — 10 Left','10 pitches remaining today before limit.','Rest: 3 days required.');}
+else if(c>=61&&lastN<61){p._lastNotif=61;if(weField)toast('⚠️ '+nm+' — 5 pitches to 4-day rest (66)',3500);}
 else if(c>=51&&lastN<51){p._lastNotif=51;showPWarn(nm,'⚠️ Rest Required — 51+ pitches','Requires 3 calendar days rest.','');}
+else if(c>=46&&lastN<46){p._lastNotif=46;if(weField)toast('⚠️ '+nm+' — 5 pitches to 3-day rest (51)',3500);}
 else if(c>=40&&lastN<40){p._lastNotif=40;showPWarn(nm,'⚠️ 40-Pitch Rule','Ineligible to pitch in the next game.','2 days rest required. Can continue today up to 75 pitches.');}
 else if(c>=36&&lastN<36){p._lastNotif=36;showPWarn(nm,'⚠️ Rest Required — 36+ pitches','Requires 2 calendar days rest.','Plan your substitution.');}
-else if(c>=21&&lastN<21){p._lastNotif=21;showPWarn(nm,'⚠️ Rest Required — 21+ pitches','Requires 1 calendar day rest.','Can continue pitching today until the inning ends.');}}
+else if(c>=31&&lastN<31){p._lastNotif=31;if(weField)toast('⚠️ '+nm+' — 5 pitches to 2-day rest (36)',3500);}
+else if(c>=21&&lastN<21){p._lastNotif=21;showPWarn(nm,'⚠️ Rest Required — 21+ pitches','Requires 1 calendar day rest.','Can continue pitching today until the inning ends.');}
+else if(c>=16&&lastN<16){p._lastNotif=16;if(weField)toast('⚠️ '+nm+' — 5 pitches to 1-day rest (21)',3500);}}
 // 3.1: check pitch limit when WE start fielding a new half-inning
 function chkPitcherLimit(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
