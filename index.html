@@ -275,7 +275,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <body>
 <!-- HOME -->
 <div class="screen active" id="screen-home">
-<div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026</div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
+<div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
 <div class="scroll pad">
 <div class="season-banner"><div class="banner-team">Mighty Mussels</div><div class="banner-sub" id="home-record">LMLL · Spring 2026</div></div>
 <div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button></div>
@@ -1491,7 +1491,10 @@ function confirmOpp(){
 function enterSC(){ss('screen-sc');document.querySelectorAll('#screen-sc .tab').forEach(t=>t.classList.remove('active'));document.querySelector('#screen-sc .tab').classList.add('active');
 ['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');$('tab-atbat').style.display='block';
 if(G.cbi<0&&clu().length>0){var _ini=isHB()?G.hbi:G.abi;G.cbi=_ini>=0?_ini:0;}
-chkPitcherRest();// warn about any player who can't pitch today
+// Skip the rest-day warning popup for finalized games — it's irrelevant
+// (no decisions to make) and the math goes degenerate when the game date
+// equals a recent pitching date (e.g. Brody pitched 5/1, viewing 5/1 game).
+if(!_viewOnlyMode)chkPitcherRest();// warn about any player who can't pitch today
 renderSC();
 // Auto-open opponent batter picker if opponent bats first and lineup isn't set
 if(theyBat()&&!G.oppLuDone&&(G.cbi<0||clu().length===0)){setTimeout(function(){openOppBatterPicker();},500);}}
@@ -2188,16 +2191,27 @@ function recalcPitcherStats(){
   G.abs.forEach(function(ab){
     var p=abPitcher(ab);if(!p)return;
     if(ab.autoOut)return;// auto-outs don't count against any pitcher
-    // Tally pitch types
-    (ab.pitches||[]).forEach(function(c){
-      p.total++;
-      if(c==='S'){p.sw++;p.stk++;}
-      else if(c==='L'){p.lk++;p.stk++;}
-      else if(c==='F'||c==='FT'){p.fo++;p.stk++;}// simplified for retroactive
-      else if(c==='B')p.ba++;
-      else if(c==='X')p.bip++;
-      else if(c==='H')p.hbp++;
-    });
+    // ab.pc is the authoritative total pitch count (corrected post-game when needed);
+    // pitches[] is the per-pitch sequence used for type breakdowns when available.
+    var pSeq=ab.pitches||[];
+    var pcTotal=(ab.pc>0)?ab.pc:pSeq.length;
+    p.total+=pcTotal;
+    if(pSeq.length){
+      pSeq.forEach(function(c){
+        if(c==='S'){p.sw++;p.stk++;}
+        else if(c==='L'){p.lk++;p.stk++;}
+        else if(c==='F'||c==='FT'){p.fo++;p.stk++;}// simplified for retroactive
+        else if(c==='B')p.ba++;
+        else if(c==='X')p.bip++;
+        else if(c==='H')p.hbp++;
+      });
+    }else if(pcTotal>0){
+      // No sequence — coarse breakdown from result.
+      if(ab.result==='K'||ab.result==='KL'){p.stk+=Math.min(3,pcTotal);}
+      else if(ab.result==='BB'){p.ba+=Math.min(4,pcTotal);}
+      else if(ab.result==='HBP'){p.hbp+=1;}
+      else{p.bip+=1;}
+    }
     // Outcome stats
     var r=ab.result;
     var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
@@ -3357,12 +3371,16 @@ function mkHalf(abs,label,inn,half){
   var pieces=[];
   abs.forEach(function(ab,i){
     // Inject a pitcher-change line when the pitcher differs from the previous AB.
-    // Append the pitcher's pitch count for this inning in (parens) — sum of pc on
-    // ABs faced by this pitcher within (inn, half).
-    var thisPitcher = ab.pitcher || ((G.fa[ab.inn]||{}).P) || null;
+    // The fa[inn].P fallback ONLY applies when WE were fielding the AB (i.e. opp
+    // was batting). When we batted (ab.team === usT()), fa.P is our planned pitcher
+    // and doesn't represent who pitched against us.
+    var _ourTeam=usT();
+    var weFielded=ab.team!==_ourTeam;
+    var thisPitcher = ab.pitcher || (weFielded?((G.fa[ab.inn]||{}).P):null) || null;
     if(thisPitcher && thisPitcher!==lastPitcher){
       var inningPC=(abs||[]).filter(function(a){
-        var ap=a.pitcher||((G.fa[a.inn]||{}).P)||null;
+        var aFielded=a.team!==_ourTeam;
+        var ap=a.pitcher||(aFielded?((G.fa[a.inn]||{}).P):null)||null;
         return ap===thisPitcher&&a.inn===ab.inn&&a.half===ab.half;
       }).reduce(function(sum,a){return sum+(a.pc||0);},0);
       pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 22px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+(inningPC>0?' <span style="color:var(--text3);">('+inningPC+')</span>':'')+'</div>');
@@ -3375,7 +3393,16 @@ function mkHalf(abs,label,inn,half){
     var notation=abNotation(ab);
     var isRun=(ab.pscored&&ab.pscored.length>0)||ab.result==='HR'||ab.result==='LLHR';
     var runStyle=isRun?'color:var(--amber2);':'';
-    var pitchCell=pcount?seq+' <span style="color:var(--text3);">('+pcount+')</span>':'<span style="color:var(--text3);">—</span>';
+    // If pitch sequence is preserved, show seq + count. If only pc is set
+    // (e.g. ABs added via server-side patch), show just (Np).
+    var pitchCell;
+    if(pcount){
+      pitchCell=seq+' <span style="color:var(--text3);">('+pcount+')</span>';
+    }else if(ab.pc>0){
+      pitchCell='<span style="color:var(--text3);">('+ab.pc+'p)</span>';
+    }else{
+      pitchCell='<span style="color:var(--text3);">—</span>';
+    }
     // 4-COLUMN GRID + edit/swap icons: # | batter | pitches | result | ✎ ⇄
     var globalIdx=G.abs.indexOf(ab);
     var editBtns='<span style="display:inline-flex;gap:3px;align-items:center;">'
@@ -3633,8 +3660,11 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
+var APP_VERSION='v76';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
+// Show version on home so the user can confirm refresh worked
+(function(){var el=document.getElementById('app-version');if(el)el.textContent='· '+APP_VERSION;})();
 </script>
 <!-- Firebase SDK - must load before app -->
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
