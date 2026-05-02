@@ -3515,7 +3515,31 @@ async function fbSaveGame(){
 async function fbSaveRoster(){
   if(!fbReady)return;
   try{
-    await db.collection('appdata').doc('roster').set({adata:A,updated:new Date()},{merge:true});
+    var writeA=A;
+    // Guard: if remote has any game-results marked final, preserve them.
+    // (Prevents a phone with stale local state from un-finalizing a game
+    // that's already been marked complete — same class of issue as the
+    // gdata stale-overwrite guard in fbSaveGame.)
+    var snap=await db.collection('appdata').doc('roster').get();
+    if(snap.exists&&snap.data()&&snap.data().adata){
+      var remoteA=snap.data().adata;
+      if(remoteA.gameResults){
+        var mergedGR=Object.assign({},A.gameResults||{});
+        Object.keys(remoteA.gameResults).forEach(function(eid){
+          var r=remoteA.gameResults[eid];
+          var l=mergedGR[eid];
+          if(r&&r.final&&(!l||!l.final)){
+            // Remote says final, local doesn't — adopt remote so we don't undo it
+            mergedGR[eid]=Object.assign({},l||{},r);
+            // Also patch local A in-memory so subsequent renders match
+            if(!A.gameResults)A.gameResults={};
+            A.gameResults[eid]=mergedGR[eid];
+          }
+        });
+        writeA=Object.assign({},A,{gameResults:mergedGR});
+      }
+    }
+    await db.collection('appdata').doc('roster').set({adata:writeA,updated:new Date()},{merge:true});
   }catch(e){console.log('fbSaveRoster error:',e);}
 }
 
