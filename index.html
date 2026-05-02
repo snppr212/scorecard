@@ -663,7 +663,7 @@ function theirName(){return isOH()?G.at:G.ht;}
 function restD(p){if(p<=20)return 0;if(p<=35)return 1;if(p<=50)return 2;if(p<=65)return 3;return 4;}
 function daysBtwn(d1,d2){var a=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()),b=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate());return Math.round((b-a)/864e5);}
 function pSeason(name){return(A.pitchLog[name]||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));}
-function pStatus(name,gd){var log=pSeason(name);if(!log.length)return{ok:true,rest:0,last:0,tot:0,over40:false};var l=log[log.length-1],ld=new Date(l.date),ds=daysBtwn(ld,gd||new Date()),req=restD(l.pitches),rl=Math.max(0,req-ds);return{ok:rl===0,rest:rl,last:l.pitches,tot:log.reduce((s,e)=>s+e.pitches,0),over40:l.pitches>=40};}
+function pStatus(name,gd){var log=pSeason(name);if(!log.length)return{ok:true,rest:0,last:0,tot:0,over40:false};var l=log[log.length-1],ld=new Date(l.date),ds=Math.max(0,daysBtwn(ld,gd||new Date())),req=restD(l.pitches),rl=Math.max(0,req-ds);return{ok:rl===0,rest:rl,last:l.pitches,tot:log.reduce((s,e)=>s+e.pitches,0),over40:l.pitches>=40};}
 // Compute the actual calendar date when a pitcher is next eligible to pitch.
 // Uses last outing date + restD(pitches) per the existing rest-days rule.
 // Returns null if the pitcher has never pitched (always eligible).
@@ -1119,8 +1119,12 @@ function startTestGame(){
   var today=new Date();var dstr=today.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   if(!existing){
     A.schedule.push({id:'test-sandbox',type:'game',ha:'home',opponent:'TEST OPPONENT',title:'vs TEST OPPONENT',date:dstr,time:'12:00 pm',loc:'Sandbox'});
-    sa();
+  }else if(existing.date!==dstr){
+    // Always refresh the sandbox date to today — otherwise pitch-rest calculations
+    // can go negative when real games happen AFTER the cached sandbox date.
+    existing.date=dstr;
   }
+  sa();
   startG('test-sandbox');
 }
 function clearTestData(){
