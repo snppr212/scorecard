@@ -2346,14 +2346,20 @@ if(theyBat()){openOppBatterPicker(r);return;}
 toast('Select batter');return;}
 ensurePitcher();
 if(G.plb){om('m-plimit');return;}
-// Auto-add a pitch if none logged and it's a ball-in-play result
+var _bipResults=['1B','2B','3B','HR','LLHR','FO','GO','LO','SAC','FC','DP','GIDP','TP'];
+var _isBIP=_bipResults.indexOf(r)>=0;
+// Auto-fill a basic pitch sequence when none was logged (manager hit the result button without
+// tapping individual pitches first).
 if(G.cpitch.length===0){
   if(['K','KL'].includes(r)){G.cpitch.push('S');G.cpitch.push('S');G.cpitch.push(r==='K'?'S':'L');pAdd('S');pAdd('S');pAdd(r==='K'?'S':'L');}
   else if(r==='BB'){G.cpitch.push('B');G.cpitch.push('B');G.cpitch.push('B');G.cpitch.push('B');pAdd('B');pAdd('B');pAdd('B');pAdd('B');}
   else if(r==='HBP'){G.cpitch.push('H');pAdd('H');}
-  else{G.cpitch.push('X');pAdd('X');}// any BIP result
-  chkPW();// always check thresholds after auto-pitches
+  // For BIP, the X gets appended below (regardless of whether other pitches were already logged).
+  chkPW();
 }
+// BIP always ends with an "X" pitch — the in-play pitch the manager just clicked the result
+// button for. Append now whether or not other pitches were logged.
+if(_isBIP){G.cpitch.push('X');pAdd('X');chkPW();}
 G.pres=r;G.prbi=0;G.dpout=null;G.fcout=null;
 // BB with bases loaded = auto 1 RBI
 if((r==='BB'||r==='HBP')&&G.bases[0]&&G.bases[1]&&G.bases[2]){
@@ -3660,7 +3666,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v76';
+var APP_VERSION='v77';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
