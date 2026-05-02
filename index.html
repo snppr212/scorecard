@@ -77,7 +77,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:14px;width:100%;max-width:390px;max-height:88dvh;overflow-y:auto;}
 .modal h3{font-size:14px;color:var(--gold);margin-bottom:12px;}
 .mrow{margin-bottom:10px;}
-.mact{display:flex;gap:7px;margin-top:12px;}
+.mact{display:flex;flex-direction:column;gap:7px;margin-top:12px;}
 .toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:8px 16px;font-family:sans-serif;font-size:13px;color:var(--text);z-index:999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center;}
 .toast.show{opacity:1;}
 /* HOME */
@@ -160,6 +160,15 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .bat-mini{font-size:10px;color:var(--text3);font-family:sans-serif;}
 .bat-item.skipped{opacity:.4;border:1px dashed var(--amber2)!important;}
 .bat-item.batted-ooo{opacity:.55;border:1px dashed var(--text3)!important;}
+/* VIEW-ONLY mode for finalized games — hide all input UI on the at-bat tab,
+   show a banner, and let the user navigate to Plays / Stats / Box Score. */
+.view-only-banner{display:none;background:rgba(200,169,110,.10);border:1px solid var(--gold);padding:10px 12px;text-align:center;font-family:sans-serif;font-size:13px;color:var(--gold);margin:8px;border-radius:var(--rs);}
+#tab-atbat.view-only .view-only-banner{display:block;}
+#tab-atbat.view-only .matchup-bar,
+#tab-atbat.view-only #seq-panel,
+#tab-atbat.view-only #pitch-panel,
+#tab-atbat.view-only #result-panel{display:none;}
+#tab-atbat.view-only .bat-item{cursor:default!important;}
 /* RETRO SCORECARD — press-box style with hand-written typography */
 #rsc-content{background:#f5f1e6;color:#1a1a1a;padding:14px;font-family:'Patrick Hand',Georgia,serif;}
 #rsc-content .sc-hdr{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;border-bottom:1.5px solid #555;padding-bottom:8px;margin-bottom:10px;}
@@ -240,6 +249,18 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .rule-highlight{background:rgba(200,169,110,.12);border-left:3px solid var(--gold);padding:7px 9px;border-radius:0 var(--rs) var(--rs) 0;margin:6px 0;}
 .rule-item{margin-bottom:7px;}
 .rule-label{font-size:11px;font-weight:bold;font-family:sans-serif;margin-bottom:2px;}
+/* Rules-tab accordion + search */
+.rules-search-wrap{margin:10px 0 12px;}
+.rules-search-wrap input{width:100%;padding:9px 12px;font-size:13px;font-family:sans-serif;background:var(--bg2);border:1px solid var(--border2);color:var(--text);border-radius:var(--rs);}
+.rule-section-acc{margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg2);}
+.rule-section-acc>summary{padding:10px 12px;cursor:pointer;list-style:none;font-size:13px;color:var(--gold);font-family:sans-serif;font-weight:bold;display:flex;align-items:center;}
+.rule-section-acc>summary::-webkit-details-marker{display:none;}
+.rule-section-acc>summary::before{content:'▶';display:inline-block;margin-right:8px;font-size:9px;transition:transform .15s;color:var(--gold);}
+.rule-section-acc[open]>summary::before{transform:rotate(90deg);}
+.rule-section-acc .rule-item{padding:8px 14px 10px;margin:0;}
+.rule-section-acc .rule-item:not(:last-child){border-bottom:1px dashed var(--border);}
+.rule-section-acc .rule-label{color:var(--text);font-size:12px;}
+.rule-section-acc .rule-body{font-size:12px;color:var(--text2);line-height:1.55;font-family:sans-serif;white-space:pre-line;}
 .rule-body{font-size:12px;font-family:sans-serif;color:var(--text2);line-height:1.5;}
 .rule-highlight .rule-body{color:var(--text);}
 .pitcher-limit-bar{height:6px;background:var(--bg3);border-radius:3px;margin:8px 0;overflow:hidden;}
@@ -337,11 +358,12 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="scroll pad" id="sc-content">
 <!-- AT BAT -->
 <div id="tab-atbat">
+<div class="view-only-banner" id="view-only-banner">🏁 Game complete · view only<br><span style="font-size:11px;color:var(--text3);">Use the Plays tab to edit at-bats.</span></div>
 <div class="matchup-bar"><div class="mu-side"><div class="mu-label">Pitcher</div><div class="mu-name" id="mu-p">—</div><div class="mu-detail" id="mu-pd"></div></div><div class="mu-vs">vs</div><div class="mu-side"><div class="mu-label">Batter</div><div class="mu-name" id="mu-b">—</div><div class="mu-detail" id="mu-bd"></div></div></div>
 <div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);padding:8px 0;"><div style="max-width:380px;margin:0 auto;" id="field-svg"></div></div>
 <div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><div style="display:flex;gap:5px;"><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Pitch</button><button class="btn btn-xs btn-red" onclick="undoAB()" id="undo-ab-btn" style="display:none;">↩ AB</button></div></div></div>
-<div class="panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div></div>
-<div class="panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
+<div class="panel" id="pitch-panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div></div>
+<div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
 <div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
@@ -360,10 +382,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div style="margin-top:10px;"><button class="btn btn-full btn-red" onclick="endGame()" style="font-size:14px;padding:12px;">🏁 End Game</button></div></div>
 <!-- RULES -->
 <div id="tab-rules" style="display:none;"><div class="panel">
-<div class="rule-section"><div class="rule-section-title">⚾ Pitching</div><div class="rule-highlight"><div class="rule-label">Max pitches</div><div class="rule-body">75 per day. Pitcher reaching limit mid-count may finish that batter.</div></div><div class="rule-highlight"><div class="rule-label">40-pitch rule</div><div class="rule-body">40+ pitches = ineligible to pitch NEXT game.</div></div><div class="rule-item"><div class="rule-label">Rest days</div><div class="rule-body" style="line-height:1.6;">1–20 pitches: <strong>0 days</strong><br>21–35: <strong>1 day</strong><br>36–50: <strong>2 days</strong><br>51–65: <strong>3 days</strong><br>66+: <strong>4 days</strong></div></div><div class="rule-item"><div class="rule-label">Catcher-Pitcher</div><div class="rule-body">4+ innings catching = can't pitch. 41+ pitches = can't catch.</div></div><div class="rule-item"><div class="rule-label">3 HBP</div><div class="rule-body">Must be removed after hitting 3 batters.</div></div></div>
-<div class="rule-section"><div class="rule-section-title">🏃 Base Running</div><div class="rule-highlight"><div class="rule-label">Steals</div><div class="rule-body">1 per half-inning. No stealing home. Double steals count as 1.</div></div><div class="rule-item"><div class="rule-label">Overthrow</div><div class="rule-body">Only 1 base on an overthrow.</div></div><div class="rule-item"><div class="rule-label">No dropped 3rd strike</div><div class="rule-body">Batter is out automatically.</div></div><div class="rule-item"><div class="rule-label">Head-first slides</div><div class="rule-body">Advancing = out. Return to base = OK.</div></div></div>
-<div class="rule-section"><div class="rule-section-title">📊 Game Rules</div><div class="rule-highlight"><div class="rule-label">6-run rule</div><div class="rule-body">Max 6 runs per half-inning. No limit in 6th/last inning.</div></div><div class="rule-highlight"><div class="rule-label">Mercy</div><div class="rule-body">10-run lead after 4 innings (3½ for home).</div></div><div class="rule-item"><div class="rule-label">Time</div><div class="rule-body">No new inning after 1:45 if another team waiting.</div></div><div class="rule-item"><div class="rule-label">Forfeit</div><div class="rule-body">Can't field 8 = 5-0 forfeit.</div></div></div>
-<div class="rule-section"><div class="rule-section-title">👦 Playing Time</div><div class="rule-highlight"><div class="rule-label">Minimum fielding</div><div class="rule-body">6-inn game: 3 innings. 4-inn: 2 innings.</div></div><div class="rule-item"><div class="rule-label">CBO</div><div class="rule-body">Everyone bats. Order is fixed. Player removed mid-game = automatic out each time spot comes up (LL 4.04(h)).</div></div><div class="rule-item"><div class="rule-label">10 fielders</div><div class="rule-body">Extra outfielder if 10+ players.</div></div><div class="rule-item"><div class="rule-label">No bunting</div><div class="rule-body">Bunting not permitted.</div></div></div>
+<div class="rule-section"><div class="rule-section-title">⚾ Pitching Rest — Quick Reference</div><div class="rule-item"><div class="rule-label">Calendar days of rest required</div><div class="rule-body" style="line-height:1.6;">1–20 pitches: <strong>0 days</strong><br>21–35: <strong>1 day</strong><br>36–50: <strong>2 days</strong><br>51–65: <strong>3 days</strong><br>66+: <strong>4 days</strong></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:6px;line-height:1.5;">Rest is observed on the calendar days AFTER pitching. 75p Mon → rest Tue/Wed/Thu/Fri → eligible Sat.</div></div>
+<div class="sep"></div>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Lower Merion Little League · 2026 AA Rules and Regulations (as of 1/7/26)</div>
+<div class="rules-search-wrap"><input type="search" id="rule-search" placeholder="Search rules..." oninput="filterRules(this.value)"></div>
+<div id="rules-book"></div>
 <div class="sep" style="margin:14px 0;"></div>
 <div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-bottom:6px;">Game called for time / darkness / weather / mercy?</div>
 <button class="btn btn-red btn-full" onclick="openCallGame()" style="font-size:13px;">🏁 Call game (end early)</button>
@@ -663,7 +686,12 @@ function theirName(){return isOH()?G.at:G.ht;}
 function restD(p){if(p<=20)return 0;if(p<=35)return 1;if(p<=50)return 2;if(p<=65)return 3;return 4;}
 function daysBtwn(d1,d2){var a=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()),b=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate());return Math.round((b-a)/864e5);}
 function pSeason(name){return(A.pitchLog[name]||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));}
-function pStatus(name,gd){var log=pSeason(name);if(!log.length)return{ok:true,rest:0,last:0,tot:0,over40:false};var l=log[log.length-1],ld=new Date(l.date),ds=Math.max(0,daysBtwn(ld,gd||new Date())),req=restD(l.pitches),rl=Math.max(0,req-ds);return{ok:rl===0,rest:rl,last:l.pitches,tot:log.reduce((s,e)=>s+e.pitches,0),over40:l.pitches>=40};}
+// Per LMLL Rule C.4 / LL official: rest is observed on the calendar days
+// AFTER the pitching day. So a pitcher throwing 75 on Mon needs to rest
+// Tue/Wed/Thu/Fri (4 days) and is eligible Sat. In code: ds (days between
+// pitch and target) must be > req for eligibility; the current rest-day
+// number = ds when ineligible, 1..req.
+function pStatus(name,gd){var log=pSeason(name);if(!log.length)return{ok:true,rest:0,restDayNum:0,restDaysReq:0,last:0,tot:0,over40:false};var l=log[log.length-1],ld=new Date(l.date),ds=Math.max(0,daysBtwn(ld,gd||new Date())),req=restD(l.pitches),ok=ds>req,restDayNum=ok?0:ds,rest=ok?0:(req-ds+1);return{ok:ok,rest:rest,restDayNum:restDayNum,restDaysReq:req,last:l.pitches,tot:log.reduce((s,e)=>s+e.pitches,0),over40:l.pitches>=40};}
 // Compute the actual calendar date when a pitcher is next eligible to pitch.
 // Uses last outing date + restD(pitches) per the existing rest-days rule.
 // Returns null if the pitcher has never pitched (always eligible).
@@ -691,7 +719,15 @@ function recP(name,pitches,date,eid){if(!A.pitchLog[name])A.pitchLog[name]=[];va
 function syncP(){if(!G.eid)return;var ev=A.schedule.find(e=>e.id===G.eid);var d=ev?ev.date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});(isOH()?G.hp:G.ap).forEach(p=>{if(!p.total)return;var rp=A.roster.find(r=>r.name===p.rn||r.name===p.name);if(rp)recP(rp.name,p.total,d,G.eid);});}
 
 // HOME
-function goHome(){syncP();if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};sa();ss('screen-home');renderHome();}
+function goHome(){syncP();
+// Don't overwrite a finalized game's gameResults entry on the way home —
+// that would clobber the {final:true} flag. Merge score only if active.
+if(G.eid&&!_viewOnlyMode){
+  if(!A.gameResults[G.eid])A.gameResults[G.eid]={};
+  Object.assign(A.gameResults[G.eid],{hs:G.hs,as:G.as});
+}
+setViewOnly(false);// always clear view-only when leaving the game
+sa();ss('screen-home');renderHome();}
 function renderHome(){renderSched();renderRec();}
 function setFilter(f,el){A.filter=f;document.querySelectorAll('#screen-home .btn-xs').forEach(b=>{b.style.borderColor='';b.style.color='';});el.style.borderColor='var(--gold)';el.style.color='var(--gold)';renderSched();}
 function renderSched(){
@@ -1159,6 +1195,15 @@ function openPitchHistoryModal(){var td=new Date();$('ph-body').innerHTML=A.rost
 
 // GAME START
 var _pendingEv=null;
+// VIEW-ONLY mode for finalized games — set on entry, cleared on home/setup
+var _viewOnlyMode=false;
+function setViewOnly(on){
+  _viewOnlyMode=!!on;
+  var t=document.getElementById('tab-atbat');
+  if(t){if(on)t.classList.add('view-only');else t.classList.remove('view-only');}
+}
+// Guard helper — returns true (and toasts) when view-only mode blocks an action.
+function _voGuard(){if(_viewOnlyMode){toast('Game complete — view only. Use Plays tab to edit.',2500);return true;}return false;}
 async function startG(eid){var ev=A.schedule.find(e=>e.id===eid);if(!ev||ev.type==='practice'){toast('Practice');return;}
 // Check local state for an in-progress game
 var has=G.eid===eid&&G.abs&&G.abs.length>0;
@@ -1186,6 +1231,16 @@ if(fbReady){
   }catch(e){console.log('startG fb check error:',e);}
 }
 if(has){
+  // Finalized games open directly in VIEW-ONLY mode — no resume prompt,
+  // no input on the at-bat tab. User can still navigate to Plays / Stats
+  // / Box Score and edit/delete ABs from the Plays tab.
+  var gr=A.gameResults&&A.gameResults[eid];
+  if(gr&&gr.final===true){
+    setViewOnly(true);
+    G.eid=eid;sg();
+    enterSC();
+    return;
+  }
   _pendingEv=ev;
   var pitches=(G.abs||[]).reduce(function(n,ab){return n+(ab.pitches?ab.pitches.length:0);},0);
   var detailParts=[];
@@ -1201,6 +1256,7 @@ if(has){
   om('m-resume');
   return;
 }
+setViewOnly(false);
 resetG(ev);
 enterLineupFlow(ev);
 }
@@ -1504,7 +1560,7 @@ function renderABDetail(){
 function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();renderLS();}
 function stab(name,el){['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');document.querySelectorAll('#screen-sc .tab').forEach(t=>t.classList.remove('active'));$('tab-'+name).style.display='block';el.classList.add('active');
 renderSB();// always keep scorebar current
-if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='atbat'){renderSC();renderABDetail();renderSummary();if(G._needOppPicker){G._needOppPicker=false;setTimeout(function(){openOppBatterPicker();},300);}}}
+if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='rules')renderRulesBook();if(name==='atbat'){renderSC();renderABDetail();renderSummary();if(G._needOppPicker){G._needOppPicker=false;setTimeout(function(){openOppBatterPicker();},300);}}}
 
 function renderSB(){$('sb-away').textContent=G.at;$('sb-home').textContent=G.ht;$('sb-away-score').textContent=G.as;$('sb-home-score').textContent=G.hs;$('sb-inn').textContent=ord(G.inn);$('sb-half').textContent=G.half==='top'?'▲ Top':'▼ Bot';for(var b=1;b<=3;b++)$('sbb-'+b).className='sb-base b'+b+(G.bases[b-1]?' on':'');
 var DOT_S='width:7px;height:7px;border-radius:50%;border:1.5px solid ';
@@ -1765,6 +1821,7 @@ return '<div class="bat-item'+(act?' active':'')+(nx?' up-next':'')+(isSkip?' sk
 el.innerHTML=banner+changeTile+rows+addTile;}
 
 function selBat(i){
+if(_voGuard())return;
 if(G.cbi===i)return;
 var _slu=clu();
 if(_slu[i]){
@@ -2181,6 +2238,7 @@ _pl.push({name:_nm,rn:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs
 if(_ours)setOurPI(_pl.length-1);else setTheirPI(_pl.length-1);
 toast('Pitcher auto-set. Tap name above to change.',2500);renderMU();}
 function lp(c){
+if(_voGuard())return;
 // Opponent side: allow pitches to accumulate with no batter yet (picker opens on endAB)
 if(G.cbi<0&&!theyBat()){toast('Select batter');return;}
 var _weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
@@ -2257,7 +2315,7 @@ function chkFieldingWarnOnly(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
   var c=p[i].total||0;if(c>=40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — ineligible next game',4000);
 }
-function undoPitch(){if(!G.cpitch.length){toast('Nothing to undo');return;}var c=G.cpitch.pop();var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i>=0&&l[i]){var p=l[i];p.total=Math.max(0,(p.total||1)-1);
+function undoPitch(){if(_voGuard())return;if(!G.cpitch.length){toast('Nothing to undo');return;}var c=G.cpitch.pop();var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i>=0&&l[i]){var p=l[i];p.total=Math.max(0,(p.total||1)-1);
 if(c==='S'){p.sw=Math.max(0,(p.sw||1)-1);p.stk=Math.max(0,(p.stk||1)-1);}
 else if(c==='L'){p.lk=Math.max(0,(p.lk||1)-1);p.stk=Math.max(0,(p.stk||1)-1);}
 else if(c==='F'||c==='FT'){p.fo=Math.max(0,(p.fo||1)-1);
@@ -2269,7 +2327,7 @@ else if(c==='H')p.hbp=Math.max(0,(p.hbp||1)-1);}
 G.balls=0;G.strikes=0;G.cpitch.forEach(function(c){if(c==='S'||c==='L')G.strikes=Math.min(2,G.strikes+1);else if(c==='F'||c==='FT'){if(G.strikes<2)G.strikes++;}else if(c==='B')G.balls=Math.min(3,G.balls+1);});sv();renderSC();toast('Undid: '+c);}
 
 // END AB
-function endAB(r){if(G.cbi<0){
+function endAB(r){if(_voGuard())return;if(G.cbi<0){
 if(theyBat()){openOppBatterPicker(r);return;}
 toast('Select batter');return;}
 ensurePitcher();
@@ -2483,7 +2541,7 @@ function chkMercy(){
 // UNDO LAST AB
 var _lastGSnap=null;
 function saveSnap(){_lastGSnap=JSON.parse(JSON.stringify(G));}
-function undoAB(){if(!_lastGSnap){toast('Nothing to undo');return;}
+function undoAB(){if(_voGuard())return;if(!_lastGSnap){toast('Nothing to undo');return;}
   confirmModal('Undo last AB?','Restores bases, score, and batting order to before that AB.',function(){
     G=_lastGSnap;_lastGSnap=null;
     if($('undo-ab-btn'))$('undo-ab-btn').style.display='none';
@@ -2491,7 +2549,7 @@ function undoAB(){if(!_lastGSnap){toast('Nothing to undo');return;}
   },null,{yesLabel:'Undo',danger:true});}
 
 // MANUAL RUN MODAL
-function openManualRun(){$('manrun-us').textContent=ourName();$('manrun-them').textContent=theirName();om('m-manrun');}
+function openManualRun(){if(_voGuard())return;$('manrun-us').textContent=ourName();$('manrun-them').textContent=theirName();om('m-manrun');}
 function doManualRun(who){
   cm('m-manrun');
   var isUs=(who==='us');
@@ -2510,7 +2568,7 @@ function chkPitcherRest(){
   var ev=A.schedule.find(e=>e.id===G.eid);if(!ev)return;
   var gd=new Date(ev.date);if(isNaN(gd))return;
   var msgs=[];
-  A.roster.forEach(function(p){var s=pStatus(p.name,gd);if(s.rest>0)msgs.push('• '+sn(p.name)+': needs '+s.rest+' more day'+(s.rest>1?'s':'')+' rest (threw '+s.last+'p last game)');});
+  A.roster.forEach(function(p){var s=pStatus(p.name,gd);if(!s.ok)msgs.push('• '+sn(p.name)+': ineligible — rest day '+s.restDayNum+' of '+s.restDaysReq+' (threw '+s.last+'p last game)');});
   if(msgs.length)setTimeout(function(){$('m-info-title').textContent='Pitching Rest Restrictions';$('m-info-body').textContent=msgs.join('\n')+'\n\nThese players cannot pitch today.';om('m-info');},600);}
 
 function showNB(r){
@@ -2634,7 +2692,7 @@ function chkFW(inn){
 }
 
 // RUNNERS
-function runnerM(b){var r=G.bases[b-1];
+function runnerM(b){if(_voGuard())return;var r=G.bases[b-1];
 if(!r){
   promptModal('Add runner to '+['','1st','2nd','3rd'][b],'Player name','',function(nm){
     if(!nm)return;
@@ -2700,6 +2758,7 @@ function confirmPinchRun(idx){
 
 // STEALS
 function logSteal(){
+  if(_voGuard())return;
   // Build checkbox list of physically possible steals (no stealing home in LL)
   var html='';
   var has2 = G.bases[1] && !G.bases[2];// 2nd → 3rd is only possible if 3B is empty
@@ -2748,9 +2807,10 @@ function confirmSB(){
   var n = (go23?1:0)+(go12?1:0);
   toast(n>1?'Double steal logged':'SB logged');
 }
-function logCS(){if(!G.bases.some(b=>b!==null)){toast('No runners');return;}om('m-cs');}
+function logCS(){if(_voGuard())return;if(!G.bases.some(b=>b!==null)){toast('No runners');return;}om('m-cs');}
 // STANDALONE FIELDING ERROR — for errors during baserunning (not tied to an AB)
 function openStandaloneErr(){
+  if(_voGuard())return;
   // Only useful when WE'RE fielding (errors are by our defense)
   var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
   if(!weField){toast('Errors are logged for OUR fielders only — opponent is batting?');return;}
@@ -2803,7 +2863,7 @@ if(G.outs>=3){
   G._csBatterIdx=G.cbi;G._csTeam=isHB()?'home':'away';
   showIE();
 }else renderSC();toast('CS');}
-function addManualOut(){G.outs=Math.min(3,G.outs+1);sv();if(G.outs>=3)showIE();else renderSC();}
+function addManualOut(){if(_voGuard())return;G.outs=Math.min(3,G.outs+1);sv();if(G.outs>=3)showIE();else renderSC();}
 function manualRun(){var t=prompt('h=home a=away');if(!t)return;if(t==='h'){G.hs++;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+1;}else{G.as++;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+1;}sv();renderSC();}
 
 // FIELD TAB
@@ -3460,6 +3520,117 @@ function confirmEndGame(){
 // SETUP
 function openSetup(){$('s-h').value=G.ht;$('s-a').value=G.at;$('s-i').value=G.ti;$('s-ef').value=G.ef||'';om('m-setup');}
 function saveSetup(){G.ht=$('s-h').value||'Home';G.at=$('s-a').value||'Visitors';var ni=parseInt($('s-i').value)||6;if(ni!==G.ti){G.ti=ni;G.inns={h:Array(ni).fill(0),a:Array(ni).fill(0)};}G.ef=$('s-ef').value.trim();APOS=POS.slice();if(G.ef)APOS.push(G.ef);cm('m-setup');sv();renderSC();}
+
+// LMLL 2026 AA Rules and Regulations (verbatim from rule book; section A omitted).
+// Item bodies preserve any sub-list formatting using newlines + tabs/spaces.
+var LMLL_RULES=[
+  {letter:'B',title:'General Rules and Regulations',items:[
+    {n:'1',label:'Official "Little League" Rules',body:'a) All "Little League Official Regulations and Playing Rules" shall apply unless otherwise noted as below.\nb) Prior to draft day, these rules shall be distributed to all Managers and Head Coaches for review. Prior to the actual draft, ample opportunity for discussion, questions and clarification regarding these rules should be provided to those assembled.'},
+    {n:'2',label:'Postponement/Cancellations',body:"Prior to the games' start, LMLL is responsible for decisions regarding postponement or cancellations due to inclement weather or any unforeseen events. If time allows, this will be communicated via LMLL's website. Once play begins, the decision to stop play for any reason will be at the umpire's sole discretion."},
+    {n:'3',label:'Field Inspection',body:'Before the game starts, the field should be inspected for any hazards or dangerous situations.'},
+    {n:'4',label:'Line Up Exchange',body:"Approximately five minutes prior to the game's start, each team's Manager or Head Coach shall exchange line-ups. Approximately minutes prior to a game, each team's Manager or coach shall meet with the umpire to discuss ground rules and issues deemed necessary by any party."},
+    {n:'5',label:'Non Batting Offensive (or non fielded defensive) Players',body:'Players must sit on the bench when not batting or on deck or not assigned a field position, the only exceptions are a "player base coach", a pitcher warming up, the warm-up catcher, and a player protecting the warming up pitcher and catcher.'},
+    {n:'6',label:'Protecting Players',body:"Any player protecting a warm-up pitcher and catcher must wear a batting helmet and fielder's mitt."},
+    {n:'7',label:'Pre Game Warm Up',body:"The away team shall take fielding practice at least 20 minutes prior to game's scheduled and the home team will take the field 10 minutes prior to start for their fielding practice. Coaches may alter this if they are both in agreement."},
+    {n:'9',label:'Required Numbered of Players',body:"Team unable to field at least 8 players at the game's scheduled start forfeit with an 5-0 loss recorded. If a team fielding 8 players loses a player for any reason, then that team shall forfeit the game regardless of the score at the time. This will also result in an 5-0 loss."},
+    {n:'10',label:'"Official Games"',body:'For a game to be official 3 ½ innings must be completed if the home team is leading after 3 ½ innings or 4 innings must be completed if the visiting team is leading. If suspended prior to the above for any reason, then the Commissioner shall reschedule the game which will pick up from the stoppage point with all the same situations that were in place (with the exception of pitch count rules {see C.5}). A continued game shall proceed for 6 innings unless stopped for weather, darkness or the "mercy" rule. 2023 Little League Official Regulations and Playing Rules 4.10 (c) & (d) ("LL Rule").'},
+    {n:'11',label:'Mercy Rule',body:'If a team has a 10 or more run lead after 4 innings (3 ½ for a home team) then the game is officially over at that point. If a team cuts the lead to 9 or less runs then the game will continue. In games officially ended by the Mercy Rule, and if both coaches agree, the teams may continue to play as a scrimmage from that point forward. The home team must have an equal number of at bats as the visiting team. LL Rule 4.10(e).'},
+    {n:'12',label:'Six Run Rule',body:'The limit of runs scored by a team in any half inning is 6 runs. If a team has scored 5 runs and hit results in 2 runs scoring, only 6 runs are counted for that half inning. The exception to this rule is in the last inning. There is no run per inning rule in the 6th, extra innings or the last inning when declared by the umpire. LL Rule 2.0.'},
+    {n:'13',label:'Extra innings',body:"Each game should consist of 6 innings. If a game is tied after 6 innings and another LMLL team is waiting to use the field, the game ends in a tie and no extra innings may be played. If a game is tied after 6 innings and no other LMLL team(s) are waiting to use the field, extra innings may be started at the umpire's discretion. If extra innings are started, they may continue until the field is needed for another LMLL game or the game is called by the umpire for weather, darkness, or other reason. If a game is called in extra innings after the visiting team holds a lead but before the home team is able to bat to complete the inning, then the final score shall revert to what it was at the end of the last full inning. LL Rule 411(d)."},
+    {n:'14',label:'Starting New Innings',body:"If another LMLL team is waiting to use the field to play a game, a new inning may not begin after 1 hour and 45 minutes from the game's actual start time (not scheduled start time). For example, if another LMLL team is waiting to use the field to play a game, for a 1:30 start, a new inning may not start after 3:15; for a 5:45 start a new inning may not begin after 7:30. No inning may begin if, in the umpire's opinion, it is unsafe to continue for weather or darkness related reasons. During the playoffs, every effort should be made to complete 6 innings or conclude a game. If no other game is scheduled for the field in which the game is being played, no time limit is in effect (i.e., if field is available for continued play, a game may not end due to time)."},
+    {n:'15',label:'Bat-Around (Continuous Batting Order)',body:'Each team will use a Continuous Batting Order ("CBO") whereby every player present for a team has a batting order slot regardless of whether they are in the field or not. Each player shall play a minimum of 9 defensive outs per game unless a game is shortened due to the Mercy Rule, time, weather or darkness. Managers should play all players as equally as is possible. LL Rule 4.04.'},
+    {n:'16',label:'Game Report Submission',body:"Within 24 hours from the game's end, both managers shall submit a game report and, if necessary, injury report, to LMLL's website' Online Reporting System. The final score, some highlights, and each pitcher's pitch count shall be reported. Pitch counts for each pitcher should also be emailed to the Commissioner."},
+    {n:'17',label:'Protective Cups',body:'All male players shall wear a protective cup at every practice and game. Any player playing the position of catcher must wear a protective cup or he may not play the position of catcher. LL Rule 1.17.'},
+    {n:'18',label:"Catcher's Masks",body:"All catcher's masks must have the dangling throat protector hanging from the mask in front of the player's throat. This is for every type of mask. All catchers must wear a mask, \"dangling\" type throat protector and catcher's helmet during infield/outfield practice, pitcher warm-up and games. LL Rule 1.17."},
+    {n:'19',label:'Chest Protectors',body:"All catcher's chest protectors shall be of the type where it extends downward in order to protect the catcher's groin area. LL Rule 1.17."},
+    {n:'20',label:"Catcher's Mitt",body:"All players playing the position of catcher must use a catcher's mitt. LL Rule 1.12."},
+    {n:'21',label:'Warming Up Gear',body:"Any player warming up a pitcher shall be wearing a cup and a catcher's mask. LL Rule 1.17."},
+    {n:'22',label:'Hats and Uniforms',body:'Shirt uniforms must be tucked in and hats will be worn in an appropriate manner with the brim pointed forward. No player shall play without a regulation team jersey or regulation team hat.'},
+    {n:'23',label:'Player Information',body:'All coaches shall maintain on their possession for all games and practices contact information for all of his players.'},
+    {n:'25',label:'Game Balls',body:'Home teams are responsible for supplying new game balls to the umpire.'},
+    {n:'26',label:'Back Stop Standing',body:'No one is to stand directly behind the back stop.'},
+    {n:'27',label:'Late Arriving Players',body:"Late-arriving players (those arriving after game's official start (i.e., the first pitch)) may be placed anywhere defensively in a game. Offensively, late-arriving players shall be added to current lineup's end. For example, if John arrives late in the 2nd inning and is the 11th player on the roster, John would bat 11th. LL Rule 4.04."},
+    {n:'28',label:'Abusive Behavior',body:"Managers are responsible for the behavior of their team's coaches, players, parents and spectators. Any person being verbally or physically abusive to another player, coach, parent or spectator shall be warned by the umpire. Any warned person who then violates any Code of Conduct Rule shall be asked to leave (ejected) the game. The violator may remain on the premises, but may not communicate with any player, coach or the umpire. If continued violations occur or if the situation proves to be a distraction, the umpire may in his/her discretion ask the violator to leave the premises. Any player, Coach or Manager who is removed from a game, shall be suspended for the next scheduled game. Any subsequent violations may result in further suspensions or expulsion from LMLL. All violations must be reported to the Commissioner and the Executive Director, whom shall determine penalties, sanctions or punishments."},
+    {n:'29',label:'Equal Play Rule',body:'At a minimum, the following playing time rules must be enforced. In a typical 6 inning game, every child MUST play in the field a minimum of 3 innings per game. If games are shortened by inclement weather, darkness or time constraints, for said games, every child MUST have played in the field a minimum of 2 for games of 4 innings.'},
+    {n:'30',label:'Number of Fielders',body:'During the REGULAR SEASON, any team with 10 or more players can play with 10 players in the field (extra outfielder only), even if the other team only has 9 players. During the playoffs, if both teams have 10 or more players, then they will play with 10 in the field. If either team has 9 or fewer players in the playoffs, then the maximum number of fielders is 9.'},
+  ]},
+  {letter:'C',title:'Pitching Rules',items:[
+    {n:'1',label:'',body:"AA Division shall follow Little League International's Regular Season Pitching Rules - Baseball, a copy of which is attached and incorporated by reference."},
+    {n:'2',label:'Maximum Pitches per Day',body:'A player must be removed from the position of pitcher when he/she reaches the prescribed maximum amount of pitches for his/her 9-10 age group of 75 pitches per day. A pitcher reaching his/her pitch count maximum in the middle of a count to a batter may continue until the batter is out, the batter reaches base, or that half inning ends. Further, players throwing 40 or more pitches per game will be ineligible to pitch in the next game played.\n\nIf a pitcher reaches a day(s) of rest threshold while facing a batter, the pitcher may continue to pitch until any one of the following conditions occurs:\na. That batter reaches base;\nb. That batter is retired;\nc. The third out is made to complete the half-inning.\n\nThe pitcher will only be required to observe the calendar day(s) of rest for the threshold he/she reached during that at-bat, provided that pitcher is removed before delivering a pitch to another batter. This rule also applies to the "40 Pitch" rule described above.'},
+    {n:'3',label:'',body:'Any player, who has played the position of catcher in four (4) or more innings in a game, is not eligible to pitch on that calendar day. A pitcher who delivers 41 or more pitches in a game may not play the position of catcher for the remainder of that day. For example, a player starting as catcher for less than three (3) innings and moving to pitcher may throw up to 40 pitches and still move back to playing catcher.'},
+    {n:'4',label:'Rest Day Requirements',body:'Pitchers must adhere to the following rest requirements:\na. If a player pitches 1-20 pitches, no (0) calendar day of rest is required;\nb. If a player pitches 21-35 pitches, one (1) calendar day of rest must be observed;\nc. If a player pitches 36-50 pitches, two (2) calendar days of rest must be observed;\nd. If a player pitches 51-65 pitches, three (3) calendar days of rest must be observed; and\ne. If a player pitches 66 or more pitches, four (4) calendar days of rest must be observed.\n\nExample: Jim throws 36 pitches in a game on Monday. He may not pitch in any game on Tuesday nor on Wednesday, and is available to pitch on Thursday. Sally throws 75 pitches on Monday. She may not pitch Tuesday, Wednesday, Thursday, or Friday. She is available to pitch on Saturday.'},
+    {n:'5',label:'Suspended Games and Pitching Eligibility',body:"Pitches delivered in games declared \"Suspended Games\" shall be charged against the player's eligibility. In suspended games resumed on another day, the pitchers of record at the time the game was halted may continue to pitch to the extent of their eligibility for that day, provided said pitcher has observed the required days of rest. For example, John pitched 25 pitches during the start of the game on Monday, which got suspended due to weather. The game got rescheduled to Thursday that same week without any intervening games, John can pitch up to 75 pitches since he has the allotted one (1) calendar day of rest (21–35 pitches) between the 2 days of rest, regardless of the team he was/is playing against."},
+    {n:'6',label:'',body:'These pitching rules shall not be changed or suspended for the break in between the regular season and the playoffs.'},
+    {n:'7',label:'',body:"Each team shall maintain pitch counts for both their and the opposing team's pitcher. It is recommended that 2 people per team keep the pitch count."},
+    {n:'8',label:'',body:"Following each half inning or the removal of a pitcher from the mound, the coaches shall confirm that pitcher's pitch count and record it in each coaches score book."},
+    {n:'9',label:'',body:"Any difference in pitch counts shall be mediated between the teams' Managers."},
+    {n:'10',label:'',body:"Within twenty four (24) hours of a game's completion, each pitcher's Manager shall enter each of his pitcher's pitch count in the LMLL website's Game Statistics section and e-mail them to his division's Commissioner."},
+    {n:'11',label:'',body:'Managers should inquire as to his players\' pitching in other organized baseball settings. The Manager to the best of his/her ability should try to ascertain the pitch count for each player in these other settings. If feasible, a Manager may communicate with a player\'s other coach. If a pitch count cannot be determined, innings pitched elsewhere shall be converted to 15 pitched per inning. These pitch counts should be recorded, reported to the Commissioner, and used in the "rest days" rule and "total pitch" rule.'},
+    {n:'12',label:'',body:'Any pitcher who hits 3 batters in a game shall be removed as a pitcher.'},
+    {n:'14',label:'',body:'Warm-up pitches are 8 for a new pitcher and 8 between innings. LL Rule 8.03.'},
+    {n:'15',label:'',body:'Coaches can visit the mound, however on a 3rd visit within an inning or the 4th visit within a game the pitcher has to be removed. LL Rule 8.06.'},
+    {n:'16',label:'',body:'Intentional walks are not automatic. If an intentional walk is to be issued then the pitcher must throw 4 pitches, these pitches do count in rules numbers 3 and 5 above.'},
+    {n:'17',label:'',body:'No batter may be intentionally walked more than 1 time per game.'},
+    {n:'18',label:'',body:'A pitcher may not wear long sleeves if they are white and/or patterned. Only solid, non-white long sleeves should be worn by a pitcher who chooses to wear long sleeves. LL Rule 1.11(a)(3).'},
+  ]},
+  {letter:'D',title:'Batting and Base Running Rules',items:[
+    {n:'1',label:'Pinch Runner',body:'If the catcher for a team reaches base when there are two outs a pinch runner may be inserted for that player. The pinch runner shall be the player that made the last batted out.'},
+    {n:'2',label:'"On Deck Batter" Prohibition',body:'There is no on deck batter (a batter swinging a bat in preparation for a plate appearance) in LMLL. The first violation of this rule shall result in the umpire issuing a warning to the offending team. LL Rule 6.02 (c), 6.05-6.07, 7.09 & 7.11'},
+    {n:'3',label:'Bats',body:'All bats must be approved for LMLL play and have a USA Designation.'},
+    {n:'4',label:'Batting Helmets',body:"Batting helmets must be worn by all batters, base runners and player base coaches at all times. It is at the umpire's discretion to issue a warning for a first offense. LL Rule 1.16."},
+    {n:'5',label:'Eight or Less Players',body:'a) Teams starting games with 8 players shall be assessed an automatic out when the 9th batting position is due up.\nb) If a player exits the game for any reason (including injury) leaving his team with only 8 players, an out shall be assessed when it is that player\'s "at bat".\nc) Team\'s facing a team with 8 players may not intentionally walk a batter to get to the 9th batting order position in order to get the automatic out.'},
+    {n:'7',label:'"Head First Slides"',body:'Although any runner is out when sliding head first while advancing, head first slides are permitted to return to a base that was previously occupied by that player. LL Rule 7.08(a)(4).'},
+    {n:'8',label:'No "Must Slide Rule"',body:'Although there is no "must slide rule", it is the base runner\'s responsibility to avoid contact with any defensive player and players should be encouraged to slide when a play will be close. Any runner is out who does not slide or attempt to get around a fielder who has the ball and is waiting to make the tag. LL Rule 7.08 (a)(3).'},
+    {n:'9',label:'Home Plate Blocking',body:'"Obstruction" is the act of any defensive player who, while not in possession of the ball, impedes the progress of any runner and shall be called on any defensive player who blocks off a base, base line or home plate from a base runner while not in possession of the ball. A fake tag is considered obstruction. LL Rule 2.0.'},
+    {n:'10',label:'Tag Avoidance',body:"Any runner is out when running beyond three (3) feet from his baseline to avoid being tagged, unless seeking to avoid interference with a fielder fielding a batted ball. A runner's baseline is established when the tag attempt occurs and is a straight line from the runner to the base which he/she is attempting to reach. LL Rule 7.08 (a) (1)"},
+    {n:'11',label:'Unimpeded Base Path',body:"A defensive player has the right of way when attempting to field a ball. In all other cases a runner has a right to a free, unimpeded path to the base. When a collision occurs between the runner and fielder, the umpire will determine whether interference has occurred by the fielder, the base runner or neither.\n\nIf the umpire declares the batter, batter-runner or a runner out for interference (i.e., an act by the team at bat which interferes with, obstructs, impedes, hinder or confuses any fielder attempting to make a play), all other runners shall return to the last base that was, in the empire's judgment, legally touched at the time of the interference, unless otherwise provided by these rules. LL Rule 2.0."},
+    {n:'12',label:'Leaving a Base',body:'A player may leave the base he occupies only after the ball has crossed home plate. LL Rule 7.13. Lead offs are not permitted.'},
+    {n:'13',label:'Bat Throwing',body:'Throwing a bat by a player will result in a warning from the umpire for a 1st offense and an automatic out for the 2nd and each subsequent offense by that player. If possible, the umpire should declare the out immediately.'},
+    {n:'14',label:'Going Beyond Base',body:'On a walk, a runner may go beyond 1st base in any direction. However, if said runner makes a deliberate attempt to go to 2nd base and a play is made on said runner resulting in an out then that runner is out. LL Rule 7.08 (C).'},
+    {n:'15',label:'',body:'Home plate is in fair territory.'},
+    {n:'16',label:'"Hit Player" Rule',body:"a) A pitch that hits the dirt and then a batter shall result in the batter being awarded 1st base as a hit batman.\nb) If a ball is hit in fair territory and hits the batter when he/she is out of the batter's box then the batter is out."},
+    {n:'17',label:'Lead Off & Stealing',body:'a) Stealing is permitted on a limited basis of one base per runner. If a runner leaves the bag before the pitched ball reaches the batter, the runner must return to the last base occupied unless forced to advance by the batter. (LL Rule 7.13).\nb) Lead offs are not permitted.\nc) There is no stealing of home.\nd) Players cannot advance beyond the base that they were attempting to steal on an errant throw by the catcher.\ne) A maximum of (1) steal per ½ inning is allowed.\n  a. \'double\' steals are allowed. If runners are on 1st and 2nd and the (1) steal has not been utilized, both runner may steal the respective bases.\nf) When there are runners at 1st and 3rd base, the catcher is allowed a "free throw" to 2nd if the runner attempts to steal 2nd base. The runner at 3rd cannot steal home if the catcher throws to 2nd, even on an overthrow to 2nd base.'},
+    {n:'18',label:'Passed Balls & Overthrows',body:'a) Only one base shall be allowed on an overthrow on a play to a given base to limit the continual advancement of runner simply on errant throwing and poor catching.\nb) Only one base shall be allowed per runner if a ball is overthrown on a play and determined to be out of play by the umpire or field circumstances.\nc) Routine return throws from the catcher to the pitcher will be considered dead balls, regardless of whether the ball is overthrown or missed by the pitcher, unless a base steal is attempted prior to the return throw by the catcher.'},
+    {n:'19',label:'Dropped 3rd Strike',body:'A batter is out when:\na) A third strike is legally caught by the catcher;\nb) Catcher does not have to throw to 1st on a dropped 3rd strike. The batter is out.'},
+    {n:'20',label:'Bunting',body:"Bunting is allowed, No 'slap' or 'slug' bunting is permitted.\na) No bunting with a runner on third base is permitted. No swings are permitted AFTER the hitter fakes a bunt/squares to bunt."},
+  ]},
+  {letter:'E',title:'Protests',items:[
+    {n:'1',label:'',body:"Protests can be filed when there is an obvious violation of any rule that may affect a game's outcome."},
+    {n:'2',label:'',body:'Every effort should be made on the part of the opposing managers and umpire to avoid a protest and mediate any difference of opinion.'},
+    {n:'3',label:'',body:'A call made by an umpire that is subjective may not be protested.'},
+    {n:'4',label:'',body:'To file a protest, a manager must immediately inform the opposing manager and umpire of the intent to protest the game at the time of the infraction.'},
+    {n:'5',label:'',body:'The umpire shall note the intent to protest the game.'},
+    {n:'6',label:'',body:"The manager filing the protest must communicate via email to the Commissioner the reason for the protest, the violation that occurred, the opposing manager and umpire's names and the game situation at the time of the protest including the score at the time."},
+    {n:'7',label:'',body:'The Commissioner will hear the protest, speak to who he deems necessary, and make a decision which will be final.'},
+    {n:'8',label:'',body:'Protests cannot be filed after the fact or after the game has concluded unless a violation comes to light after the fact, i.e., an ineligible player was used.'},
+  ]},
+  {letter:'F',title:'Taxi Squad',items:[
+    {n:'1',label:'',body:'See attached taxi squad document.'},
+  ]},
+  {letter:'G',title:'Playoffs',items:[
+    {n:'1',label:'',body:'See attached playoff document (40 pitch LMLL rule does not apply in playoffs)'},
+  ]},
+];
+function renderRulesBook(){
+  var q=(($('rule-search')&&$('rule-search').value)||'').toLowerCase().trim();
+  var html=LMLL_RULES.map(function(sec){
+    var matched=sec.items.filter(function(it){
+      if(!q)return true;
+      var hay=((it.label||'')+' '+(it.body||'')+' '+sec.letter+'.'+it.n).toLowerCase();
+      return hay.indexOf(q)>=0;
+    });
+    if(!matched.length)return'';
+    var openAttr=q?' open':'';
+    return '<details class="rule-section-acc"'+openAttr+'><summary>'+sec.letter+'. '+esc(sec.title)+' <span style="font-size:11px;color:var(--text3);font-weight:normal;margin-left:6px;">('+matched.length+(q?' / '+sec.items.length:'')+')</span></summary>'
+      +matched.map(function(it){
+        return '<div class="rule-item"><div class="rule-label">'+sec.letter+'.'+it.n+(it.label?' — '+esc(it.label):'')+'</div><div class="rule-body">'+esc(it.body)+'</div></div>';
+      }).join('')
+      +'</details>';
+  }).filter(Boolean).join('');
+  var el=$('rules-book');
+  if(el)el.innerHTML=html||'<div class="empty" style="padding:14px;">No rules match "'+esc(q)+'"</div>';
+}
+function filterRules(q){renderRulesBook();}
 
 // BOOT
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
