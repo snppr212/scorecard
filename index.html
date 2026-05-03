@@ -443,14 +443,23 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="mrow"><label>Notation</label><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span id="play-notation-display" style="font-family:monospace;font-size:15px;font-weight:bold;color:var(--gold);min-width:60px;padding:4px 8px;background:rgba(200,169,110,.10);border-radius:3px;">—</span><button class="btn btn-xs" id="play-manual-toggle" onclick="togglePlayManualNot()" style="font-size:10px;">Edit manually</button></div><input type="text" id="mp-not" style="display:none;margin-top:4px;" oninput="onPlayManualNotInput(this.value)" inputmode="numeric"></div>
 <!-- RBI -->
 <div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
-<!-- QUALITY OF CONTACT (NEW, optional) -->
-<div class="mrow" id="quality-sec" style="display:none;"><label>Quality (optional)</label><div class="play-toggle-group" id="quality-btns">
-<button class="btn btn-xs" data-q="hard" onclick="setPlayQuality('hard')">⚡ Hard</button>
-<button class="btn btn-xs" data-q="soft" onclick="setPlayQuality('soft')">🍃 Soft</button>
-<button class="btn btn-xs" data-q="pop" onclick="setPlayQuality('pop')">🥚 Pop</button>
-<button class="btn btn-xs" data-q="weak" onclick="setPlayQuality('weak')">💀 Weak</button>
-<button class="btn btn-xs" onclick="setPlayQuality(null)" style="opacity:.7;">clear</button>
-</div></div>
+<!-- QUALITY OF CONTACT (v82: trajectory + hardness, both optional) -->
+<div class="mrow" id="quality-sec" style="display:none;">
+<label style="margin-bottom:4px;">Trajectory (optional)</label>
+<div class="play-toggle-group" id="trajectory-btns" style="margin-bottom:6px;">
+<button class="btn btn-xs" data-t="line" onclick="setPlayTrajectory('line')">🚀 Line</button>
+<button class="btn btn-xs" data-t="fly" onclick="setPlayTrajectory('fly')">🎈 Fly</button>
+<button class="btn btn-xs" data-t="pop" onclick="setPlayTrajectory('pop')">🥚 Pop</button>
+<button class="btn btn-xs" data-t="ground" onclick="setPlayTrajectory('ground')">⛰ Grounder</button>
+<button class="btn btn-xs" onclick="setPlayTrajectory(null)" style="opacity:.7;">clear</button>
+</div>
+<label style="margin-bottom:4px;">Hardness (optional)</label>
+<div class="play-toggle-group" id="hardness-btns">
+<button class="btn btn-xs" data-h="hard" onclick="setPlayHardness('hard')">⚡ Hard</button>
+<button class="btn btn-xs" data-h="soft" onclick="setPlayHardness('soft')">🍃 Soft</button>
+<button class="btn btn-xs" onclick="setPlayHardness(null)" style="opacity:.7;">clear</button>
+</div>
+</div>
 <!-- WHO SCORED (existing, currently hidden — keeping for future) -->
 <div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div>
 <!-- DP / FC sub-pickers (existing, unchanged) -->
@@ -2531,12 +2540,13 @@ function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePO
 // gets read in submitPlay; reset by _resetPlayState() each time endAB opens
 // the modal.
 // ============================================================================
-var _playPos1=null,_playPos2=null,_playQuality=null,_playErrType=null,_playManualNot=false;
+var _playPos1=null,_playPos2=null,_playTrajectory=null,_playHardness=null,_playErrType=null,_playManualNot=false;
 function _posToLabel(n){return({1:'P',2:'C',3:'1B',4:'2B',5:'3B',6:'SS',7:'LF',8:'CF',9:'RF'})[n]||'';}
 function _resetPlayState(){
-  _playPos1=null;_playPos2=null;_playQuality=null;_playErrType=null;_playManualNot=false;
+  _playPos1=null;_playPos2=null;_playTrajectory=null;_playHardness=null;_playErrType=null;_playManualNot=false;
   document.querySelectorAll('.play-diamond .fielder').forEach(function(el){el.classList.remove('pos1','pos2');});
-  document.querySelectorAll('#quality-btns .btn[data-q]').forEach(function(el){el.classList.remove('selected');});
+  document.querySelectorAll('#trajectory-btns .btn[data-t]').forEach(function(el){el.classList.remove('selected');});
+  document.querySelectorAll('#hardness-btns .btn[data-h]').forEach(function(el){el.classList.remove('selected');});
   document.querySelectorAll('#play-err-btns .btn[data-err]').forEach(function(el){el.classList.remove('selected');});
   if($('mp-not')){$('mp-not').value='';$('mp-not').style.display='none';}
   if($('play-manual-toggle'))$('play-manual-toggle').textContent='Edit manually';
@@ -2630,10 +2640,16 @@ function onPlayManualNotInput(v){
   if(clean!==v&&$('mp-not'))$('mp-not').value=clean;
   if($('play-notation-display'))$('play-notation-display').textContent=clean||'—';
 }
-function setPlayQuality(q){
-  _playQuality=q;
-  document.querySelectorAll('#quality-btns .btn[data-q]').forEach(function(el){
-    el.classList.toggle('selected',el.getAttribute('data-q')===q);
+function setPlayTrajectory(t){
+  _playTrajectory=t;
+  document.querySelectorAll('#trajectory-btns .btn[data-t]').forEach(function(el){
+    el.classList.toggle('selected',el.getAttribute('data-t')===t);
+  });
+}
+function setPlayHardness(h){
+  _playHardness=h;
+  document.querySelectorAll('#hardness-btns .btn[data-h]').forEach(function(el){
+    el.classList.toggle('selected',el.getAttribute('data-h')===h);
   });
 }
 function setPlayErr(t){
@@ -2669,7 +2685,7 @@ var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,half:G.half,type:et,play:not||G.pres,standalone:false});}
 if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
 // Stash play-detail metadata for finAB to pick up on the AB record
-G._lastPlayMeta={hitLoc:_playPos1||null,throwTo:(_playPos2&&_playPos2!=='u')?_playPos2:null,unassisted:_playPos2==='u'||null,quality:_playQuality||null};
+G._lastPlayMeta={hitLoc:_playPos1||null,throwTo:(_playPos2&&_playPos2!=='u')?_playPos2:null,unassisted:_playPos2==='u'||null,trajectory:_playTrajectory||null,hardness:_playHardness||null};
 cm('m-play');finAB(res,not,G.prbi);}
 
 function finAB(r,not,rbi){
@@ -2682,10 +2698,10 @@ var _fp=curPitcher();
 var _pTeam=G.half==='top'?'home':'away';// team OF the pitcher (opposite of batter)
 // Buffer for runner names who score during this AB — used for sub-lines in Plays log
 G._abScoredBuffer=[];
-// Pull v81 play-meta (diamond fielder picks + quality) from G._lastPlayMeta if present.
+// Pull v82 play-meta (diamond fielder picks + trajectory + hardness) from G._lastPlayMeta if present.
 // Cleared right after consumption so it doesn't leak to subsequent ABs.
 var _meta=G._lastPlayMeta||{};G._lastPlayMeta=null;
-G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null,pscored:[],hitLoc:_meta.hitLoc||null,throwTo:_meta.throwTo||null,unassisted:_meta.unassisted||null,quality:_meta.quality||null});
+G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null,pscored:[],hitLoc:_meta.hitLoc||null,throwTo:_meta.throwTo||null,unassisted:_meta.unassisted||null,trajectory:_meta.trajectory||null,hardness:_meta.hardness||null});
 var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
 // attribute result to fielding pitcher (already computed above)
 if(_fp){
@@ -3970,7 +3986,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v81';
+var APP_VERSION='v82';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
