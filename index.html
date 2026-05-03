@@ -2737,6 +2737,24 @@ function confirmInnEnd(){cm('m-innend');G.outs=0;G.balls=0;G.strikes=0;G.bases=[
 var _savedCsIdx=G._csBatterIdx;var _savedCsTeam=G._csTeam;
 G._csBatterIdx=undefined;G._csTeam=undefined;
 if(G.half==='top')G.half='bottom';else{G.inn=Math.min(G.inn+1,G.ti+3);G.half='top';chkFW(G.inn);}
+// Auto-sync active pitcher to whoever was planned for this inning per fa[G.inn].P.
+// Only applies when WE'RE the team about to field; idempotent if the planned
+// pitcher is already active. If the planned name isn't in our pitcher list yet,
+// add them — covers the case where a manager preloaded fa per the lineup card.
+(function(){
+  var weNowField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+  if(!weNowField)return;
+  var planned=(G.fa[G.inn]||{}).P;
+  if(!planned)return;
+  var pl=ourP();
+  var idx=pl.findIndex(function(p){return p.name===planned;});
+  if(idx>=0){
+    if(idx!==ourPI())setOurPI(idx);
+  }else{
+    pl.push({name:planned,rn:planned,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});
+    setOurPI(pl.length-1);
+  }
+})();
 // restore CS batter as leadoff for whichever team was at bat
 if(_savedCsIdx>=0&&_savedCsTeam){
   if(_savedCsTeam==='home')G.hbi=_savedCsIdx;else G.abi=_savedCsIdx;
@@ -3087,11 +3105,20 @@ var st=p.stk||0;var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);
 el.innerHTML='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;"><span style="font-size:24px;font-weight:bold;color:'+col+';">'+c+'</span><span style="font-size:12px;color:var(--text2);font-family:sans-serif;">/ 75</span><span style="font-size:12px;font-family:sans-serif;margin-left:auto;">'+sn(p.name)+'</span></div><div class="pitcher-limit-bar"><div class="pitcher-limit-fill" style="width:'+pct+'%;background:'+col+';"></div></div><div style="font-size:10px;font-family:sans-serif;color:var(--text3);margin-top:4px;">PC:'+c+' St:'+st+' Ba:'+(p.ba||0)+' BIP:'+(p.bip||0)+' HBP:'+(p.hbp||0)+' IP:'+ip+'</div>';}
 function renderPS(who){var l=who==='us'?ourP():theirP(),c=who==='us'?ourPI():theirPI();$(who==='us'?'hp-sel':'ap-sel').innerHTML=l.map(function(p,i){var st=p.stk||0;var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);return '<div class="row-b" style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:'+(i===c?'var(--gold)':'var(--text)')+';">'+(i===c?'▶ ':'')+esc(sn(p.name))+' PC:'+(p.total||0)+' St:'+st+' Ba:'+(p.ba||0)+' IP:'+ip+'</span><button class="btn btn-xs" onclick="setAP(\''+who+'\','+i+')">'+(i===c?'Active':'Set')+'</button></div>';}).join('');}
 function renderSPT(){var td=new Date();$('sp-body').innerHTML=A.roster.map(function(p){var log=pSeason(p.name),cp=ourP().find(h=>h.name===p.name),cur=cp?cp.total||0:0;if(!log.length&&cur===0)return'';var s=pStatus(p.name,td),ok=s.ok&&!s.over40;
+  // Hide rows for players who didn't pitch this game AND have no rest debt AND
+  // no 40+ flag — keeps the table focused on pitchers who matter for the
+  // current game-day decision (kept the "if no log and no current" guard above
+  // so historical season data still gets a row when relevant).
+  if(cur===0&&s.rest===0&&!s.over40)return'';
   // Compute the actual eligible-to-pitch date, not just yes/no
   var elig=pNextEligibleDate(p.name);
   var availStr=ok?'✓':fmtAvailDate(elig,td);
   return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+cur+'</td><td class="'+(s.rest>0?'warn':'ok')+'">'+s.rest+'d</td><td class="'+(ok?'ok':'warn')+'" style="font-family:sans-serif;font-size:11px;">'+availStr+'</td><td class="'+(s.over40?'warn':'ok')+'">'+(s.over40?'⚠':'—')+'</td></tr>';}).filter(Boolean).join('')||'<tr><td colspan="5" class="empty">No data</td></tr>';}
-function addP(who){if(who==='us'){var v=$('hp-inp').value;if(!v)return;var _ic2=getInningsCaught(v);if(_ic2>=4&&!confirm(sn(v)+' has caught '+_ic2+' innings this game.\n\nLL Rule: 4+ innings catching = cannot pitch.\n\nAdd as pitcher anyway?'))return;var rp=A.roster.find(r=>r.name===v);ourP().push({name:rp?rp.name:v,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(ourPI()<0)setOurPI(0);$('hp-inp').value='';}else{var v=$('ap-inp').value;if(!v)return;if(v==='__custom__'){v=prompt('Enter pitcher name:');if(!v)return;}theirP().push({name:v,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(theirPI()<0)setTheirPI(0);$('ap-inp').value='';}sv();renderPT();}
+function addP(who){if(who==='us'){var v=$('hp-inp').value;if(!v)return;var _ic2=getInningsCaught(v);if(_ic2>=4&&!confirm(sn(v)+' has caught '+_ic2+' innings this game.\n\nLL Rule: 4+ innings catching = cannot pitch.\n\nAdd as pitcher anyway?'))return;var rp=A.roster.find(r=>r.name===v);ourP().push({name:rp?rp.name:v,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});
+// First-time pitcher add → also sync fa[G.inn].P so the box-score / plays-page
+// pitcher attribution lines up with this active pitcher.
+if(ourPI()<0){setOurPI(0);if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=ourP()[0].name;}
+$('hp-inp').value='';}else{var v=$('ap-inp').value;if(!v)return;if(v==='__custom__'){v=prompt('Enter pitcher name:');if(!v)return;}theirP().push({name:v,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});if(theirPI()<0)setTheirPI(0);$('ap-inp').value='';}sv();renderPT();}
 function setAP(who,i){if(who==='us'){setOurPI(i);var p=ourP()[i];if(p&&p.name){if(!G.fa[G.inn])G.fa[G.inn]={};G.fa[G.inn]['P']=p.name;}}else setTheirPI(i);sv();renderPT();renderMU();}
 
 // LINEUP TAB — in-game editor
@@ -3470,11 +3497,15 @@ function mkHalf(abs,label,inn,half){
     var notation=abNotation(ab);
     var isRun=(ab.pscored&&ab.pscored.length>0)||ab.result==='HR'||ab.result==='LLHR';
     var runStyle=isRun?'color:var(--amber2);':'';
-    // If pitch sequence is preserved, show seq + count. If only pc is set
-    // (e.g. ABs added via server-side patch), show just (Np).
+    // Pitch-cell display: ab.pc is authoritative for the count; the sequence
+    // shows whatever specific pitches we have. When the sequence is partial
+    // (e.g. retro patch bumped pc but didn't add to pitches[]), we still show
+    // the seq but use Math.max(pitches.length, ab.pc) for the count so the
+    // total matches the data.
+    var displayCount=Math.max(pcount,ab.pc||0);
     var pitchCell;
     if(pcount){
-      pitchCell=seq+' <span style="color:var(--text3);">('+pcount+')</span>';
+      pitchCell=seq+' <span style="color:var(--text3);">('+displayCount+')</span>';
     }else if(ab.pc>0){
       pitchCell='<span style="color:var(--text3);">('+ab.pc+'p)</span>';
     }else{
@@ -3737,7 +3768,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v79';
+var APP_VERSION='v80';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
