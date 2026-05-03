@@ -229,11 +229,32 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 @media print{
   body{background:#fff;}
   .no-print{display:none!important;}
-  #screen-scorecard{position:absolute;top:0;left:0;width:100%;display:block!important;}
-  .screen{display:none!important;}
-  #screen-scorecard.active,#screen-scorecard{display:block!important;}
+  /* SCORECARD print mode (existing) — kept exactly as-is when not in season-print mode */
+  body:not(.printing-season) #screen-scorecard{position:absolute;top:0;left:0;width:100%;display:block!important;}
+  body:not(.printing-season) .screen{display:none!important;}
+  body:not(.printing-season) #screen-scorecard.active,body:not(.printing-season) #screen-scorecard{display:block!important;}
   #rsc-printable{height:auto!important;overflow:visible!important;padding:0!important;}
   #rsc-content{padding:0;}
+  /* SEASON STATS print mode (v83) — body class gates this so it doesn't fight scorecard print */
+  body.printing-season .screen{display:none!important;}
+  body.printing-season #screen-scorecard{display:none!important;}
+  body.printing-season #screen-season{display:block!important;position:absolute;top:0;left:0;width:100%;background:#fff;color:#000;padding:0!important;}
+  body.printing-season #screen-season .hdr{background:none!important;border:none!important;padding:0 0 6px 0;}
+  body.printing-season #screen-season .hdr-title,body.printing-season #screen-season .hdr-sub{color:#000!important;}
+  body.printing-season #screen-season > .hdr button,body.printing-season #season-export-row{display:none!important;}
+  body.printing-season #screen-season .scroll{overflow:visible!important;height:auto!important;padding:0!important;}
+  body.printing-season #screen-season .panel{background:none!important;border:1px solid #999;color:#000!important;page-break-inside:avoid;margin-bottom:8px;padding:6px 8px;}
+  body.printing-season #screen-season .ptitle{color:#000!important;font-size:13pt;border-bottom:1px solid #999;padding-bottom:3px;margin-bottom:6px;}
+  body.printing-season #screen-season .scroll-x{overflow:visible!important;}
+  body.printing-season #screen-season table.tbl{width:100%;border-collapse:collapse;color:#000!important;font-family:sans-serif;}
+  body.printing-season #screen-season .tbl th,body.printing-season #screen-season .tbl td{border:1px solid #999!important;padding:3px 4px;font-size:8.5pt;color:#000!important;background:#fff!important;text-align:center;}
+  body.printing-season #screen-season .tbl thead th{background:#eee!important;font-weight:bold;}
+  body.printing-season #screen-season .tbl .hi{background:#fffae0!important;font-weight:bold;}
+  body.printing-season #screen-season .tbl tfoot td{background:#f5f5f5!important;font-weight:bold;}
+  body.printing-season #screen-season .tbl tbody td:first-child,body.printing-season #screen-season .tbl tfoot td:first-child{text-align:left;}
+  body.printing-season #season-print-header{display:block!important;text-align:center;margin:0 0 12px 0;color:#000;}
+  body.printing-season #season-print-header h1{font-size:18pt;margin:0 0 3px 0;color:#000;font-family:sans-serif;}
+  body.printing-season #season-print-header div{font-size:10pt;color:#444;font-family:sans-serif;}
   @page{size:letter landscape;margin:0.4in;}
 }
 .fld-grid{width:100%;border-collapse:collapse;font-family:sans-serif;font-size:10px;}
@@ -325,7 +346,9 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="screen" id="screen-season">
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
-<div class="row" style="margin-bottom:10px;"><button class="btn btn-sm btn-gold btn-full" onclick="showOptimalLineup()">🎯 Show optimal Mussels lineup</button></div>
+<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;"><button class="btn btn-sm btn-gold" style="flex:1;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;" onclick="exportSeasonPDF()">📄 Export PDF</button></div>
+<!-- Print-only header (hidden on screen via CSS, revealed when body has .printing-season) -->
+<div id="season-print-header" style="display:none;"><h1>Mighty Mussels — Season Stats</h1><div id="season-print-sub">LMLL · Spring 2026</div></div>
 <div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div></div>
 <div class="panel"><div class="ptitle">Pitching</div><div class="scroll-x"><table class="tbl" id="season-pit"></table></div></div>
 <div id="season-empty" style="text-align:center;font-size:12px;color:var(--text3);font-family:sans-serif;padding:14px;display:none;">No completed games yet.</div>
@@ -1355,6 +1378,22 @@ function buildOptimalMusselsLineup(games){
     if(bestSlgIdx!==3){var t2=ranked[3];ranked[3]=ranked[bestSlgIdx];ranked[bestSlgIdx]=t2;}
   }
   return ranked.map(function(r){return {name:r.rp.name||'',jersey:r.rp.jersey||'',rid:r.rp.id,_score:r.score,_pa:r.pa,_obp:r.obp,_slg:r.slg,_ba:r.ba,_k:r.k};});
+}
+// Export the season-stats screen as a PDF via the browser's print → "Save as PDF"
+// dialog. Adds body.printing-season for the duration so the print stylesheet
+// scopes correctly. Cleans up via afterprint event with a fallback timeout.
+function exportSeasonPDF(){
+  if(!$('season-bat').innerHTML.trim()){toast('No stats yet — make sure season data loaded');return;}
+  var d=new Date();var dstr=d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  var sub=$('season-sub')?$('season-sub').textContent:'';
+  $('season-print-sub').textContent='LMLL · Spring 2026 · '+sub+' · '+dstr;
+  document.body.classList.add('printing-season');
+  var done=function(){document.body.classList.remove('printing-season');window.removeEventListener('afterprint',done);};
+  window.addEventListener('afterprint',done);
+  // Belt-and-braces fallback in case afterprint doesn't fire (some browsers)
+  setTimeout(done,8000);
+  // Defer one frame so styles apply before the dialog opens
+  requestAnimationFrame(function(){window.print();});
 }
 async function showOptimalLineup(){
   toast('Fetching season data…');
@@ -4171,7 +4210,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v83';
+var APP_VERSION='v84';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
