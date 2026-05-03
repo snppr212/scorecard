@@ -325,6 +325,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="screen" id="screen-season">
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
+<div class="row" style="margin-bottom:10px;"><button class="btn btn-sm btn-gold btn-full" onclick="showOptimalLineup()">🎯 Show optimal Mussels lineup</button></div>
 <div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div></div>
 <div class="panel"><div class="ptitle">Pitching</div><div class="scroll-x"><table class="tbl" id="season-pit"></table></div></div>
 <div id="season-empty" style="text-align:center;font-size:12px;color:var(--text3);font-family:sans-serif;padding:14px;display:none;">No completed games yet.</div>
@@ -412,6 +413,15 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-roster"><div class="modal"><h3>Roster</h3><div id="ros-list"></div><div class="mact"><button class="btn btn-green btn-full" onclick="addRos()">+ Add</button><button class="btn btn-full" onclick="cm('m-roster')">Close</button></div></div></div>
 <!-- OPPONENT LINEUP START — fires after our lineup is set -->
 <div class="modal-ov" id="m-oppstart"><div class="modal" style="text-align:center;"><h3 id="oppstart-title">Opponent batting order</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;">Got their lineup card, or want to add as they bat?</div><div class="mact"><button class="btn btn-gold btn-full" onclick="cm('m-oppstart');goToOppEntry()">📋 Pre-enter their lineup</button><button class="btn btn-full" onclick="cm('m-oppstart');skipOpp()">⚾ Add live as they bat</button></div></div></div>
+<!-- TEST SANDBOX START — choose default vs fresh vs wipe -->
+<div class="modal-ov" id="m-teststart"><div class="modal" style="text-align:center;"><h3>🧪 Test Sandbox</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;">How do you want to start?</div><div class="mact">
+<button class="btn btn-gold btn-full" onclick="startTestSandbox('default')">▶ Use default lineups<div style="font-size:10px;font-weight:normal;opacity:.85;font-family:sans-serif;margin-top:2px;">Mussels (season-optimized) · TEST OPP (11 of 12)</div></button>
+<button class="btn btn-full" style="margin-top:6px;" onclick="startTestSandbox('fresh')">📋 Build lineups manually<div style="font-size:10px;font-weight:normal;opacity:.85;font-family:sans-serif;margin-top:2px;">Pick availability + batting order yourself</div></button>
+<button class="btn btn-red btn-full" id="teststart-wipe-btn" style="margin-top:10px;display:none;" onclick="cm('m-teststart');clearTestData();">🗑 Wipe sandbox & restart</button>
+<button class="btn btn-full" style="margin-top:6px;opacity:.7;" onclick="cm('m-teststart')">Cancel</button>
+</div></div></div>
+<!-- OPTIMAL LINEUP DISPLAY -->
+<div class="modal-ov" id="m-optlu"><div class="modal" style="max-width:420px;"><h3>🎯 Optimal Mussels lineup</h3><div id="optlu-meta" style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.4;"></div><div id="optlu-body" style="max-height:60vh;overflow-y:auto;"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-optlu')">Close</button></div></div></div>
 <div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-bottom:6px;">Game called for time / darkness / weather / mercy?</div><button class="btn btn-red btn-full" onclick="cm('m-setup');openCallGame()">🏁 Call game (end early)</button></div></div>
@@ -594,6 +604,24 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <script>
 var RNAMES=['Benjamin Shapiro','Bodhi Langford','Brody Steinberg','Cobe Bresson','Ethan Thomas','Ezra Kalman','Hunter Bresson','Jacob Aronstein','Julian Singer','Malcolm McPherson','Mihir Chatnani','Miles Beck'];
 var POS=['P','C','1B','2B','3B','SS','LF','CF','RF'],APOS=POS.slice();
+// TEST OPP ROSTER — 12 made-up players for sandbox scenario testing.
+// The default sandbox lineup is 11 of these (one absent — see _testOppDefaultLineup).
+var TEST_OPP_ROSTER=[
+  {name:'John Smith',jersey:'1'},
+  {name:'Parker Thomas',jersey:'2'},
+  {name:'Jake Wilson',jersey:'3'},
+  {name:'Ryan Davis',jersey:'4'},
+  {name:'Tyler Brown',jersey:'5'},
+  {name:'Ethan Miller',jersey:'6'},
+  {name:'Mason Garcia',jersey:'7'},
+  {name:'Logan Johnson',jersey:'8'},
+  {name:'Jackson Lee',jersey:'9'},
+  {name:'Carter Anderson',jersey:'10'},
+  {name:'Hudson Martinez',jersey:'11'},
+  {name:'Owen Taylor',jersey:'12'}
+];
+// Default test-opp lineup: drop index 7 (Logan Johnson) so 11 of 12 bat.
+function _testOppDefaultLineup(){return TEST_OPP_ROSTER.filter(function(_,i){return i!==7;}).map(function(p){return {name:p.name,jersey:p.jersey};});}
 var SCHED=[
 {id:'e1',type:'practice',date:'Apr 9, 2026',time:'5:45 pm',title:'Practice',loc:'AFC Fitness',ha:'home'},
 {id:'e2',type:'game',date:'Apr 11, 2026',time:'1:00 pm',title:'@ Hot Rods',opponent:'Hot Rods',loc:'South Ardmore Park Field C',ha:'away'},
@@ -1147,7 +1175,7 @@ function renderSeasonBat(games){
     lu.forEach(function(p,i){
       if(!p||!p.name)return;
       var key=p.name;
-      if(!byPlayer[key])byPlayer[key]={name:p.name,jersey:p.jersey||'',games:0,pa:0,ab:0,h:0,r:0,rbi:0,bb:0,k:0,hbp:0,hr:0,xbh:0,sb:0,cs:0,tb:0,sf:0};
+      if(!byPlayer[key])byPlayer[key]={name:p.name,jersey:p.jersey||'',games:0,pa:0,ab:0,h:0,r:0,rbi:0,bb:0,k:0,hbp:0,hr:0,xbh:0,sb:0,cs:0,tb:0,sf:0,bip:0};
       var s=byPlayer[key];
       var played=false;
       (g.abs||[]).forEach(function(ab){
@@ -1163,6 +1191,8 @@ function renderSeasonBat(games){
         if(r==='K'||r==='KL')s.k++;
         if(r==='HBP')s.hbp++;
         if(r==='SAC')s.sf++;
+        // BIP = balls in play: any hit + any out that isn't K/KL/DP/GIDP/TP/AO (per LL convention)
+        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','SAC','FC'].includes(r))s.bip++;
         s.rbi+=(ab.rbi||0);
         if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;
       });
@@ -1181,16 +1211,16 @@ function renderSeasonBat(games){
   });
   // Sort by BA desc, then PA desc
   rows.sort(function(a,b){if(a.ba!==b.ba)return b.ba-a.ba;return b.pa-a.pa;});
-  var h='<thead><tr><th>Player</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>RBI</th><th>HR</th><th>BB</th><th>K</th><th>SB</th><th>BA</th><th>OBP</th><th>SLG</th></tr></thead><tbody>';
+  var h='<thead><tr><th>Player</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>RBI</th><th>HR</th><th>BB</th><th>K</th><th>HBP</th><th>SB</th><th>BIP</th><th>BA</th><th>OBP</th><th>SLG</th></tr></thead><tbody>';
   rows.forEach(function(s){
     var nm=s.jersey?'#'+s.jersey+' '+sn(s.name):sn(s.name);
-    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pa+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.sb+'</td><td class="hi">'+(s.ab>0?fmt3(s.ba):'—')+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pa+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td>'+s.sb+'</td><td>'+s.bip+'</td><td class="hi">'+(s.ab>0?fmt3(s.ba):'—')+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
   });
   // Totals
-  var T={games:games.length,pa:0,ab:0,r:0,h:0,rbi:0,hr:0,bb:0,k:0,sb:0,tb:0,hbp:0,sf:0};
-  rows.forEach(function(s){T.pa+=s.pa;T.ab+=s.ab;T.r+=s.r;T.h+=s.h;T.rbi+=s.rbi;T.hr+=s.hr;T.bb+=s.bb;T.k+=s.k;T.sb+=s.sb;T.tb+=s.tb;T.hbp+=s.hbp;T.sf+=s.sf;});
+  var T={games:games.length,pa:0,ab:0,r:0,h:0,rbi:0,hr:0,bb:0,k:0,sb:0,tb:0,hbp:0,sf:0,bip:0};
+  rows.forEach(function(s){T.pa+=s.pa;T.ab+=s.ab;T.r+=s.r;T.h+=s.h;T.rbi+=s.rbi;T.hr+=s.hr;T.bb+=s.bb;T.k+=s.k;T.sb+=s.sb;T.tb+=s.tb;T.hbp+=s.hbp;T.sf+=s.sf;T.bip+=s.bip;});
   var Tba=T.ab>0?T.h/T.ab:0;var Tobp=(T.ab+T.bb+T.hbp+T.sf)>0?(T.h+T.bb+T.hbp)/(T.ab+T.bb+T.hbp+T.sf):0;var Tslg=T.ab>0?T.tb/T.ab:0;
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TEAM</td><td>'+T.games+'</td><td>'+T.pa+'</td><td>'+T.ab+'</td><td>'+T.r+'</td><td>'+T.h+'</td><td>'+T.rbi+'</td><td>'+T.hr+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.sb+'</td><td class="hi">'+(T.ab>0?fmt3(Tba):'—')+'</td><td class="hi">'+(T.ab+T.bb+T.hbp+T.sf>0?fmt3(Tobp):'—')+'</td><td class="hi">'+(T.ab>0?fmt3(Tslg):'—')+'</td></tr></tfoot>';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TEAM</td><td>'+T.games+'</td><td>'+T.pa+'</td><td>'+T.ab+'</td><td>'+T.r+'</td><td>'+T.h+'</td><td>'+T.rbi+'</td><td>'+T.hr+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td>'+T.sb+'</td><td>'+T.bip+'</td><td class="hi">'+(T.ab>0?fmt3(Tba):'—')+'</td><td class="hi">'+(T.ab+T.bb+T.hbp+T.sf>0?fmt3(Tobp):'—')+'</td><td class="hi">'+(T.ab>0?fmt3(Tslg):'—')+'</td></tr></tfoot>';
   $('season-bat').innerHTML=h;
 }
 function renderSeasonPit(games){
@@ -1200,43 +1230,198 @@ function renderSeasonPit(games){
     pl.forEach(function(p){
       if(!p||!p.name)return;
       var key=p.name;
-      if(!byPit[key])byPit[key]={name:p.name,games:0,ip_outs:0,pc:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0};
+      if(!byPit[key])byPit[key]={name:p.name,games:0,ip_outs:0,pc:0,ba:0,stk:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,tbf:0,sac:0};
       var s=byPit[key];
       if((p.ip_outs||0)>0||(p.total||0)>0)s.games++;
-      s.ip_outs+=(p.ip_outs||0);s.pc+=(p.total||0);s.hits+=(p.hits||0);
+      s.ip_outs+=(p.ip_outs||0);s.pc+=(p.total||0);
+      s.ba+=(p.ba||0);s.stk+=(p.stk||0);
+      s.hits+=(p.hits||0);
       s.r+=(p.runs_allowed||0);s.er+=(p.er||0);
       s.bb+=(p.bb_allowed||0);s.k+=(p.k_pitched||0);s.hbp+=(p.hbp_allowed||0);
     });
+    // Count batters faced (TBF) + sac flies/bunts faced from g.abs (v82+ ABs carry ab.pitcher).
+    // We only count ABs where the pitcher was on OUR side.
+    var ourSide=_ourTeamSide(g);
+    (g.abs||[]).forEach(function(ab){
+      if(!ab.pitcher||ab.pitcherTeam!==ourSide)return;
+      if(!byPit[ab.pitcher])return;
+      byPit[ab.pitcher].tbf++;
+      if(ab.result==='SAC')byPit[ab.pitcher].sac++;
+    });
   });
   var rows=Object.values(byPit).filter(function(s){return s.games>0;});
-  // Sort by IP desc
   rows.sort(function(a,b){return b.ip_outs-a.ip_outs;});
-  var h='<thead><tr><th>Pitcher</th><th>G</th><th>IP</th><th>PC</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HBP</th><th>ERA</th></tr></thead><tbody>';
+  // Pitch-breakdown fallback: if exact pitches weren't all logged,
+  //   floor balls at 4*(BB+HBP) and strikes at 3*K. Always reported as ≥ logged value.
+  // BAA = H / (TBF − BB − HBP − SAC).
+  rows.forEach(function(s){
+    s.baEst=Math.max(s.ba,4*(s.bb+s.hbp));
+    s.stkEst=Math.max(s.stk,3*s.k);
+    s.abAgainst=Math.max(0,s.tbf-s.bb-s.hbp-s.sac);
+    s.baa=s.abAgainst>0?s.hits/s.abAgainst:0;
+  });
+  var h='<thead><tr><th>Pitcher</th><th>G</th><th>IP</th><th>PC</th><th>Ba</th><th>St</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HBP</th><th>BAA</th><th>ERA</th></tr></thead><tbody>';
   rows.forEach(function(s){
     var ip=Math.floor(s.ip_outs/3)+'.'+(s.ip_outs%3);
     var era=s.ip_outs>0?fmt3(s.er/(s.ip_outs/3)*6):'—';
+    var baa=s.abAgainst>0?fmt3(s.baa):'—';
     var j=_findJersey(s.name);var nm=j?'#'+j+' '+sn(s.name):sn(s.name);
-    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td class="hi">'+ip+'</td><td>'+s.pc+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+era+'</td></tr>';
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td class="hi">'+ip+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baa+'</td><td class="hi">'+era+'</td></tr>';
   });
-  var T={games:games.length,ip_outs:0,pc:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0};
-  rows.forEach(function(s){T.ip_outs+=s.ip_outs;T.pc+=s.pc;T.hits+=s.hits;T.r+=s.r;T.er+=s.er;T.bb+=s.bb;T.k+=s.k;T.hbp+=s.hbp;});
+  var T={games:games.length,ip_outs:0,pc:0,baEst:0,stkEst:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,abAgainst:0};
+  rows.forEach(function(s){T.ip_outs+=s.ip_outs;T.pc+=s.pc;T.baEst+=s.baEst;T.stkEst+=s.stkEst;T.hits+=s.hits;T.r+=s.r;T.er+=s.er;T.bb+=s.bb;T.k+=s.k;T.hbp+=s.hbp;T.abAgainst+=s.abAgainst;});
   var Tip=Math.floor(T.ip_outs/3)+'.'+(T.ip_outs%3);
   var Tera=T.ip_outs>0?fmt3(T.er/(T.ip_outs/3)*6):'—';
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.pc+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tera+'</td></tr></tfoot>';
+  var Tbaa=T.abAgainst>0?fmt3(T.hits/T.abAgainst):'—';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td></tr></tfoot>';
   $('season-pit').innerHTML=h;
 }
+// ============================================================================
+// OPTIMAL LINEUP — pulls finalized games, scores each roster player, returns
+// an order. Composite score weights OBP heavily, SLG decently, gives a small
+// bonus for SB and BIP, and penalizes Ks. After the composite sort we apply
+// two conventional baseball nudges within the top of the order:
+//   - highest OBP among top 5 → slot 1 (set the table)
+//   - highest SLG among top 5 → slot 4 (cleanup)
+// Players with no PAs (haven't appeared yet) rank in roster order at the bottom.
+// ============================================================================
+async function _fetchAllFinalGames(){
+  var games=[];
+  if(!fbReady)return games;
+  try{
+    var ids=Object.keys(A.gameResults||{}).filter(function(k){return A.gameResults[k]&&A.gameResults[k].final===true&&k!=='test-sandbox';});
+    for(var i=0;i<ids.length;i++){
+      var doc=await db.collection('games').doc(ids[i]).get();
+      if(doc.exists&&doc.data()&&doc.data().gdata)games.push(doc.data().gdata);
+    }
+  }catch(e){console.log('_fetchAllFinalGames error:',e);}
+  return games;
+}
+function buildOptimalMusselsLineup(games){
+  // Aggregate per-player batting stats from Mussels' own ABs across all games.
+  var byPlayer={};
+  games.forEach(function(g){
+    if(g.ht!=='Mighty Mussels'&&g.at!=='Mighty Mussels')return;
+    var team=_ourTeamSide(g);var lu=_ourLineup(g);
+    lu.forEach(function(p,i){
+      if(!p||!p.name)return;
+      var key=p.name;
+      if(!byPlayer[key])byPlayer[key]={pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0};
+      var s=byPlayer[key];
+      (g.abs||[]).forEach(function(ab){
+        if(ab.bi!==i||ab.team!==team)return;
+        if(!ab.autoOut)s.pa++;
+        var r=ab.result;
+        if(!['BB','HBP','SAC'].includes(r))s.ab++;
+        if(['1B','2B','3B','HR','LLHR'].includes(r))s.h++;
+        if(['2B','3B','HR','LLHR'].includes(r))s.xbh++;
+        if(r==='BB')s.bb++;
+        if(r==='HBP')s.hbp++;
+        if(r==='K'||r==='KL')s.k++;
+        if(r==='SAC')s.sf++;
+        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','SAC','FC'].includes(r))s.bip++;
+        if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;
+      });
+      (g.steals||[]).forEach(function(e){if(e.bi==i)s.sb++;});
+    });
+  });
+  // Score every roster player; missing-data players get 0 and rank last (in roster order).
+  var ranked=A.roster.map(function(rp,idx){
+    var s=byPlayer[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0};
+    var paDenom=s.pa||1;
+    var obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;
+    var slg=s.ab>0?s.tb/s.ab:0;
+    var ba=s.ab>0?s.h/s.ab:0;
+    var kRate=s.k/paDenom;
+    var sbRate=s.sb/paDenom;
+    var bipRate=s.bip/paDenom;
+    var score=s.pa>0?(1.7*obp+1.0*slg+0.3*sbRate+0.05*bipRate-0.5*kRate):-1+(idx*0.0001)*-1;
+    return {rp:rp,score:score,pa:s.pa,obp:obp,slg:slg,ba:ba,k:s.k,sb:s.sb,h:s.h,xbh:s.xbh,rosterIdx:idx};
+  });
+  // Primary sort: composite score desc; tiebreakers: PA desc, then roster idx asc.
+  ranked.sort(function(a,b){if(a.score!==b.score)return b.score-a.score;if(a.pa!==b.pa)return b.pa-a.pa;return a.rosterIdx-b.rosterIdx;});
+  // Slot nudges within the top 5 (only if we actually have multiple PA-eligible hitters):
+  var topN=Math.min(5,ranked.filter(function(r){return r.pa>0;}).length);
+  if(topN>=2){
+    // Find best OBP in top N → bring to slot 1
+    var bestObpIdx=0;
+    for(var i=1;i<topN;i++)if(ranked[i].obp>ranked[bestObpIdx].obp)bestObpIdx=i;
+    if(bestObpIdx!==0){var t=ranked[0];ranked[0]=ranked[bestObpIdx];ranked[bestObpIdx]=t;}
+  }
+  if(topN>=4){
+    // Find best SLG in slots 1-5 (excluding current slot 1) → bring to slot 4
+    var bestSlgIdx=1;
+    for(var j=2;j<topN;j++)if(ranked[j].slg>ranked[bestSlgIdx].slg)bestSlgIdx=j;
+    if(bestSlgIdx!==3){var t2=ranked[3];ranked[3]=ranked[bestSlgIdx];ranked[bestSlgIdx]=t2;}
+  }
+  return ranked.map(function(r){return {name:r.rp.name||'',jersey:r.rp.jersey||'',rid:r.rp.id,_score:r.score,_pa:r.pa,_obp:r.obp,_slg:r.slg,_ba:r.ba,_k:r.k};});
+}
+async function showOptimalLineup(){
+  toast('Fetching season data…');
+  var games=await _fetchAllFinalGames();
+  if(!games.length){toast('No completed games yet — nothing to optimize on');return;}
+  var lu=buildOptimalMusselsLineup(games);
+  var rows='';
+  lu.forEach(function(p,i){
+    var line2=p._pa>0?'OBP '+(p._obp>0?fmt3(p._obp):'.000')+' · SLG '+(p._slg>0?fmt3(p._slg):'.000')+' · BA '+(p._ba>0?fmt3(p._ba):'.000')+' · K '+p._k+' in '+p._pa+' PA':'(no data — defaults to roster order)';
+    rows+='<div class="lu-row" style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);">'
+      +'<span class="lu-ord" style="width:24px;color:var(--gold);font-weight:bold;">'+(i+1)+'</span>'
+      +'<div class="bat-jersey">'+(p.jersey||'?')+'</div>'
+      +'<div style="flex:1;"><div style="font-size:13px;">'+esc(p.name||'(unnamed)')+'</div>'
+      +'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+line2+'</div></div>'
+      +'</div>';
+  });
+  $('optlu-body').innerHTML=rows;
+  $('optlu-meta').textContent='Across '+games.length+' game'+(games.length===1?'':'s')+' · sorted by composite score (1.7·OBP + SLG + 0.3·SB-rate + 0.05·BIP-rate − 0.5·K-rate); slot 1 holds best OBP, slot 4 holds best SLG (within top 5)';
+  om('m-optlu');
+}
 function startTestGame(){
+  // If sandbox game is already in-progress (has ABs), jump straight into resume flow.
+  // Otherwise show the start-options modal so the user can pick default lineups,
+  // build manually, or wipe and start fresh.
+  var hasInProg=G.eid==='test-sandbox'&&(G.abs||[]).length>0;
+  if(hasInProg){_startSandboxGame('resume');return;}
+  // Toggle the wipe button visibility based on whether sandbox data exists.
+  var hasAny=!!A.gameResults['test-sandbox']||A.schedule.some(function(e){return e.id==='test-sandbox';});
+  var wipeBtn=$('teststart-wipe-btn');if(wipeBtn)wipeBtn.style.display=hasAny?'':'none';
+  om('m-teststart');
+}
+async function startTestSandbox(mode){
+  cm('m-teststart');
+  await _startSandboxGame(mode);
+}
+async function _startSandboxGame(mode){
+  // Ensure the sandbox event exists and has today's date (pitch-rest sanity).
   var existing=A.schedule.find(e=>e.id==='test-sandbox');
   var today=new Date();var dstr=today.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   if(!existing){
     A.schedule.push({id:'test-sandbox',type:'game',ha:'home',opponent:'TEST OPPONENT',title:'vs TEST OPPONENT',date:dstr,time:'12:00 pm',loc:'Sandbox'});
-  }else if(existing.date!==dstr){
-    // Always refresh the sandbox date to today — otherwise pitch-rest calculations
-    // can go negative when real games happen AFTER the cached sandbox date.
-    existing.date=dstr;
-  }
+  }else if(existing.date!==dstr){existing.date=dstr;}
   sa();
-  startG('test-sandbox');
+  if(mode==='resume'||mode==='fresh'){
+    // 'resume' lets startG's normal in-progress detection kick in.
+    // 'fresh' has no in-progress state, so startG will route to enterLineupFlow.
+    startG('test-sandbox');
+    return;
+  }
+  // mode === 'default' → preload optimized Mussels + 11-of-12 TEST OPP, skip lineup builder.
+  var ev=A.schedule.find(e=>e.id==='test-sandbox');
+  toast('Loading season data for optimized lineup…');
+  var games=await _fetchAllFinalGames();
+  var optMussels=buildOptimalMusselsLineup(games);
+  setViewOnly(false);
+  resetG(ev);
+  // Override hlu (us, home) with optimized order; alu (TEST OPP) with default 11-of-12.
+  G.hlu=optMussels.map(function(p){return {name:p.name,jersey:p.jersey,rid:p.rid};});
+  G.alu=_testOppDefaultLineup();
+  G.oppLuDone=true;// lineup is locked; on-the-fly picker won't auto-trigger
+  G.hbi=0;G.abi=0;
+  // Save lineup order so import-last-game works on the sandbox too.
+  if(!A.gameResults[ev.id])A.gameResults[ev.id]={};
+  A.gameResults[ev.id].lineupOrder=G.hlu.map(function(p){return p.rid;}).filter(Boolean);
+  sg();sv();
+  enterSC();
+  toast('Sandbox loaded · '+G.hlu.length+' Mussels · '+G.alu.length+'/12 TEST OPP',2500);
 }
 function clearTestData(){
   if(!confirm('Wipe all test sandbox data? (roster, schedule, and real game data are untouched)'))return;
@@ -3986,7 +4171,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v82';
+var APP_VERSION='v83';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
