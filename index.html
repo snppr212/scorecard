@@ -160,6 +160,18 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .bat-mini{font-size:10px;color:var(--text3);font-family:sans-serif;}
 .bat-item.skipped{opacity:.4;border:1px dashed var(--amber2)!important;}
 .bat-item.batted-ooo{opacity:.55;border:1px dashed var(--text3)!important;}
+/* PLAY-LOG MODAL — diamond fielder picker + sticky actions + quality / error toggles */
+#m-play .modal{display:flex;flex-direction:column;max-height:92vh;}
+#m-play .play-body{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
+#m-play .play-action-bar{padding-top:10px;margin-top:10px;border-top:1px solid var(--border);background:var(--bg2);position:sticky;bottom:0;display:flex;flex-direction:column;gap:6px;}
+.play-diamond{display:block;margin:0 auto 6px;max-width:280px;width:100%;height:auto;border-radius:var(--rs);}
+.play-diamond .fielder{cursor:pointer;}
+.play-diamond .fielder circle{transition:fill .12s,stroke-width .12s;}
+.play-diamond .fielder.pos1 circle{fill:#FFD700;stroke:#D4A017;stroke-width:2.5;}
+.play-diamond .fielder.pos2 circle{fill:#5fb6ff;stroke:#3a85d4;stroke-width:2.5;}
+.play-diamond .fielder text{pointer-events:none;font-family:sans-serif;}
+.play-toggle-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.play-toggle-group .btn.selected{background:rgba(200,169,110,.18);border-color:var(--gold);color:var(--gold);}
 /* VIEW-ONLY mode for finalized games — hide all input UI on the at-bat tab,
    show a banner, and let the user navigate to Plays / Stats / Box Score. */
 .view-only-banner{display:none;background:rgba(200,169,110,.10);border:1px solid var(--gold);padding:10px 12px;text-align:center;font-family:sans-serif;font-size:13px;color:var(--gold);margin:8px;border-radius:var(--rs);}
@@ -403,8 +415,62 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-setup"><div class="modal"><h3>Game setup</h3><div class="mrow"><label>Home</label><input type="text" id="s-h"></div><div class="mrow"><label>Away</label><input type="text" id="s-a"></div><div class="mrow"><label>Innings</label><input type="number" id="s-i" value="6"></div><div class="mrow"><label>Extra fielder label</label><input type="text" id="s-ef"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveSetup()">Save</button><button class="btn btn-full" onclick="cm('m-setup')">Cancel</button></div><div class="sep"></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-bottom:6px;">Game called for time / darkness / weather / mercy?</div><button class="btn btn-red btn-full" onclick="cm('m-setup');openCallGame()">🏁 Call game (end early)</button></div></div>
-<div class="modal-ov" id="m-play"><div class="modal"><h3 id="mp-t">Log play</h3><div class="mrow"><label>Scorecard notation (4-3, L9, F8)</label><input type="text" id="mp-not"></div><div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
-<div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div><div id="err-sec" style="display:none;"><div class="mrow"><label>Fielding error?</label><select id="err-t" onchange="if(this.value){$('err-pr').style.display='block';popErrPos();}else $('err-pr').style.display='none';"><option value="">No</option><option value="F">Fielding</option><option value="T">Throwing</option><option value="M">Mental</option><option value="C">Catching</option></select></div><div class="mrow" id="err-pr" style="display:none;"><label>Position</label><select id="err-p"></select></div></div><div id="fc-sec" style="display:none;"><div class="mrow"><label>FC — who is out?</label><div id="fc-btns"></div></div></div><div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div><div class="mact"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cancelPlay()">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-play"><div class="modal" style="max-width:380px;"><h3 id="mp-t" style="margin-bottom:8px;">Log play</h3><div class="play-body">
+<!-- DIAMOND PICKER — tap fielder = where ball went; second tap = throw target / out location -->
+<div id="play-diamond-wrap" style="background:rgba(13,27,42,.5);border:1px solid var(--border);border-radius:var(--rs);padding:6px 4px;margin-bottom:8px;">
+<svg class="play-diamond" viewBox="0 0 240 180">
+<rect width="240" height="180" fill="#1e6838" rx="3"/>
+<path d="M 120,140 L 175,95 L 120,50 L 65,95 Z" fill="#a87a45" stroke="#7a5a30" stroke-width="0.6"/>
+<polygon points="116,144 124,144 124,140 120,136 116,140" fill="white" opacity="0.9"/>
+<rect x="171" y="91" width="8" height="8" transform="rotate(45 175 95)" fill="white" opacity="0.7"/>
+<rect x="116" y="46" width="8" height="8" transform="rotate(45 120 50)" fill="white" opacity="0.7"/>
+<rect x="61" y="91" width="8" height="8" transform="rotate(45 65 95)" fill="white" opacity="0.7"/>
+<g class="fielder" data-pos="1" onclick="setPlayPos(1)"><circle cx="120" cy="105" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="109" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">P</text></g>
+<g class="fielder" data-pos="2" onclick="setPlayPos(2)"><circle cx="120" cy="160" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="164" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">C</text></g>
+<g class="fielder" data-pos="3" onclick="setPlayPos(3)"><circle cx="170" cy="115" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="170" y="119" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">1B</text></g>
+<g class="fielder" data-pos="4" onclick="setPlayPos(4)"><circle cx="155" cy="75" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="155" y="79" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">2B</text></g>
+<g class="fielder" data-pos="5" onclick="setPlayPos(5)"><circle cx="70" cy="115" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="70" y="119" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">3B</text></g>
+<g class="fielder" data-pos="6" onclick="setPlayPos(6)"><circle cx="85" cy="75" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="85" y="79" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">SS</text></g>
+<g class="fielder" data-pos="7" onclick="setPlayPos(7)"><circle cx="40" cy="35" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="40" y="39" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">LF</text></g>
+<g class="fielder" data-pos="8" onclick="setPlayPos(8)"><circle cx="120" cy="20" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="24" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">CF</text></g>
+<g class="fielder" data-pos="9" onclick="setPlayPos(9)"><circle cx="200" cy="35" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="200" y="39" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">RF</text></g>
+</svg>
+<div id="play-diamond-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-top:2px;">Tap where the ball went. Tap a 2nd fielder for the throw target.</div>
+</div>
+<!-- THROW TARGET / UNASSISTED -->
+<div id="play-throw-row" class="mrow" style="display:none;"><label>Throw / out</label><div class="play-toggle-group"><button class="btn btn-xs" onclick="setPlayUnassisted()" id="play-u-btn">u (unassisted)</button><button class="btn btn-xs" onclick="clearPlayPos2()" style="opacity:.7;">clear 2nd fielder</button></div></div>
+<!-- AUTO-DERIVED NOTATION (with manual override fallback) -->
+<div class="mrow"><label>Notation</label><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span id="play-notation-display" style="font-family:monospace;font-size:15px;font-weight:bold;color:var(--gold);min-width:60px;padding:4px 8px;background:rgba(200,169,110,.10);border-radius:3px;">—</span><button class="btn btn-xs" id="play-manual-toggle" onclick="togglePlayManualNot()" style="font-size:10px;">Edit manually</button></div><input type="text" id="mp-not" style="display:none;margin-top:4px;" oninput="onPlayManualNotInput(this.value)" inputmode="numeric"></div>
+<!-- RBI -->
+<div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
+<!-- QUALITY OF CONTACT (NEW, optional) -->
+<div class="mrow" id="quality-sec" style="display:none;"><label>Quality (optional)</label><div class="play-toggle-group" id="quality-btns">
+<button class="btn btn-xs" data-q="hard" onclick="setPlayQuality('hard')">⚡ Hard</button>
+<button class="btn btn-xs" data-q="soft" onclick="setPlayQuality('soft')">🍃 Soft</button>
+<button class="btn btn-xs" data-q="pop" onclick="setPlayQuality('pop')">🥚 Pop</button>
+<button class="btn btn-xs" data-q="weak" onclick="setPlayQuality('weak')">💀 Weak</button>
+<button class="btn btn-xs" onclick="setPlayQuality(null)" style="opacity:.7;">clear</button>
+</div></div>
+<!-- WHO SCORED (existing, currently hidden — keeping for future) -->
+<div class="mrow" id="scored-sec" style="display:none;"><label>Who scored?</label><div id="scored-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div>
+<!-- DP / FC sub-pickers (existing, unchanged) -->
+<div id="fc-sec" style="display:none;"><div class="mrow"><label>FC — who is out?</label><div id="fc-btns"></div></div></div>
+<div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div>
+<!-- OPTIONAL: FIELDING ERROR (collapsible) -->
+<details id="play-err-details" style="margin-top:8px;background:var(--bg3);border-radius:var(--rs);padding:0 8px;"><summary style="font-size:12px;color:var(--text2);font-family:sans-serif;cursor:pointer;padding:8px 0;">+ Fielding error (optional)</summary>
+<div style="padding:0 0 8px;">
+<div class="mrow"><label>Type</label><div class="play-toggle-group" id="play-err-btns">
+<button class="btn btn-xs" data-err="F" onclick="setPlayErr('F')">⚾ Field</button>
+<button class="btn btn-xs" data-err="T" onclick="setPlayErr('T')">🎯 Throw</button>
+<button class="btn btn-xs" data-err="M" onclick="setPlayErr('M')">🧠 Mental</button>
+<button class="btn btn-xs" data-err="C" onclick="setPlayErr('C')">🥎 Catch</button>
+<button class="btn btn-xs" onclick="setPlayErr(null)" style="opacity:.7;">clear</button>
+</div></div>
+<div class="mrow"><label>Position</label><select id="err-p" style="font-family:sans-serif;"></select></div>
+<input type="hidden" id="err-t">
+</div></details>
+</div>
+<div class="play-action-bar"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cancelPlay()">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-steal"><div class="modal"><h3>Stolen base</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Check who advanced — multiple OK for double steals</div><div id="sb-opts" style="margin-bottom:10px;"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmSB()">Log steal(s)</button><button class="btn btn-full" onclick="cm('m-steal')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-pos"><div class="modal"><h3 id="mpos-t">Assign</h3><div id="mpos-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-pos')">Cancel</button></div></div></div>
@@ -2433,18 +2499,25 @@ if((r==='BB'||r==='HBP')&&G.bases[0]&&G.bases[1]&&G.bases[2]){
 if(r==='K'||r==='KL'||r==='BB'||r==='HBP'){var not=r==='K'?'K':r==='KL'?'Ⓚ':r==='BB'?'BB':'HBP';finAB(r,not,0);return;}
 if(r==='HR'||r==='LLHR'){G.prbi=1+G.bases.filter(b=>b!==null).length;}
 else if(['1B','2B','3B'].includes(r)){var _adv=r==='1B'?1:r==='2B'?2:3;G.prbi=0;for(var _b=0;_b<3;_b++)if(G.bases[_b]&&(_b+_adv)>=3)G.prbi++;}
-$('mp-t').textContent='Log play — '+r;$('mp-not').value=r==='1B'?'1B':r==='2B'?'2B':r==='3B'?'3B':r==='HR'?'HR':'';
+$('mp-t').textContent='Log play — '+r;
+_resetPlayState();// clear diamond highlights, quality, error, manual-notation toggles
 G.pscored=[];
 var isHit=['1B','2B','3B'].includes(r);
 var hasRunners=G.bases.some(b=>b!==null);
-// For hits with runners: show "who scored?" picker with force-plays pre-selected
+// "Who scored?" picker — kept hidden in current build (reserved for future explicit-pick flow)
 $('scored-sec').style.display='none';
 $('rbi-sec').style.display=['1B','2B','3B','HR','LLHR','FC','GO','FO','LO','SAC','DP','GIDP'].includes(r)?'block':'none';
+$('quality-sec').style.display='block';// Quality of contact is always optional for any play-modal-opening result
 var _runCt=G.bases.filter(function(b){return b!==null;}).length;
 var _maxRBI=_runCt+1;// runners + batter as potential scorer
 var rb='';for(var i=0;i<=4;i++){var _dis=i>_maxRBI;rb+='<button class="btn btn-xs" style="margin:0 2px;'+(_dis?'opacity:.35;pointer-events:none;':'')+(i===G.prbi?'border-color:var(--gold);':'')+'" '+(i===G.prbi||!_dis?'onclick="G.prbi='+i+';this.parentNode.querySelectorAll(\'.btn\').forEach(b=>b.style.borderColor=\'\');this.style.borderColor=\'var(--gold)\';"':'')+'>'+i+'</button>';}
 $('rbi-btns').innerHTML=rb;
-var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());$('err-sec').style.display=wf?'block':'none';if(wf){$('err-t').value='';$('err-pr').style.display='none';}
+// Pre-populate the err-p select so the position picker works when the user opens the error details
+var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+if(wf)popErrPos();
+$('play-err-details').style.display=wf?'block':'none';
+// Initial notation display from result code (no fielder picked yet)
+_updatePlayNotationDisplay();
 var dp=r==='DP';$('dp-sec').style.display=dp?'block':'none';
 if($('gidp-chk'))$('gidp-chk').checked=false;
 if(dp){var db='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';db+='<button class="btn btn-sm" style="margin:3px;" onclick="G.dpout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('dp-btns').innerHTML=db||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
@@ -2452,15 +2525,139 @@ var fc=r==='FC';$('fc-sec').style.display=fc?'block':'none';
 if(fc){var fb='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';fb+='<button class="btn btn-sm" style="margin:3px;" onclick="G.fcout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('fc-btns').innerHTML=fb||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
 om('m-play');}
 function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePOS().map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
+// ============================================================================
+// PLAY-LOG MODAL — diamond fielder picker, quality buttons, error toggles,
+// and auto-derived notation. State lives in module-level _playXxx vars and
+// gets read in submitPlay; reset by _resetPlayState() each time endAB opens
+// the modal.
+// ============================================================================
+var _playPos1=null,_playPos2=null,_playQuality=null,_playErrType=null,_playManualNot=false;
+function _posToLabel(n){return({1:'P',2:'C',3:'1B',4:'2B',5:'3B',6:'SS',7:'LF',8:'CF',9:'RF'})[n]||'';}
+function _resetPlayState(){
+  _playPos1=null;_playPos2=null;_playQuality=null;_playErrType=null;_playManualNot=false;
+  document.querySelectorAll('.play-diamond .fielder').forEach(function(el){el.classList.remove('pos1','pos2');});
+  document.querySelectorAll('#quality-btns .btn[data-q]').forEach(function(el){el.classList.remove('selected');});
+  document.querySelectorAll('#play-err-btns .btn[data-err]').forEach(function(el){el.classList.remove('selected');});
+  if($('mp-not')){$('mp-not').value='';$('mp-not').style.display='none';}
+  if($('play-manual-toggle'))$('play-manual-toggle').textContent='Edit manually';
+  if($('play-throw-row'))$('play-throw-row').style.display='none';
+  if($('play-u-btn'))$('play-u-btn').classList.remove('selected');
+  if($('err-t'))$('err-t').value='';
+  if($('play-err-details'))$('play-err-details').open=false;
+}
+function setPlayPos(n){
+  if(_playPos1===null){_playPos1=n;}
+  else if(_playPos1===n){_playPos1=(_playPos2&&_playPos2!=='u')?_playPos2:null;_playPos2=null;}
+  else if(_playPos2===n){_playPos2=null;}
+  else{_playPos2=n;}
+  _refreshPlayDiamond();_updatePlayNotationDisplay();
+}
+function setPlayUnassisted(){
+  if(_playPos1===null){toast('Tap where the ball went first');return;}
+  _playPos2=(_playPos2==='u')?null:'u';
+  _refreshPlayDiamond();_updatePlayNotationDisplay();
+  if($('play-u-btn'))$('play-u-btn').classList.toggle('selected',_playPos2==='u');
+}
+function clearPlayPos2(){
+  _playPos2=null;
+  _refreshPlayDiamond();_updatePlayNotationDisplay();
+  if($('play-u-btn'))$('play-u-btn').classList.remove('selected');
+}
+function _refreshPlayDiamond(){
+  document.querySelectorAll('.play-diamond .fielder').forEach(function(el){
+    var pos=parseInt(el.getAttribute('data-pos'));
+    el.classList.toggle('pos1',pos===_playPos1);
+    el.classList.toggle('pos2',pos===_playPos2);
+  });
+  var r=G.pres;
+  var needsThrow=['GO','FC','DP','GIDP','SAC','LO','FO'].indexOf(r)>=0;
+  if($('play-throw-row'))$('play-throw-row').style.display=(needsThrow&&_playPos1)?'block':'none';
+  // Auto-derive error position from pos1 (sticky if user hasn't manually picked)
+  if(_playPos1&&$('err-p')){
+    var lbl=_posToLabel(_playPos1);
+    var hasOpt=Array.prototype.find.call($('err-p').options,function(o){return o.value===lbl;});
+    if(hasOpt)$('err-p').value=lbl;
+  }
+}
+function _autoPlayNotation(){
+  if(_playManualNot)return $('mp-not').value;
+  var r=G.pres;
+  if(!_playPos1){
+    if(['1B','2B','3B','HR','LLHR'].indexOf(r)>=0)return r;
+    return r||'';
+  }
+  if(r==='FO')return'F'+_playPos1;
+  if(r==='LO')return'L'+_playPos1;
+  if(r==='GO'){
+    if(_playPos2==='u')return _playPos1+'u';
+    if(_playPos2)return _playPos1+'-'+_playPos2;
+    return _playPos1+'-3';
+  }
+  if(r==='FC'){
+    if(_playPos2==='u')return _playPos1+'u';
+    if(_playPos2)return _playPos1+'-'+_playPos2;
+    return ''+_playPos1;
+  }
+  if(r==='DP'||r==='GIDP'){
+    if(_playPos2==='u')return _playPos1+'u-3';
+    if(_playPos2)return _playPos1+'-'+_playPos2+'-3';
+    return _playPos1+'-'+(_playPos1===6?'4':'6')+'-3';
+  }
+  if(r==='SAC'){
+    if(_playPos2==='u')return'SAC '+_playPos1+'u';
+    if(_playPos2)return'SAC '+_playPos1+'-'+_playPos2;
+    return'SAC '+_playPos1;
+  }
+  // Hits — keep result code, hitLoc captured separately on the AB record
+  if(['1B','2B','3B','HR','LLHR'].indexOf(r)>=0)return r;
+  return r||'';
+}
+function _updatePlayNotationDisplay(){
+  var n=_autoPlayNotation();
+  if($('play-notation-display'))$('play-notation-display').textContent=n||'—';
+  if(!_playManualNot&&$('mp-not'))$('mp-not').value=n;
+}
+function togglePlayManualNot(){
+  _playManualNot=!_playManualNot;
+  if($('mp-not'))$('mp-not').style.display=_playManualNot?'block':'none';
+  if($('play-manual-toggle'))$('play-manual-toggle').textContent=_playManualNot?'Use diamond':'Edit manually';
+  if(_playManualNot&&$('mp-not')&&!$('mp-not').value)$('mp-not').value=_autoPlayNotation();
+}
+function onPlayManualNotInput(v){
+  // Sanitize: digits, dashes, u, L, F, P (case-insensitive); auto-format "43" → "4-3"
+  var clean=String(v||'').replace(/[^0-9LFPu\-]/gi,'');
+  if(/^\d\d$/.test(clean))clean=clean[0]+'-'+clean[1];
+  if(clean!==v&&$('mp-not'))$('mp-not').value=clean;
+  if($('play-notation-display'))$('play-notation-display').textContent=clean||'—';
+}
+function setPlayQuality(q){
+  _playQuality=q;
+  document.querySelectorAll('#quality-btns .btn[data-q]').forEach(function(el){
+    el.classList.toggle('selected',el.getAttribute('data-q')===q);
+  });
+}
+function setPlayErr(t){
+  _playErrType=t;
+  if($('err-t'))$('err-t').value=t||'';
+  document.querySelectorAll('#play-err-btns .btn[data-err]').forEach(function(el){
+    el.classList.toggle('selected',el.getAttribute('data-err')===t);
+  });
+  if(t&&$('play-err-details'))$('play-err-details').open=true;
+  if(t)popErrPos();
+}
 function cancelPlay(){
   // Remove the auto-added pitch if it's an X
   if(G.cpitch.length>0&&G.cpitch[G.cpitch.length-1]==='X'){
     G.cpitch.pop();
   }
   G.pres=null;G.prbi=0;G.dpout=null;G.fcout=null;
+  _resetPlayState();// reset diamond / quality / err toggles
   cm('m-play');sv();renderSC();
 }
-function submitPlay(){var not=$('mp-not').value.trim(),et=$('err-t').value,ep=$('err-p').value;
+function submitPlay(){
+// Notation: prefer auto-derived (from diamond) unless user manually edited
+var not=_playManualNot?$('mp-not').value.trim():_autoPlayNotation();
+var et=_playErrType||'',ep=$('err-p').value;
 var res=G.pres;var hasRunners=G.bases.some(b=>b!==null);
 // Validation: DP/GIDP requires runners on base
 if((res==='DP'||res==='GIDP'||($('gidp-chk')&&$('gidp-chk').checked))&&!hasRunners){toast('Double play requires runner(s) on base');return;}
@@ -2471,6 +2668,8 @@ if(res==='LO'&&G.prbi>0&&!hasRunners){toast('RBI requires runner(s) on base');re
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,half:G.half,type:et,play:not||G.pres,standalone:false});}
 if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
+// Stash play-detail metadata for finAB to pick up on the AB record
+G._lastPlayMeta={hitLoc:_playPos1||null,throwTo:(_playPos2&&_playPos2!=='u')?_playPos2:null,unassisted:_playPos2==='u'||null,quality:_playQuality||null};
 cm('m-play');finAB(res,not,G.prbi);}
 
 function finAB(r,not,rbi){
@@ -2483,7 +2682,10 @@ var _fp=curPitcher();
 var _pTeam=G.half==='top'?'home':'away';// team OF the pitcher (opposite of batter)
 // Buffer for runner names who score during this AB — used for sub-lines in Plays log
 G._abScoredBuffer=[];
-G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null,pscored:[]});
+// Pull v81 play-meta (diamond fielder picks + quality) from G._lastPlayMeta if present.
+// Cleared right after consumption so it doesn't leak to subsequent ABs.
+var _meta=G._lastPlayMeta||{};G._lastPlayMeta=null;
+G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null,pscored:[],hitLoc:_meta.hitLoc||null,throwTo:_meta.throwTo||null,unassisted:_meta.unassisted||null,quality:_meta.quality||null});
 var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
 // attribute result to fielding pitcher (already computed above)
 if(_fp){
@@ -3768,7 +3970,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v80';
+var APP_VERSION='v81';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
