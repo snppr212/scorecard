@@ -1,7 +1,21 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v65 (`c68cb54`, 2026-04-27)
-**Status as of:** 2026-04-27. **All v40 game-day items shipped:** A1 Edit-AB RBI sync, B1 native dialog cleanup, B2 walk-off prompt, B3 hide ✕ behind Edit, B4 saved-roster section, B5 per-CS pitcher. Season record back to **2-1**. Retro scorecard parked as WIP behind Rules-tab link.
+**Current version:** v79 (`180e5d6`, 2026-05-02)
+**Status as of:** 2026-05-02. **Season record: 2-3** (W vs Hot Rods, L vs Thunder, W vs Bulls, L vs Devil Rays mercy, L vs Hurricanes mercy). Two heavy game-day shake-downs (5/1 Devil Rays, 5/2 Hurricanes) drove ~14 versions covering: skip-batter purgatory + out-of-order insert (v67-68), pinch-runner with proper bi handling (v69), Firebase sync guards both directions (v70/v72/v73), pitch-rest off-by-one fix per LMLL Rule C.4 (v75), view-only mode for finalized games (v75), LMLL rules tab verbatim with search + accordion (v75), pitcher attribution + pc-as-authoritative (v76), BIP X always appended (v77), SB stat team filter (v78), opp picker full lineup view + insert/remove per row (v79). Next game: e10 Tin Caps May 7.
+
+## Newly identified items from 5/1 + 5/2 game-day testing
+
+| Priority | Item | Notes |
+|---|---|---|
+| 📋 | **Pitcher attribution UX during live game** — When a manager changes the active pitcher mid-game (without going through the pitcher switch modal), `fa[inn].P` doesn't always update. The plays-page banner can lag behind reality. v76 fixed the rendering side; the data-entry side still needs an audit. | Real example: e8 B4 had Hunter pitching the whole inning but `fa[4].P` stayed on Miles (the planned pitcher) until manually corrected. Investigate where the user's "switch pitcher" action should sync to `fa`. |
+| 📋 | **Visual mismatch when `pitches.length < ab.pc`** — Plays page shows e.g. `B B (2)` but `ab.pc=3`. v76 added a `(Np)` fallback for empty `pitches`, but partial sequences (`pitches=['B','B']` + `pc=3`) still show the shorter count. Decide: prepend filler / show Math.max(pitches.length, ab.pc) / leave as-is. | Comes up whenever a retro patch bumps `pc` without adding to the sequence. |
+| 📋 | **Live entry of opp ABs without alu** — When opp lineup is empty (e.g. after a wipe) and the user adds opp batters mid-game via the picker, the on-the-fly add path should match the v79 picker affordances (insert/remove). Currently the form just appends. | Verify after a sandbox run-through. |
+| 📋 | **`pscored` should store `bi` not just `name`** — When opp lineup gets renamed (e.g. via the placeholder rename in v71), historical `pscored` entries on past ABs reference stale names. The plays-page sub-line displays the stored name regardless of current lineup. | Schema change: push `{bi, team, name}` objects so the renderer can resolve to the current name. Backward-compat: keep accepting strings. |
+| 📋 | **CS records don't credit pitcher IP_outs in `recalcPitcherStats`** — Live `confirmCS` stamps `cs.pitcher` (v65 work), and the existing CS-handling block in `recalcPitcherStats` credits the pitcher's `ip_outs`. But the partial recalc paths in standalone patch scripts don't replicate this — Hunter B4 audit was off by 1 IP_out for this reason on Paxton's e9 phantom AB. Acceptable for now since opp-pitcher detail is low-priority. | Cosmetic; revisit only if opp pitcher box scores become important. |
+| 🐞 | **Pinch-run swap-back display verification** — User reported in e8 that only one pinch-run line was visible in plays. Both records ARE in Firestore (T3 #25 Bodhi-for-Malcolm + T3 #26 Malcolm-for-Bodhi after fix). After v79 + cache refresh, both should render — but never confirmed visually on the user's phone. | Re-verify next time user opens e8 plays tab. |
+| 💡 | **Auto-detect run cap (6-run rule)** — When a half-inning hits 6 runs, prompt "End half-inning? (run-limit cap)". Manager currently has to manually advance. | Came up in T2 + T3 of e9 where both halves hit 6 and ended via cap. |
+| 💡 | **Force-out RBI awareness** — User wasn't sure when RBI is credited on a force play. Per LL Rule 9.04 (and per LMLL B), runs scoring on a single force out *do* credit RBI; only force-double-plays exclude RBI. Worth surfacing this in the post-AB result modal so the user knows whether to bump RBI. | Could be a tooltip on the RBI input. |
+| 💡 | **Opp pitcher pitch-count display** — We track opp pitcher totals via `ab.pitcher` attribution (e9 Greg/Paxton/Gold), but there's no clear box-score view showing them per-pitcher per-game. | Side-tab on the Pitchers screen, similar to ours. |
 
 ## Status Key
 - ✅ Done

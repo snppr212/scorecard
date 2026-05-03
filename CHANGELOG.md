@@ -1,5 +1,146 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v79 (2026-05-02) — 180e5d6
+**Opp picker — full lineup view + per-row insert/remove**
+
+- Opp batter picker now shows EVERY batter (hardcoded + live-added) sorted by lineup order, in both OPEN and LOCKED modes. Already-added batters appear with `in` badge. Closes the workflow gap where opp kids on the lineup card who didn't show up couldn't be removed without leaving the at-bat tab.
+- Per-row actions for batters already in lineup: **↑** insert above, **↓** insert below (prompt for name), **✕** remove
+- Insert / remove call `_shiftTeamBis(team, threshold, delta)` to keep `ab.bi` / `steals` / `runs` / `pinchRuns` / `hbi`-`abi`-`cbi` pointing at the right slots after the lineup shifts
+- Remove warns if the batter has logged ABs and deletes those records before shifting
+- Helper functions: `_shiftTeamBis`, `oppbatInsertAt(rowIdx, position)`, `oppbatRemoveSlot(rowIdx)`
+
+## v78 (2026-05-02) — cf39968
+**SB stat team filter + new SB records carry team**
+
+- `gps()` no longer double-counts steals across teams. Was matching on `bi` only, so a steal at `bi=8` from either team credited both teams' slot 9 in the box score (e.g. opp `(9-hole)` showed 3 SB when only 1 was theirs).
+- Box-score `gps` now derives the running team from `e.team` if present, otherwise from the half (`top` → `away`). SB and CS only credit slot `i` for the matching team.
+- `confirmSB()` stamps `team: 'home' / 'away'` on every new steal record so the explicit field is always available going forward.
+
+## v77 (2026-05-02) — 75c2f39
+**BIP pitch always appended in endAB**
+
+- `endAB(r)` previously only auto-added the `'X'` (ball-in-play) pitch when `G.cpitch.length === 0`. If the manager logged some pitches manually (e.g. `B B` on 9-hole) then tapped Single, no `X` was added — the play log showed `B B (2)` for an AB that actually had 3 pitches.
+- Now: for any BIP result (`1B`/`2B`/`3B`/`HR`/`LLHR`/`FO`/`GO`/`LO`/`SAC`/`FC`/`DP`/`GIDP`/`TP`), `endAB` always appends `'X'` to `cpitch`. K/KL/BB/HBP behavior unchanged (those auto-trigger via `lp()` with the count already correct, or auto-fill when `cpitch` was empty).
+- Also retroactively patched 11 BIP ABs in e8 that were missing the trailing X.
+
+## v76 (2026-05-02) — cc08010
+**Pitcher attribution + version indicator + pc-as-authoritative**
+
+### Plays-page pitcher attribution
+- `renderLog`'s `fa[inn].P` fallback now only fires when WE were FIELDING the AB (`ab.team !== usT()`). Fixed the e8 T5 plays page wrongly showing "Pitching: E.Thomas" — Ethan was our planned I5 pitcher, but T5 was opp pitching against us, so `fa[5].P` doesn't apply.
+- Same fix applied to the inning-PC sum filter so the count next to the pitcher banner only includes ABs we actually fielded.
+
+### Pitch count truth
+- `recalcPitcherStats` treats `ab.pc` as authoritative for total when set; falls back to `pitches.length` only if `ab.pc` is unset. Catches cases where the per-pitch sequence is partial (e.g. a retroactively bumped `pc` didn't add filler entries to `ab.pitches[]`).
+- Plays page now shows `(Np)` for ABs whose `pitches[]` array is empty but `ab.pc > 0` — instead of `—` with no count info.
+
+### Other
+- `enterSC()` skips `chkPitcherRest()` for view-only games (degenerate math when game date == recent pitch date).
+- Home-page subtitle shows `· v76` from `APP_VERSION` constant. Lets the user verify a refresh actually landed.
+
+## v75 (2026-05-01) — 48090ca
+**Pitch-rest off-by-one fix + view-only mode + LMLL rules verbatim**
+
+### Pitch-rest fix (LMLL Rule C.4)
+- `pStatus` now requires `ds > req` (not `ds >= req`) for eligibility. A 75p outing on Mon means rest Tue/Wed/Thu/Fri, eligible Sat — matches the LMLL example for Sally.
+- `chkPitcherRest` reword: `"ineligible — rest day X of Y (threw Np last game)"` instead of "needs N more days of rest".
+- `pStatus` return adds `restDayNum` + `restDaysReq` fields; existing `rest` field reinterpreted as remaining-days-including-today.
+
+### View-only mode for finalized games
+- `startG` detects `gameResults[eid].final === true` and skips the resume modal entirely; opens the game with `_viewOnlyMode = true` and routes straight to the at-bat tab.
+- New CSS `.view-only` class on `tab-atbat` hides matchup-bar, seq-panel, pitch-panel, and result-panel; shows a banner pointing to Plays.
+- `_voGuard()` inlined at the top of `lp` / `endAB` / `selBat` / `runnerM` / `logSteal` / `logCS` / `addManualOut` / `openManualRun` / `openStandaloneErr` / `undoPitch` / `undoAB`.
+- `goHome` no longer overwrites a finalized game's `gameResults` entry on the way out (was destroying the `{final: true}` flag); also clears `_viewOnlyMode`.
+
+### Vertical button stacks
+- `.mact` gains `flex-direction: column`. Affects every modal — stacks Resume / Start Fresh / Cancel and Pre-enter / Add Live (and every other modal) vertically so nothing scrolls horizontally on mobile.
+
+### LMLL Rules tab rebuild
+- Pitching Rest quick-reference stays at the top.
+- New search input filters across all rule items.
+- `LMLL_RULES` data structure holds sections B-G verbatim from the 2026 AA Rules and Regulations doc; section A (Evaluations and Drafts) intentionally omitted.
+- `renderRulesBook()` outputs collapsible `<details>` accordions with count badges. With an active search, all matching sections open by default.
+- Section/item numbering preserved including gaps in the source (B.8, B.24, C.13, D.6 are absent in the rule book).
+
+## v74 (2026-05-02) — c58634b
+**Pitch-rest fixes — sandbox date refresh + negative-days clamp**
+
+Two bugs found chasing "Brody needs 9 days, Hunter needs 5":
+
+1. `startTestGame` only set the sandbox date when creating it; opening an existing sandbox kept the cached date. Real games happening AFTER the cached date made days-between go negative, which inflated the rest required (`4 - (-5) = 9`). Now: sandbox date refreshes to today on every open.
+2. `pStatus` didn't defend against negative days-between. Clamped to `Math.max(0, daysBtwn(...))` — same outcome as a manager would expect (game in the past = no rest debt).
+
+Server-side: rebuilt `pitchLog` from canonical game data (e2/e4/e6/e8) and stripped the stale test-sandbox entry. All historical pitchers now correctly logged.
+
+## v73 (2026-05-01) — 68f728d
+**`startG` prefers remote when it's newer**
+
+Closes the corollary to v70's push guard: when entering a game, also pull from Firebase if remote has strictly more ABs than local. Prevents a phone with stale local state from ignoring server-side patches or another device's updates.
+
+- Equal AB counts → use local (normal sync case)
+- Local empty → pull remote (existing behavior, preserved)
+- Remote `> ` local → pull remote (NEW: handles stale-local)
+
+## v72 (2026-05-01) — e7e8060
+**`fbSaveRoster` guard preserves remote final-marked game results**
+
+When loading the app, the roster `onSnapshot` listener now strips local `gameResults` entries that aren't `final:true` BEFORE pushing to Firebase. Prevents partial in-progress test data from clobbering finalized historic games on cross-device sync.
+
+## v71 (2026-05-01) — af89102
+**Rename-placeholder in opp picker + 5-pitch rest warnings**
+
+### Opp picker
+- Placeholder rows (e.g. `(5-hole)`) show their name as a tappable dotted-underline link with a `✎` marker. Tap → prompt → rename in place. Existing ABs at that slot keep their attribution; only the display name + jersey update.
+- Placeholders are also shown in OPEN-lineup mode now (so they can be fixed before the cycle wraps).
+- New `oppbatRenameSlot(rowIdx)` handler.
+
+### Pitcher rest
+- `chkPW` now fires 5-pitches-before-threshold heads-up toasts for OUR pitcher: 16, 31, 46, 61, 70 (5 before 21 / 36 / 51 / 66 / 75).
+- Toasts are non-blocking advisory (so the manager can plan a sub before the actual threshold fires the existing modal/`showPWarn`).
+- Opp pitcher warnings unchanged — the 5-before is just for our team management.
+
+## v70 (2026-05-01) — 8eb2aef
+**`fbSaveGame` guard against stale-local overwrite**
+
+If local has fewer ABs than remote, don't push. Prevents a stale-state phone (e.g. one that loaded before a server-side patch) from overwriting the canonical state with old data. Pushes proceed only when local has equal or more ABs.
+
+## v69 (2026-05-01) — d243a2c
+**Pinch-runner feature + play-log line**
+
+Adds proper pinch-run support: tap a runner on base → "Pinch run for X" → pick a teammate → runner is swapped with correct slot index, so SB / run / CS credits go to the actual runner instead of nowhere (previous workaround left `bi=-1` and stats orphaned).
+
+- New `G.pinchRuns[]` array (added to default `G` state and `fix()`)
+- Runner menu (`m-runner`) gets a "Pinch run for [name]" option
+- New `m-prun` modal: lists current batting team's lineup, blocks players already on a base or who are the original runner
+- `confirmPinchRun` swaps `G.bases[b-1]` with the new player's slot info and pushes a `{inn, half, base, fromName, fromBi, toName, toBi, during_ab_num}` record to `G.pinchRuns`
+- `renderLog` renders pinch-run events as a sub-line under the AB during which they happened, in purple (`#b88aff`), no emoji per the scorebook style: `↳ X pinch ran for Y`
+
+## v68 (2026-05-01) — 272d7fa
+**Skip-batter — proper purgatory + out-of-order insert**
+
+Unified skip behavior across both teams. SKIP puts a player in purgatory (removed from natural rotation); UN-SKIP inserts them as the active batter for an out-of-order AB, after which the natural rotation resumes from where it was — not from the just-batted slot.
+
+- New per-player flag: `battedOOO` (already had AB this cycle, skipped in natural rotation until order wraps)
+- New game flags: `G._oooBatter` / `G._oooTeam` (current OOO insert, consumed by `endAB` to short-circuit standard advance)
+- All advance loops now skip `dnp` / `skipped` / `battedOOO` uniformly (auto-out, `endAB`, `skipBatter`, `skipOppBatter`, `oppbatSkipFromRoster`, `showNB`)
+- `selBat` blocks taps on `skipped` / `battedOOO` / `dnp` with toast hint
+- `oppbatSelectFromRoster` + `oppbatPick` mark OOO when un-skipping via the `→` arrow / direct pick paths (prevents double-bat from natural rotation reaching the slot again this cycle)
+- UI: bat-list and opp picker both show "BATTED" label + dimmed row for players who batted OOO this cycle; "SKIP"/"UN-SKIP" buttons reserved for in-purgatory toggling
+- UN-SKIP toast names the up-after batter so user can confirm natural pointer is preserved
+- Multi-skip works — each skipped player sits in purgatory independently and can be un-skipped in any order. Re-skipping a player who's been un-skipped (before their AB) cancels the OOO state.
+
+## v67 (2026-05-01) — 60f8c10
+**Skip-batter UX + box-score live highlight**
+
+- Opp picker: per-row SKIP / UN-SKIP buttons (toggles skipped state, advances batting order if active, reopens picker if AB pending)
+- Bat-list skip button: 9px lowercase link → 10px bold caps with bordered amber pill — readable on the field
+- Box score: green-tint row + `▶` / `▷` marker for current at-bat or up-next batter on each team's stats table
+
+## v66 (2026-05-01) — 2e47e24
+**Game-day fixes from May 1 testing**
+
+5 small UX issues fixed during the Devil Rays game pre-game shake-down — opp picker placeholder display, pitcher rest popup edge cases, missing data refresh on bat-list re-render, etc.
+
 ## v65 (2026-04-27) — c68cb54
 **v40 — A1 fix + all 5 nice-to-haves shipped**
 
