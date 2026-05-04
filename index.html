@@ -406,7 +406,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- FIELD -->
 <div id="tab-field" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:9px;"><div class="ptitle" style="margin:0;">Our fielding</div><div id="fi-livebadge" style="font-size:10px;color:var(--green2);font-family:sans-serif;display:none;">● LIVE</div></div><div class="row" style="gap:4px;align-items:center;margin-bottom:8px;"><div class="team-toggle" style="flex-shrink:0;margin:0;"><div class="team-toggle-btn active" id="fld-mode-list" onclick="setFldMode('list')">By Inning</div><div class="team-toggle-btn" id="fld-mode-grid" onclick="setFldMode('grid')">Grid</div></div></div><div id="fld-list-mode"><div class="row" style="gap:6px;align-items:center;margin-bottom:8px;"><label style="font-size:11px;color:var(--text3);font-family:sans-serif;flex-shrink:0;">Inning</label><select id="fi-pick" onchange="setViewInn(parseInt(this.value))" style="width:auto;flex:1;"></select><button class="btn btn-xs" onclick="goToCurrentInn()" id="fi-now-btn" style="font-size:10px;">⟲ Current</button><button class="btn btn-xs btn-green" onclick="copyField()" style="font-size:10px;">Copy prev.</button></div><div id="fa-list"></div></div><div id="fld-grid-mode" style="display:none;"><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tap any cell to assign. Bench row shows who's sitting that inning.</div><div id="fld-grid-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;"></div></div></div><div class="panel"><div class="ptitle">Innings per player</div><div id="fi-sum"></div></div></div>
 <!-- PITCHERS -->
-<div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div><div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;"><button class="btn btn-xs btn-full" onclick="if(confirm('Rebuild all pitcher stats from the AB log? Use this if you changed pitcher attribution after the fact.')){recalcPitcherStats();renderPT();renderMU();toast('Pitcher stats rebuilt from ABs',2500);}" style="font-size:10px;border-color:var(--text3);color:var(--text2);">⟲ Recalc stats from ABs (after retroactive change)</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div></div></div>
+<div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div><div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;"><button class="btn btn-xs btn-full" onclick="if(confirm('Rebuild all pitcher stats from the AB log? Use this if you changed pitcher attribution after the fact.')){recalcPitcherStats();renderPT();renderMU();toast('Pitcher stats rebuilt from ABs',2500);}" style="font-size:10px;border-color:var(--text3);color:var(--text2);">⟲ Recalc stats from ABs (after retroactive change)</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div><div class="panel"><div class="ptitle">This game — pitch totals</div><div class="scroll-x"><table class="tbl" id="opp-pc-tbl"></table></div></div></div></div>
 <!-- LINEUP -->
 <div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><div class="row" style="gap:4px;"><button class="btn btn-xs" id="btn-lu-edit-us" onclick="toggleLuEdit('us')">Edit</button><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><div class="row" style="gap:4px;"><button class="btn btn-xs" id="btn-lu-edit-them" onclick="toggleLuEdit('them')">Edit</button><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div></div><div id="their-lu-list"></div></div></div>
 <!-- STATS / BOX -->
@@ -477,7 +477,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- AUTO-DERIVED NOTATION (with manual override fallback) -->
 <div class="mrow"><label>Notation</label><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span id="play-notation-display" style="font-family:monospace;font-size:15px;font-weight:bold;color:var(--gold);min-width:60px;padding:4px 8px;background:rgba(200,169,110,.10);border-radius:3px;">—</span><button class="btn btn-xs" id="play-manual-toggle" onclick="togglePlayManualNot()" style="font-size:10px;">Edit manually</button></div><input type="text" id="mp-not" style="display:none;margin-top:4px;" oninput="onPlayManualNotInput(this.value)" inputmode="numeric"></div>
 <!-- RBI -->
-<div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span></div>
+<div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span><div id="rbi-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:4px;line-height:1.35;"></div></div>
 <!-- QUALITY OF CONTACT (v82: trajectory + hardness, both optional) -->
 <div class="mrow" id="quality-sec" style="display:none;">
 <label style="margin-bottom:4px;">Trajectory (optional)</label>
@@ -2906,6 +2906,9 @@ var _runCt=G.bases.filter(function(b){return b!==null;}).length;
 var _maxRBI=_runCt+1;// runners + batter as potential scorer
 var rb='';for(var i=0;i<=4;i++){var _dis=i>_maxRBI;rb+='<button class="btn btn-xs" style="margin:0 2px;'+(_dis?'opacity:.35;pointer-events:none;':'')+(i===G.prbi?'border-color:var(--gold);':'')+'" '+(i===G.prbi||!_dis?'onclick="G.prbi='+i+';this.parentNode.querySelectorAll(\'.btn\').forEach(b=>b.style.borderColor=\'\');this.style.borderColor=\'var(--gold)\';"':'')+'>'+i+'</button>';}
 $('rbi-btns').innerHTML=rb;
+// Force-out RBI hint (LL 9.04). Surfaces the rule contextually so manager
+// doesn't have to remember when force outs / sacs / DPs do or don't credit RBI.
+$('rbi-hint').innerHTML=_rbiHintFor(r,hasRunners);
 // Pre-populate the err-p select so the position picker works when the user opens the error details
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 if(wf)popErrPos();
@@ -2927,6 +2930,19 @@ function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePO
 // ============================================================================
 var _playPos1=null,_playPos2=null,_playTrajectory=null,_playHardness=null,_playErrType=null,_playManualNot=false;
 function _posToLabel(n){return({1:'P',2:'C',3:'1B',4:'2B',5:'3B',6:'SS',7:'LF',8:'CF',9:'RF'})[n]||'';}
+// LL 9.04 force-out RBI hint. Returns a short contextual line for the play
+// modal — runs scoring on force / fly / sac plays DO credit the batter; only
+// force-double-plays exclude RBI. Errors-only-cause-the-run is also no RBI
+// but we don't have a good way to flag that automatically yet.
+function _rbiHintFor(result,hasRunners){
+  if(!hasRunners)return'';
+  if(result==='DP'||result==='GIDP')return'<span style="color:var(--red2);">✗ No RBI on double plays (LL 9.04 exception)</span>';
+  if(['GO','FC'].includes(result))return'<span style="color:var(--text2);">✓ Force-out scoring counts as RBI (LL 9.04). Toggle GIDP if it was a double play.</span>';
+  if(['FO','LO','SAC'].includes(result))return'<span style="color:var(--text2);">✓ Sac fly / sac bunt — RBI counts on the run scored (LL 9.04)</span>';
+  if(['1B','2B','3B'].includes(result))return'<span style="color:var(--text2);">✓ One RBI per runner who scored on the hit</span>';
+  if(['HR','LLHR'].includes(result))return'<span style="color:var(--text2);">✓ HR drives in every runner on base + the batter</span>';
+  return'';
+}
 function _resetPlayState(){
   _playPos1=null;_playPos2=null;_playTrajectory=null;_playHardness=null;_playErrType=null;_playManualNot=false;
   document.querySelectorAll('.play-diamond .fielder').forEach(function(el){el.classList.remove('pos1','pos2');});
@@ -3203,7 +3219,7 @@ if(!isLast)n=Math.min(n,6-curR);
 if(G.half==='top'){G.as+=n;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+n;}
 else{G.hs+=n;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+n;}
 var newR=G.half==='top'?(G.inns.a[G.inn-1]||0):(G.inns.h[G.inn-1]||0);
-if(!isLast&&newR>=6){sv();renderSB();$('sixrun-msg').textContent=(G.half==='top'?(G.at):(G.ht))+' has scored 6 runs — inning is over.';om('m-6run');}
+if(!isLast&&newR>=6){sv();renderSB();_check6runCap();}
 chkMercy();
 // B2: Walk-off prompt — when home takes the lead in the bottom of the last inning
 if(G.half==='bottom'&&G.inn>=(G.ti||6)&&G.hs>G.as&&!G._walkoffShown){
@@ -3244,7 +3260,22 @@ function doManualRun(who){
   var isHome=isUs===isOH();// true = home team scored
   if(isHome){G.hs++;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+1;}
   else{G.as++;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+1;}
-  sv();renderSC();chkMercy();}
+  sv();renderSC();chkMercy();_check6runCap();}
+// 6-run cap detector. Called after any score update to surface the m-6run
+// modal if the current half hit 6+ runs (LL B.12). Skips the last inning
+// (no run cap there). The modal already exists from earlier work; this just
+// ensures every score-update path triggers it, including doManualRun and
+// any future score-mutating helpers.
+function _check6runCap(){
+  if(G.inn>=(G.ti||6))return;// no cap in last inning
+  var curR=G.half==='top'?(G.inns.a[G.inn-1]||0):(G.inns.h[G.inn-1]||0);
+  if(curR<6)return;
+  // If the inning-end modal is already up (m-innend) or 6-run modal is open, don't double-trigger
+  if($('m-6run')&&$('m-6run').classList.contains('open'))return;
+  if($('m-innend')&&$('m-innend').classList.contains('open'))return;
+  $('sixrun-msg').textContent=(G.half==='top'?(G.at):(G.ht))+' has scored 6 runs — inning is over.';
+  om('m-6run');
+}
 
 // INNINGS CAUGHT TRACKER
 function getInningsCaught(name){
@@ -3695,7 +3726,25 @@ function copyField(){var vi=viewInn(),p=vi-1;if(p<1){toast('No prev');return;}va
 
 // PITCHERS TAB
 function setPT(t,el){G.ptv=t;document.querySelectorAll('#pt-tog .team-toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');$('pt-us').style.display=t==='us'?'block':'none';$('pt-them').style.display=t==='them'?'block':'none';}
-function renderPT(){if($('pt-tog-us'))$('pt-tog-us').textContent=ourName()+' Pitchers';if($('pt-tog-them'))$('pt-tog-them').textContent=theirName()+' Pitchers';renderPB('us');renderPB('them');renderPS('us');renderPS('them');renderSPT();popHPD();popAPD();}
+function renderPT(){if($('pt-tog-us'))$('pt-tog-us').textContent=ourName()+' Pitchers';if($('pt-tog-them'))$('pt-tog-them').textContent=theirName()+' Pitchers';renderPB('us');renderPB('them');renderPS('us');renderPS('them');renderSPT();renderOppPC();popHPD();popAPD();}
+// v90: per-game pitch totals for opp pitchers, parallel to renderSPT() for ours.
+// Surfaces PC / St / Ba / BIP / IP / innings worked, derived from G.ap pitcher
+// records + G.abs pitcher attribution. Only shown on the "Their Pitchers" tab.
+function renderOppPC(){
+  var tbl=$('opp-pc-tbl');if(!tbl)return;
+  var pitchers=(G.ap||[]).filter(function(p){return p&&p.name;});
+  var rows=pitchers.map(function(p){
+    var pc=p.total||0,st=p.stk||0,ba=p.ba||0,bip=p.bip||0;
+    var ip=Math.floor((p.ip_outs||0)/3)+'.'+((p.ip_outs||0)%3);
+    var inns=[];
+    (G.abs||[]).forEach(function(ab){
+      if(ab.pitcher===p.name){var lbl=(ab.half==='top'?'T':'B')+ab.inn;if(inns.indexOf(lbl)<0)inns.push(lbl);}
+    });
+    return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+pc+'</td><td>'+st+'</td><td>'+ba+'</td><td>'+bip+'</td><td>'+ip+'</td><td style="font-family:sans-serif;font-size:11px;color:var(--text3);">'+(inns.join(' ')||'—')+'</td></tr>';
+  }).join('');
+  var head='<thead><tr><th>Pitcher</th><th>PC</th><th>St</th><th>Ba</th><th>BIP</th><th>IP</th><th>Innings</th></tr></thead>';
+  tbl.innerHTML=head+'<tbody>'+(rows||'<tr><td colspan="7" class="empty">No opp pitchers logged yet</td></tr>')+'</tbody>';
+}
 function popHPD(){var s=$('hp-inp');s.innerHTML='<option value="">Add from roster</option>';var ex=ourP().map(p=>p.name);A.roster.filter(r=>ex.indexOf(r.name)<0).forEach(r=>{s.innerHTML+='<option value="'+esc(r.name)+'">'+esc(r.name)+'</option>';});}
 function popAPD(){var s=$('ap-inp');s.innerHTML='<option value="">Add from opponent lineup</option>';var ex=theirP().map(p=>p.name);tlu().filter(p=>p.name&&ex.indexOf(p.name)<0).forEach(function(p){s.innerHTML+='<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>';});s.innerHTML+='<option value="__custom__">+ Enter name manually</option>';}
 function renderPB(who){var l=who==='us'?ourP():theirP(),i=who==='us'?ourPI():theirPI(),el=$(who==='us'?'hp-bar':'ap-bar');
@@ -4370,7 +4419,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v89';
+var APP_VERSION='v90';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
