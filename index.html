@@ -651,10 +651,18 @@ function _testOppDefaultLineup(){return TEST_OPP_ROSTER.filter(function(_,i){ret
 // come from a 3-4 coach pool average. Pitching values shown here are the manager's
 // own ratings where available, else the coach pool. Confidence/Discipline/Clutch
 // are intangibles the manager fills in over time — left null on seed.
-// Players not listed (Ezra/Brody/Miles/Mihir) had no draft-pool ratings; their
-// categories stay null and fall back to team-avg for Hitting in the formula.
+//
+// Manager-supplied estimates (v87):
+//   - Ezra (#1 pick): missed evals but is the team's best player — rated above
+//     every coach-rated kid in all four skill categories.
+//   - Mihir (#12 pick): one of the team's two weakest players (along with Cobe);
+//     rated near Cobe's 1.10-2.00 range. Both are improving in real games — refresh
+//     manually via the 🌟 modal as the season progresses.
+//
+// Brody (#3) and Miles (#5) still unrated — manager hasn't volunteered numbers.
+// Their Hitting falls back to team-avg for the optimal-lineup formula.
 var DRAFT_RATINGS={
-  'Ezra Kalman':       {round:1},
+  'Ezra Kalman':       {round:1,  hitting:4.20,throwing:4.00,fielding:3.50,pitching:3.80},
   'Ethan Thomas':      {round:2,  hitting:3.60,throwing:3.25,fielding:2.90,pitching:3.50},
   'Brody Steinberg':   {round:3},
   'Hunter Bresson':    {round:4,  hitting:3.40,throwing:3.62,fielding:2.93,pitching:2.83},
@@ -665,24 +673,29 @@ var DRAFT_RATINGS={
   'Bodhi Langford':    {round:9,  hitting:2.70,throwing:2.50,fielding:2.25,pitching:1.50},
   'Jacob Aronstein':   {round:10, hitting:1.80,throwing:2.50,fielding:2.60,pitching:1.00},
   'Cobe Bresson':      {round:11, hitting:1.10,throwing:2.00,fielding:1.90,pitching:1.25},
-  'Mihir Chatnani':    {round:12}
+  'Mihir Chatnani':    {round:12, hitting:1.30,throwing:1.80,fielding:1.70,pitching:1.20}
 };
 var RATING_KEYS=['hitting','throwing','fielding','pitching','confidence','discipline','clutch'];
 function _emptyRatings(){return {hitting:null,throwing:null,fielding:null,pitching:null,confidence:null,discipline:null,clutch:null};}
-// One-time seed: populate roster ratings from DRAFT_RATINGS on first run after v86.
-// Idempotent — A.ratingsSeeded flag prevents re-seeding; user edits are never overwritten.
+// Versioned seed migrations. Each block runs at most once per device, gated by
+// its own flag, and only fills NULL ratings — user edits are never overwritten.
+//   v1 (v86): initial seed of all 12 Mussels from coach-pool + manager pitching
+//   v2 (v87): Ezra now rated highest in all skill cats; Mihir filled in (worst);
+//             Brody/Miles still unrated. Picks up only fields that are still null.
 function ensureRatingsSeeded(){
-  if(A.ratingsSeeded)return;
-  A.roster.forEach(function(p){
+  var dirty=false;
+  function applySeed(p){
     if(!p.ratings)p.ratings=_emptyRatings();
     var seed=DRAFT_RATINGS[p.name];
-    if(seed){
-      if(seed.round!=null&&p.draftRound==null)p.draftRound=seed.round;
-      RATING_KEYS.forEach(function(k){if(p.ratings[k]==null&&seed[k]!=null)p.ratings[k]=seed[k];});
-    }
-  });
-  A.ratingsSeeded=true;
-  sa();
+    if(!seed)return;
+    if(seed.round!=null&&p.draftRound==null){p.draftRound=seed.round;dirty=true;}
+    RATING_KEYS.forEach(function(k){if(p.ratings[k]==null&&seed[k]!=null){p.ratings[k]=seed[k];dirty=true;}});
+  }
+  // v1
+  if(!A.ratingsSeeded){A.roster.forEach(applySeed);A.ratingsSeeded=true;dirty=true;}
+  // v2 — re-runs applySeed which is idempotent for already-set values
+  if(!A.ratingsSeededV2){A.roster.forEach(applySeed);A.ratingsSeededV2=true;dirty=true;}
+  if(dirty)sa();
 }
 var SCHED=[
 {id:'e1',type:'practice',date:'Apr 9, 2026',time:'5:45 pm',title:'Practice',loc:'AFC Fitness',ha:'home'},
@@ -4318,7 +4331,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v86';
+var APP_VERSION='v87';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
