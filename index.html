@@ -627,6 +627,30 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div></div>
 
 <script>
+// ============================================================================
+// MIGHTY MUSSELS SCORECARD — file map
+// ----------------------------------------------------------------------------
+// Single-file PWA. App state lives on `A` (persisted via sa()), game state on
+// `G` (persisted via sv()). UI state on `_xxx` module-level vars. Modals open
+// via om(id) / close via cm(id). Screens swap via ss(id). All code below.
+//
+// SECTIONS (search the banner string to jump):
+//   [SETUP]      Top-level constants (rosters, schedule, ratings seed)
+//   [STATE]      State containers, persistence, helpers ($, sa, sg, sv,
+//                  loadAll, fix, esc, uid, toast, om/cm/ss, modals)
+//   [NAMING]     Display helpers, view-only mode, rest-day calc, season log
+//   [AGGREGATES] Retro scorecard, season stats, optimal lineup, PDF export,
+//                  sandbox start
+//   [ROSTER]     Roster modal, player editor, rating modal
+//   [LINEUP]     Our lineup mgmt, opp lineup mgmt, opp picker, late arrivals
+//   [FIELDING]   Field graphic, position assignments, pre-plan grid
+//   [PITCHING]   pAdd, recalcPitcherStats, pitcher switch
+//   [ATBAT]      endAB / finAB flow + Play-log modal (diamond picker)
+//   [GAMEFLOW]   Steals, CS, runs, outs, errors, inning transitions, render
+//   [EDIT]       Edit-AB, Swap-AB, Delete-AB modals
+//   [SETUP-G]    Game setup, share/box, rules tab, app boot, APP_VERSION
+// ============================================================================
+// [SETUP] ===================================================================
 var RNAMES=['Benjamin Shapiro','Bodhi Langford','Brody Steinberg','Cobe Bresson','Ethan Thomas','Ezra Kalman','Hunter Bresson','Jacob Aronstein','Julian Singer','Malcolm McPherson','Mihir Chatnani','Miles Beck'];
 var POS=['P','C','1B','2B','3B','SS','LF','CF','RF'],APOS=POS.slice();
 // TEST OPP ROSTER — 12 made-up players for sandbox scenario testing.
@@ -747,6 +771,7 @@ inns:{h:[],a:[]},bases:[null,null,null],hlu:[],alu:[],hp:[],ap:[],chp:-1,cap:-1,
 cbi:-1,cpitch:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],pinchRuns:[],
 fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,finishBatter:false,oppLuDone:false};
 
+// [STATE] ===================================================================
 function $(id){return document.getElementById(id);}
 function sa(){try{localStorage.setItem('mm_a',JSON.stringify(A));}catch(e){}}
 function sg(){try{localStorage.setItem('mm_g',JSON.stringify(G));}catch(e){}}
@@ -824,6 +849,7 @@ function _promptCancel(){var cb=_promptCb;_promptCb=null;cm('m-prompt');if(cb&&c
 function om(id){$(id).classList.add('open');}
 function cm(id){$(id).classList.remove('open');}
 function ss(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
+// [NAMING] ==================================================================
 function sn(n){if(!n)return'';var p=n.trim().split(' ');return p.length>1?p[0].charAt(0)+'.'+p[p.length-1]:n;}
 function ini(n){if(!n)return'?';var p=n.trim().split(' ');return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
 var _ORD=['Leadoff','Second','Third','Cleanup','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
@@ -1087,6 +1113,7 @@ function _scShortName(player,lineup){
   });
   return hasDup?firstInit+'. '+last:last;
 }
+// [AGGREGATES] ==============================================================
 function renderRetroScorecard(g){
   var totalInn=g.ti||6;
   var ourSide=g.ht==='Mighty Mussels'?'home':'away';
@@ -1568,7 +1595,7 @@ function clearTestData(){
   if(typeof ss==='function')ss('screen-home');
 }
 
-// ROSTER
+// [ROSTER] ==================================================================
 function openRosterModal(){$('ros-list').innerHTML=A.roster.map(function(p){
   // Show a small dot next to the rating button if any rating is filled in
   var hasAny=p.ratings&&RATING_KEYS.some(function(k){return p.ratings[k]!=null;});
@@ -1632,6 +1659,7 @@ function setViewOnly(on){
   var t=document.getElementById('tab-atbat');
   if(t){if(on)t.classList.add('view-only');else t.classList.remove('view-only');}
 }
+// [LINEUP] ==================================================================
 // Guard helper — returns true (and toasts) when view-only mode blocks an action.
 function _voGuard(){if(_viewOnlyMode){toast('Game complete — view only. Use Plays tab to edit.',2500);return true;}return false;}
 async function startG(eid){var ev=A.schedule.find(e=>e.id===eid);if(!ev||ev.type==='practice'){toast('Practice');return;}
@@ -2003,7 +2031,7 @@ for(var i=0;i<3;i++)sd+='<div style="'+DOT_S+(i<G.strikes?'var(--red2);backgroun
 for(var i=0;i<3;i++)od+='<div style="'+DOT_S+(i<G.outs?'var(--gold);background:var(--gold)':'var(--text3)')+'"></div>';
 $('sb-cb-b').innerHTML=bd;$('sb-cb-s').innerHTML=sd;$('sb-cb-o').innerHTML=od;}
 
-// FIELD SVG
+// [FIELDING] ================================================================
 function fieldFirstName(fullName){if(!fullName)return'';return fullName.trim().split(' ')[0];}
 function renderFD(){
 var _vi=(typeof viewInn==='function')?viewInn():G.inn;
@@ -2770,6 +2798,7 @@ else if(c==='H'){
   else toast('HBP #'+_hbpTot+' for '+(_cp?sn(_cp.name):'pitcher'));
   chkPW();endAB('HBP');return;}
 sv();renderSC();chkPW();}
+// [PITCHING] ================================================================
 function pAdd(c){var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i<0||!l[i])return;var p=l[i];p.total=(p.total||0)+1;
 if(c==='S'){p.sw=(p.sw||0)+1;p.stk=(p.stk||0)+1;}
 else if(c==='L'){p.lk=(p.lk||0)+1;p.stk=(p.stk||0)+1;}
@@ -2836,6 +2865,7 @@ else if(c==='H')p.hbp=Math.max(0,(p.hbp||1)-1);}
 G.balls=0;G.strikes=0;G.cpitch.forEach(function(c){if(c==='S'||c==='L')G.strikes=Math.min(2,G.strikes+1);else if(c==='F'||c==='FT'){if(G.strikes<2)G.strikes++;}else if(c==='B')G.balls=Math.min(3,G.balls+1);});sv();renderSC();toast('Undid: '+c);}
 
 // END AB
+// [ATBAT] ===================================================================
 function endAB(r){if(_voGuard())return;if(G.cbi<0){
 if(theyBat()){openOppBatterPicker(r);return;}
 toast('Select batter');return;}
@@ -3215,7 +3245,6 @@ function doManualRun(who){
   if(isHome){G.hs++;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+1;}
   else{G.as++;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+1;}
   sv();renderSC();chkMercy();}
-function manualRun(){openManualRun();}// legacy alias
 
 // INNINGS CAUGHT TRACKER
 function getInningsCaught(name){
@@ -3542,7 +3571,6 @@ if(G.outs>=3){
   showIE();
 }else renderSC();toast('CS');}
 function addManualOut(){if(_voGuard())return;G.outs=Math.min(3,G.outs+1);sv();if(G.outs>=3)showIE();else renderSC();}
-function manualRun(){var t=prompt('h=home a=away');if(!t)return;if(t==='h'){G.hs++;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+1;}else{G.as++;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+1;}sv();renderSC();}
 
 // FIELD TAB
 function gfi(k){var c=0;Object.keys(G.fa).forEach(function(i){if(Object.values(G.fa[i]).indexOf(k)>=0)c++;});return c;}
@@ -3897,6 +3925,7 @@ function openEditAB(idx){
   $('editab-not').value=ab.not||'';
   om('m-editab');
 }
+// [EDIT] ====================================================================
 function confirmEditAB(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
@@ -4225,7 +4254,7 @@ function confirmEndGame(){
   toast('Game saved!',3000);
 }
 
-// SETUP
+// [SETUP-G] =================================================================
 function openSetup(){$('s-h').value=G.ht;$('s-a').value=G.at;$('s-i').value=G.ti;$('s-ef').value=G.ef||'';om('m-setup');}
 function saveSetup(){G.ht=$('s-h').value||'Home';G.at=$('s-a').value||'Visitors';var ni=parseInt($('s-i').value)||6;if(ni!==G.ti){G.ti=ni;G.inns={h:Array(ni).fill(0),a:Array(ni).fill(0)};}G.ef=$('s-ef').value.trim();APOS=POS.slice();if(G.ef)APOS.push(G.ef);cm('m-setup');sv();renderSC();}
 
@@ -4341,7 +4370,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v88';
+var APP_VERSION='v89';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked

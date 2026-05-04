@@ -1,7 +1,7 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v79 (`180e5d6`, 2026-05-02)
-**Status as of:** 2026-05-02. **Season record: 2-3** (W vs Hot Rods, L vs Thunder, W vs Bulls, L vs Devil Rays mercy, L vs Hurricanes mercy). Two heavy game-day shake-downs (5/1 Devil Rays, 5/2 Hurricanes) drove ~14 versions covering: skip-batter purgatory + out-of-order insert (v67-68), pinch-runner with proper bi handling (v69), Firebase sync guards both directions (v70/v72/v73), pitch-rest off-by-one fix per LMLL Rule C.4 (v75), view-only mode for finalized games (v75), LMLL rules tab verbatim with search + accordion (v75), pitcher attribution + pc-as-authoritative (v76), BIP X always appended (v77), SB stat team filter (v78), opp picker full lineup view + insert/remove per row (v79). Next game: e10 Tin Caps May 7.
+**Current version:** v89 (housekeeping, 2026-05-03)
+**Status as of:** 2026-05-03. **Season record: 2-3** (W vs Hot Rods, L vs Thunder, W vs Bulls, L vs Devil Rays mercy, L vs Hurricanes mercy). Two heavy game-day shake-downs (5/1 Devil Rays, 5/2 Hurricanes) drove v66-v79 covering live-game fixes: skip-batter, pinch-runner, Firebase sync guards, pitch-rest, view-only mode, pitcher attribution, BIP X, SB filter, opp picker overhaul. Then a quieter polish stretch v80-v89: half-end pitcher sync (v80), play-log popup overhaul with diamond picker (v81-v82), expanded season stats with HBP/BIP/BAA + per-6 ERA + ball/strike breakdown (v83), PDF export (v84), tuned optimal-lineup formula (v85), per-player ratings system seeded from coach pool with editable 🌟 modal (v86-v88), file housekeeping with TOC + section banners (v89). Next game: e10 Tin Caps May 7.
 
 ## Newly identified items from 5/1 + 5/2 game-day testing
 

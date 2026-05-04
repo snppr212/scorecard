@@ -1,5 +1,112 @@
 # Mighty Mussels Scorecard — Changelog
 
+## v89 (2026-05-03) — _this commit_
+**Housekeeping — TOC, section banners, dead-code removal, doc refresh**
+
+- Top-of-script table of contents documents the 12 logical sections, A/G state model, and modal/screen helpers
+- 11 `// [SECTION] ===` banners chunk the 244 KB inline JS for navigation: SETUP, STATE, NAMING, AGGREGATES, ROSTER, LINEUP, FIELDING, PITCHING, ATBAT, EDIT, SETUP-G (existing OPTIMAL LINEUP and PLAY-LOG MODAL banners preserved)
+- Deleted both definitions of dead `manualRun` (no callers anywhere; superseded long ago by `openManualRun()` which uses the modal)
+- Audited all module-level `_xxx` state vars — every one is referenced beyond declaration; nothing else to remove
+- CHANGELOG updated through v89 (was at v79); ROADMAP top line bumped from v79 to v89
+- No behavior changes — pure hygiene
+
+## v88 (2026-05-03) — 75095eb
+**Rate Brody + Miles; park positions/tiers/fielding ideas**
+
+- **Brody Steinberg** (#3): tier-1 pitcher with Ezra (Pit 3.80 = Ezra's level); plays first; "fine elsewhere when engaged" → Hit 3.20, Thr 3.00, Fld 2.80
+- **Miles Beck** (#5): "top player; better than Brody overall"; tier-2 pitcher with Ethan (Pit 3.50); catcher-eligible (Thr 3.30); strong hitter (Hit 3.50, just below Ethan); engaged-fine fielder (Fld 2.80)
+- v3 seed migration (`A.ratingsSeededV3`) runs once per device, fills only NULL fields. User edits preserved as before.
+- Manager-vs-coach-pool divergences flagged in `DRAFT_RATINGS` comment but not auto-applied: Ethan fielding (manager calls him a top-2 fielder, pool says 2.90) and Jacob throwing (manager says throws far and fast, pool says 2.50). User can override via 🌟 if desired.
+- Roadmap parked: pitcher rotation tiers, primary positions on roster, wildcard flag (Julian/Jacob), optimal fielding by inning weighted by pitcher (best fielders infield when Ethan/Miles pitch).
+
+## v87 (2026-05-03) — a3e9d14
+**Rate Ezra (best) + Mihir (worst); v2 seed migration**
+
+- **Ezra Kalman** (#1): missed evals but is the team's best player. Now seeded above every coach-rated player in all four skill categories: Hit 4.20, Thr 4.00, Fld 3.50, Pit 3.80.
+- **Mihir Chatnani** (#12): one of two weakest players (with Cobe). Seeded near Cobe's range: Hit 1.30, Thr 1.80, Fld 1.70, Pit 1.20.
+- Versioned seed migrations: `ratingsSeededV2` flag guards the v87 patch so v86 devices pick up the new values on next boot without re-running the v86 base seed.
+- Mihir + Cobe both improving in real games — manager refreshes via 🌟 modal as season progresses (static seed doesn't model growth).
+
+## v86 (2026-05-03) — 04b9ec1
+**Per-player ratings — seed + edit + lineup blend**
+
+### Schema
+- `A.roster[i].ratings = {hitting, throwing, fielding, pitching, confidence, discipline, clutch}` — 0-5, decimals OK, nullable
+- `A.roster[i].draftRound` — 1-12 from draft order
+- `A.ratingsSeeded` flag — one-time gate; never overwrites edits
+
+### Seed (`DRAFT_RATINGS` const)
+- 8 players seeded with coach-pool Hitting/Throwing/Fielding (3-4 coach avg)
+- 8 players seeded with Pitching — manager's own values where given (Julian, Malcolm, Ben, Bodhi, Jacob), else coach-pool (Ethan, Hunter, Cobe)
+- 4 unrated (Ezra/Brody/Miles/Mihir) → all categories null; Hitting falls back to team-avg in formula
+- Confidence/Discipline/Clutch are intangibles — start null, manager fills in over time
+
+### Rating modal
+- 🌟 button on each roster row → opens `m-rating` with 7 number inputs (0-5, step 0.1)
+- Header shows draft round if known. Blanks = null. Per-row button glows gold when at least one rating filled.
+
+### Lineup formula
+- `score = stats + ratings`
+- `stats = 1.5·OBP + 0.7·SLG + 0.6·BIP-rate − 0.5·K-rate`
+- `ratings = 0.3·hittingNorm + 0.1·confNorm + 0.1·discNorm + 0.1·clutchNorm` (each = rating/5; null intangibles → 0; null Hitting → team-avg)
+- Max ratings term ~0.6, realistic 0.15–0.30
+
+### Modal display
+- Per-player line shows OBP/SLG/BIP/K + `Rated: Hit X.X · Conf ✓ · Disc ✓ · Clutch ✓ (+0.XX)` (asterisk on Hit = unrated, used team-avg)
+- Footer documents formula and points at the 🌟 button
+
+## v85 (2026-05-03) — 7ec2892
+**Re-tune optimal-lineup formula — drop SB, up-weight BIP**
+
+- Manager feedback: SB shouldn't factor in (LL speed varies wildly inning-to-inning, dominated by who-happened-to-attempt rather than who's fastest). BIP is the most predictive LL hitting indicator (puts ball in play → forces defensive plays → errors / advances).
+- Old: `1.7·OBP + 1.0·SLG + 0.3·SB-rate + 0.05·BIP-rate − 0.5·K-rate`
+- New: `1.5·OBP + 0.7·SLG + 0.6·BIP-rate − 0.5·K-rate` (SB removed; BIP weight up 12x; OBP and SLG slightly trimmed)
+- Per-player line now shows BIP n/PA alongside OBP/SLG/BA/K
+- Footer adds amber note: "Stats only — adjust for intangibles (confidence at the plate, contact under pressure, etc.)" — acknowledges what the formula can't capture
+
+## v84 (2026-05-03) — 3eb3114
+**Export season stats to PDF**
+
+- 📄 Export PDF button on the season-stats screen; triggers `window.print()` with a scoped print stylesheet
+- Print mode strips dark theme, hides on-screen chrome, paginates between batting/pitching panels (`page-break-inside:avoid`), inserts a printable header (team + games count + date)
+- Implementation: body class `.printing-season` scopes the new print rules so they don't conflict with the existing scorecard print mode (`body:not(.printing-season)` guard added)
+- Cleanup runs on `afterprint` event with 8s fallback timeout
+- On iPhone Safari/PWA the print dialog routes through the share sheet, where "Save to Files" or AirPrint → Save as PDF produces a clean PDF
+
+## v83 (2026-05-03) — b9d7110
+**Season stats expanded + optimized sandbox lineups**
+
+- Season-stats batting table: HBP and BIP columns added. BIP = any hit OR any out that's not a strikeout (excludes K/KL/CS/DP, includes 1B/2B/3B/HR/LLHR/GO/FO/LO/SAC/FC). Lets the manager see contact rate at a glance.
+- Season-stats pitching table: ERA recomputed per-6-innings (LL convention, not MLB's per-9); BAA (batting average against) added; per-pitcher Ball/Strike breakdown shown when known (exact pitches logged + 4 balls per BB + 3 strikes per K as filler)
+- Test-sandbox opp lineup: 12-player roster of common simple names (`John Smith`, `Parker Thomas`, etc.) replaces the prior auto-generated names; default lineup is 11 of 12 (one absent — Logan Johnson) for scenario testing
+- Test-sandbox start flow: gear menu now offers "Start fresh" or "Optimized lineups" (uses optimal-Mussels lineup + default opp lineup) so the user can compare scenarios
+
+## v82 (2026-05-03) — 55ec089
+**Play-log quality — split into trajectory + hardness**
+
+- Replaced single 4-button quality row (Hard/Soft/Pop/Weak) with two optional rows: trajectory (Line/Fly/Pop/Grounder) and hardness (Hard/Soft). Captures two independent dimensions of contact in the AB record.
+- AB schema: drop `quality`, add `trajectory` + `hardness`
+- New state vars `_playTrajectory` / `_playHardness` (replace `_playQuality`)
+- New helpers: `setPlayTrajectory(t)`, `setPlayHardness(h)`
+- `_resetPlayState` clears both rows; `submitPlay` stashes both into `_lastPlayMeta`
+
+## v81 (2026-05-02) — 986c0c8
+**Play-log popup overhaul — diamond picker + quality + layout**
+
+- New SVG diamond fielder picker (240×180 viewBox, 9 fielder zones, two-state highlight pos1/pos2) replaces free-text notation entry; "Throw to" row with `u` button for unassisted plays
+- Notation auto-derived: `pos1-pos2` (e.g. `4-3`), `posU` (unassisted, e.g. `3U`), or just `pos1` (e.g. `F8`); manual override toggle preserves any free-form needs; manual input sanitized to digits/dashes/u/L/F/P, `43` auto-formats to `4-3`
+- Quality buttons (Hard/Soft/Pop/Weak) — single-select, stored on AB as `ab.quality`. (Refined in v82.)
+- Sticky action bar pins Cancel/Save Play to bottom so the user can submit without scrolling
+- AB schema additions: `hitLoc`, `throwTo`, `unassisted`, `quality`, read from `_playMeta` and stashed on `G._lastPlayMeta` for `finAB`
+
+## v80 (2026-05-02) — 7105435
+**Pitcher-attribution sync at half-end + season-log filter + pc display**
+
+- `confirmInnEnd` now syncs `fa[G.inn].P` with the actual active pitcher when the half ends. Previously when a manager swapped pitchers via the active-pitcher dropdown without going through the m-pswitch modal, `fa[inn].P` lagged behind reality.
+- `addP` now writes `fa[G.inn].P` when first-time activating a pitcher (covers the "no fielding plan, mid-game pitcher add" case)
+- Season-stats screen filters out the `test-sandbox` event so test data doesn't pollute real season totals
+- Plays log: pitch count next to the pitcher banner now uses `ab.pc` if set (falls back to `pitches.length` only when `pc` is unset)
+
 ## v79 (2026-05-02) — 180e5d6
 **Opp picker — full lineup view + per-row insert/remove**
 
