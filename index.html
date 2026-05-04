@@ -652,21 +652,29 @@ function _testOppDefaultLineup(){return TEST_OPP_ROSTER.filter(function(_,i){ret
 // own ratings where available, else the coach pool. Confidence/Discipline/Clutch
 // are intangibles the manager fills in over time — left null on seed.
 //
-// Manager-supplied estimates (v87):
-//   - Ezra (#1 pick): missed evals but is the team's best player — rated above
-//     every coach-rated kid in all four skill categories.
-//   - Mihir (#12 pick): one of the team's two weakest players (along with Cobe);
-//     rated near Cobe's 1.10-2.00 range. Both are improving in real games — refresh
-//     manually via the 🌟 modal as the season progresses.
+// Manager-supplied estimates (v87+):
+//   - Ezra (#1): missed evals but is the team's best player — rated above every
+//     coach-rated kid in all four skill categories.
+//   - Mihir (#12): one of the two weakest players (with Cobe); rated near Cobe's
+//     range. Both are improving in real games — refresh via 🌟 as season progresses.
+//   - Brody (#3) [v88]: top-tier pitcher (with Ezra); plays first; "fine elsewhere
+//     when engaged" → middling fielding; round-3 hitter.
+//   - Miles (#5) [v88]: top overall player ("better than Brody"); tier-2 pitcher
+//     with Ethan; catcher-eligible (decent throw); middling fielding when engaged.
 //
-// Brody (#3) and Miles (#5) still unrated — manager hasn't volunteered numbers.
-// Their Hitting falls back to team-avg for the optimal-lineup formula.
+// Manager-vs-coach-pool divergences NOT auto-applied (use 🌟 to edit if desired):
+//   - Ethan: coach pool fielding 2.90; manager calls him a top-2 fielder (range,
+//     awareness, glove) — likely deserves a 3.30-3.50 rating.
+//   - Jacob: coach pool throwing 2.50; manager says throws far and fast — likely
+//     a 3.00-3.30 rating.
+//   - Julian + Jacob: tagged as "wildcards" — high ceiling, inconsistent. No
+//     numerical change; future feature can capture this as a "wildcard" flag.
 var DRAFT_RATINGS={
   'Ezra Kalman':       {round:1,  hitting:4.20,throwing:4.00,fielding:3.50,pitching:3.80},
   'Ethan Thomas':      {round:2,  hitting:3.60,throwing:3.25,fielding:2.90,pitching:3.50},
-  'Brody Steinberg':   {round:3},
+  'Brody Steinberg':   {round:3,  hitting:3.20,throwing:3.00,fielding:2.80,pitching:3.80},
   'Hunter Bresson':    {round:4,  hitting:3.40,throwing:3.62,fielding:2.93,pitching:2.83},
-  'Miles Beck':        {round:5},
+  'Miles Beck':        {round:5,  hitting:3.50,throwing:3.30,fielding:2.80,pitching:3.50},
   'Julian Singer':     {round:6,  hitting:2.70,throwing:3.17,fielding:2.75,pitching:1.50},
   'Malcolm McPherson': {round:7,  hitting:2.70,throwing:3.12,fielding:3.10,pitching:2.50},
   'Benjamin Shapiro':  {round:8,  hitting:2.40,throwing:2.12,fielding:2.20,pitching:3.50},
@@ -691,10 +699,12 @@ function ensureRatingsSeeded(){
     if(seed.round!=null&&p.draftRound==null){p.draftRound=seed.round;dirty=true;}
     RATING_KEYS.forEach(function(k){if(p.ratings[k]==null&&seed[k]!=null){p.ratings[k]=seed[k];dirty=true;}});
   }
-  // v1
+  // v1 (v86): initial seed
   if(!A.ratingsSeeded){A.roster.forEach(applySeed);A.ratingsSeeded=true;dirty=true;}
-  // v2 — re-runs applySeed which is idempotent for already-set values
+  // v2 (v87): Ezra full ratings + Mihir filled
   if(!A.ratingsSeededV2){A.roster.forEach(applySeed);A.ratingsSeededV2=true;dirty=true;}
+  // v3 (v88): Brody + Miles filled in per manager assessment
+  if(!A.ratingsSeededV3){A.roster.forEach(applySeed);A.ratingsSeededV3=true;dirty=true;}
   if(dirty)sa();
 }
 var SCHED=[
@@ -4331,7 +4341,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v87';
+var APP_VERSION='v88';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
