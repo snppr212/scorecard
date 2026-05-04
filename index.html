@@ -1349,6 +1349,9 @@ function buildOptimalMusselsLineup(games){
     });
   });
   // Score every roster player; missing-data players get 0 and rank last (in roster order).
+  // v85 formula: SB dropped (LL speed varies wildly inning-to-inning, not predictive);
+  // BIP-rate up-weighted to 0.6 (in LL, putting the ball in play forces defensive plays
+  // and produces errors → runs).
   var ranked=A.roster.map(function(rp,idx){
     var s=byPlayer[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0};
     var paDenom=s.pa||1;
@@ -1356,10 +1359,9 @@ function buildOptimalMusselsLineup(games){
     var slg=s.ab>0?s.tb/s.ab:0;
     var ba=s.ab>0?s.h/s.ab:0;
     var kRate=s.k/paDenom;
-    var sbRate=s.sb/paDenom;
     var bipRate=s.bip/paDenom;
-    var score=s.pa>0?(1.7*obp+1.0*slg+0.3*sbRate+0.05*bipRate-0.5*kRate):-1+(idx*0.0001)*-1;
-    return {rp:rp,score:score,pa:s.pa,obp:obp,slg:slg,ba:ba,k:s.k,sb:s.sb,h:s.h,xbh:s.xbh,rosterIdx:idx};
+    var score=s.pa>0?(1.5*obp+0.7*slg+0.6*bipRate-0.5*kRate):-1+(idx*0.0001)*-1;
+    return {rp:rp,score:score,pa:s.pa,obp:obp,slg:slg,ba:ba,k:s.k,bip:s.bip,bipRate:bipRate,h:s.h,xbh:s.xbh,rosterIdx:idx};
   });
   // Primary sort: composite score desc; tiebreakers: PA desc, then roster idx asc.
   ranked.sort(function(a,b){if(a.score!==b.score)return b.score-a.score;if(a.pa!==b.pa)return b.pa-a.pa;return a.rosterIdx-b.rosterIdx;});
@@ -1377,7 +1379,7 @@ function buildOptimalMusselsLineup(games){
     for(var j=2;j<topN;j++)if(ranked[j].slg>ranked[bestSlgIdx].slg)bestSlgIdx=j;
     if(bestSlgIdx!==3){var t2=ranked[3];ranked[3]=ranked[bestSlgIdx];ranked[bestSlgIdx]=t2;}
   }
-  return ranked.map(function(r){return {name:r.rp.name||'',jersey:r.rp.jersey||'',rid:r.rp.id,_score:r.score,_pa:r.pa,_obp:r.obp,_slg:r.slg,_ba:r.ba,_k:r.k};});
+  return ranked.map(function(r){return {name:r.rp.name||'',jersey:r.rp.jersey||'',rid:r.rp.id,_score:r.score,_pa:r.pa,_obp:r.obp,_slg:r.slg,_ba:r.ba,_k:r.k,_bip:r.bip,_bipRate:r.bipRate};});
 }
 // Export the season-stats screen as a PDF via the browser's print → "Save as PDF"
 // dialog. Adds body.printing-season for the duration so the print stylesheet
@@ -1402,7 +1404,7 @@ async function showOptimalLineup(){
   var lu=buildOptimalMusselsLineup(games);
   var rows='';
   lu.forEach(function(p,i){
-    var line2=p._pa>0?'OBP '+(p._obp>0?fmt3(p._obp):'.000')+' · SLG '+(p._slg>0?fmt3(p._slg):'.000')+' · BA '+(p._ba>0?fmt3(p._ba):'.000')+' · K '+p._k+' in '+p._pa+' PA':'(no data — defaults to roster order)';
+    var line2=p._pa>0?'OBP '+(p._obp>0?fmt3(p._obp):'.000')+' · SLG '+(p._slg>0?fmt3(p._slg):'.000')+' · BA '+(p._ba>0?fmt3(p._ba):'.000')+' · BIP '+(p._bip||0)+'/'+p._pa+' · K '+p._k:'(no data — defaults to roster order)';
     rows+='<div class="lu-row" style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);">'
       +'<span class="lu-ord" style="width:24px;color:var(--gold);font-weight:bold;">'+(i+1)+'</span>'
       +'<div class="bat-jersey">'+(p.jersey||'?')+'</div>'
@@ -1411,7 +1413,7 @@ async function showOptimalLineup(){
       +'</div>';
   });
   $('optlu-body').innerHTML=rows;
-  $('optlu-meta').textContent='Across '+games.length+' game'+(games.length===1?'':'s')+' · sorted by composite score (1.7·OBP + SLG + 0.3·SB-rate + 0.05·BIP-rate − 0.5·K-rate); slot 1 holds best OBP, slot 4 holds best SLG (within top 5)';
+  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · composite = 1.5·OBP + 0.7·SLG + 0.6·BIP-rate − 0.5·K-rate. Slot 1 = best OBP, slot 4 = best SLG (within top 5).<br><span style="color:var(--amber2);">Stats only — adjust for intangibles (confidence at the plate, contact under pressure, etc.).</span>';
   om('m-optlu');
 }
 function startTestGame(){
@@ -4210,7 +4212,7 @@ function renderRulesBook(){
 function filterRules(q){renderRulesBook();}
 
 // BOOT
-var APP_VERSION='v84';
+var APP_VERSION='v85';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 loadAll();renderHome();
 // Show version on home so the user can confirm refresh worked
