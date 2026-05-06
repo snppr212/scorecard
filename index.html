@@ -456,6 +456,14 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div style="margin-top:10px;font-size:11px;font-family:sans-serif;color:var(--text2);">Coaches who've already saved:</div>
 <div id="existing-coaches" style="margin-top:4px;font-size:11px;font-family:sans-serif;">Loading…</div>
 </div>
+<!-- v96: end-of-game options -->
+<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border);">
+<div class="ptitle" style="margin-bottom:6px;">⚙️ Game-day options</div>
+<label style="display:flex;align-items:flex-start;gap:8px;font-family:sans-serif;font-size:12px;line-height:1.45;color:var(--text2);cursor:pointer;">
+<input type="checkbox" id="opt-rbi-review" onchange="toggleErrorRbiReview(this.checked)" style="width:auto;margin:3px 0 0 0;flex-shrink:0;">
+<span><strong>Error-attributed RBI review at end of game.</strong> Per LL 9.04, runs scoring solely due to a fielding error don't credit RBI. When ON, the End Game modal surfaces a review prompt for any plays where errors and runs both happened. Off by default — turn on if you have time post-game.</span>
+</label>
+</div>
 <div class="mact"><button class="btn btn-green btn-full" onclick="addRos()">+ Add</button><button class="btn btn-full" onclick="cm('m-roster')">Close</button></div></div></div>
 <!-- OPPONENT LINEUP START — fires after our lineup is set -->
 <div class="modal-ov" id="m-oppstart"><div class="modal" style="text-align:center;"><h3 id="oppstart-title">Opponent batting order</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;">Got their lineup card, or want to add as they bat?</div><div class="mact"><button class="btn btn-gold btn-full" onclick="cm('m-oppstart');goToOppEntry()">📋 Pre-enter their lineup</button><button class="btn btn-full" onclick="cm('m-oppstart');skipOpp()">⚾ Add live as they bat</button></div></div></div>
@@ -601,7 +609,19 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div id="eg-score" style="font-size:32px;font-weight:bold;color:var(--gold);margin:10px 0;"></div>
 <div id="eg-result" style="font-size:14px;font-family:sans-serif;margin-bottom:16px;"></div>
 <div id="eg-lines" style="font-size:11px;font-family:monospace;color:var(--text2);background:var(--bg3);border-radius:var(--rs);padding:10px;margin-bottom:14px;text-align:left;max-height:200px;overflow-y:auto;white-space:pre;"></div>
+<!-- v96: error-attributed RBI review prompt (only shown when setting enabled + candidates exist) -->
+<div id="eg-rbi-review" style="display:none;margin-bottom:12px;padding:10px;background:rgba(200,169,110,.10);border-left:3px solid var(--gold);border-radius:var(--rs);text-align:left;">
+  <div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:6px;line-height:1.4;"><span id="eg-rbi-count">0</span> plays had errors with runs scored. Per LL 9.04, RBIs aren't credited when a run scores solely due to a fielding error. Want to review?</div>
+  <button class="btn btn-sm btn-gold btn-full" onclick="openErrorRbiReview()">🔍 Review error-attributed RBIs</button>
+</div>
 <div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEndGame()">Save & return home</button><button class="btn btn-full" onclick="cm('m-endgame')">Keep scoring</button></div>
+</div></div>
+<!-- v96: error-attributed RBI review modal -->
+<div class="modal-ov" id="m-rbi-review"><div class="modal" style="max-width:420px;">
+  <h3>🔍 Review RBI attribution</h3>
+  <div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;line-height:1.45;">Each row is an AB where a fielding error and a run-scoring event happened on the same play. Per LL 9.04, runs that scored <em>solely because of</em> the error don't credit the batter. Adjust RBI down for any plays where the error caused the run.</div>
+  <div id="rbi-review-list" style="max-height:55vh;overflow-y:auto;"></div>
+  <div class="mact"><button class="btn btn-full" onclick="cm('m-rbi-review')">Done</button></div>
 </div></div>
 
 <!-- PITCH COUNT WARNING MODAL (rest thresholds + 40p rule) -->
@@ -1663,7 +1683,10 @@ function openRosterModal(){$('ros-list').innerHTML=A.roster.map(function(p){
 if($('coach-link-out'))$('coach-link-out').innerHTML='';
 if($('coach-handle'))$('coach-handle').value='';
 _refreshExistingCoaches();
+// v96: reflect saved opt-rbi-review setting
+if($('opt-rbi-review'))$('opt-rbi-review').checked=!!A.errorRbiReviewEnabled;
 om('m-roster');}
+function toggleErrorRbiReview(on){A.errorRbiReviewEnabled=!!on;sa();toast(on?'Error-RBI review ON':'Error-RBI review OFF');}
 function generateCoachLink(){
   var handle=($('coach-handle').value||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');
   if(!handle){toast('Enter a coach handle (letters/numbers only)');return;}
@@ -3407,8 +3430,11 @@ if(G.half==='bottom'&&G.inn>=(G.ti||6)&&G.hs>G.as&&!G._walkoffShown){
   setTimeout(function(){walkOffPrompt();},700);
 }}
 function logRun(bi,team){if(!G.runs)G.runs=[];G.runs.push({bi:bi,team:team,inn:G.inn,half:G.half});
-// If we're inside finAB, also stash the runner's name on the in-progress AB.
-if(G._abScoredBuffer){var lu=team==='home'?G.hlu:G.alu;var p=lu[bi];if(p&&p.name)G._abScoredBuffer.push(p.name);}
+// If we're inside finAB, also stash the runner on the in-progress AB.
+// v96: store as {bi, team, name} so the renderer can resolve the CURRENT name
+// from the lineup if a placeholder gets renamed later. Old string entries on
+// historical ABs continue to display as-is.
+if(G._abScoredBuffer){var lu=team==='home'?G.hlu:G.alu;var p=lu[bi];if(p&&p.name)G._abScoredBuffer.push({bi:bi,team:team,name:p.name});}
 var _fp=curPitcher();if(_fp){_fp.runs_allowed=(_fp.runs_allowed||0)+1;_fp.er=(_fp.er||0)+1;}}
 
 // MERCY RULE CHECK
@@ -4380,7 +4406,19 @@ function mkHalf(abs,label,inn,half){
     });
     // Runs scored on this AB
     if(ab.pscored&&ab.pscored.length){
-      var names=ab.pscored.map(_shortName).join(', ');
+      // v96: pscored entries can be either strings (legacy) or {bi, team, name}
+      // objects. For objects, resolve to the current lineup name so renames
+      // propagate; fall back to the stored name if lineup lookup fails.
+      var names=ab.pscored.map(function(entry){
+        if(typeof entry==='string')return _shortName(entry);
+        if(entry&&typeof entry==='object'){
+          var lu=entry.team==='home'?G.hlu:G.alu;
+          var p=lu&&lu[entry.bi];
+          var current=(p&&p.name)?p.name:entry.name;
+          return _shortName(current||'?');
+        }
+        return '?';
+      }).join(', ');
       var rbiPart=ab.rbi>0?' (+'+ab.rbi+' R)':' ('+ab.pscored.length+' R)';
       subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--amber2);font-family:sans-serif;font-style:italic;">↳ Scored: '+esc(names)+rbiPart+'</div>');
     }
@@ -4455,6 +4493,66 @@ if(G.notes)ls.push('\nNotes: '+G.notes);$('share-txt').textContent=ls.join('\n')
 function cpShare(){var t=$('share-txt').textContent;if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast('Copied!'));else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied!');}}
 
 // END GAME (3.4)
+// v96: find ABs where a fielding error AND a run-scoring event happened on the
+// same play. Returns indexed candidates (with abIdx) so the review modal can
+// edit the original ab.rbi by index.
+function _findErrorRbiCandidates(){
+  var candidates=[];
+  (G.abs||[]).forEach(function(ab,idx){
+    if(!ab)return;
+    var hasRun=(ab.pscored&&ab.pscored.length>0)||['HR','LLHR'].indexOf(ab.result)>=0;
+    if(!hasRun)return;
+    // Look for in-AB errors logged on this play (matching inn+half+team) OR standalone
+    // errors with same inn+half. Use the play notation as a coarse match for in-AB errors.
+    var errs=(G.errs||[]).filter(function(e){
+      if(e.inn!==ab.inn||e.half!==ab.half)return false;
+      // standalone errors aren't tied to a specific AB; in-AB errors carry play info
+      if(e.standalone)return false;
+      return true;
+    });
+    if(errs.length>0)candidates.push({abIdx:idx,ab:ab,errs:errs});
+  });
+  return candidates;
+}
+function openErrorRbiReview(){
+  cm('m-endgame');
+  var cands=_findErrorRbiCandidates();
+  var html='';
+  if(!cands.length){html='<div style="font-size:12px;font-family:sans-serif;color:var(--text3);padding:14px;text-align:center;">No candidates found.</div>';}
+  cands.forEach(function(c){
+    var ab=c.ab;
+    var lbl=(ab.half==='top'?'T':'B')+ab.inn;
+    var pscoredCt=(ab.pscored&&ab.pscored.length)||0;
+    var errSummary=c.errs.map(function(e){return (e.type||'?')+'@'+(e.pos||'?')+(e.player?(' ('+sn(e.player)+')'):'');}).join(', ');
+    html+='<div style="padding:8px;border-bottom:1px solid var(--border);">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">';
+    html+='<div style="font-size:13px;font-weight:bold;">'+lbl+' · '+esc(sn(ab.batter||'?'))+'</div>';
+    html+='<div style="font-size:11px;color:var(--text3);font-family:sans-serif;">'+esc(ab.result||'')+(ab.not?' '+esc(ab.not):'')+'</div>';
+    html+='</div>';
+    html+='<div style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:6px;">⚠️ Errors: '+esc(errSummary||'(unspecified)')+'</div>';
+    html+='<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:6px;">Currently credited: <strong>'+(ab.rbi||0)+' RBI</strong> · runs scored: '+pscoredCt+'</div>';
+    html+='<div class="row" style="gap:6px;">';
+    for(var i=0;i<=Math.max(ab.rbi||0,pscoredCt);i++){
+      var sel=(i===(ab.rbi||0));
+      html+='<button class="btn btn-xs" style="'+(sel?'border-color:var(--gold);color:var(--gold);':'')+'" onclick="setRbiForReview('+c.abIdx+','+i+',this)">'+i+'</button>';
+    }
+    html+='</div>';
+    html+='</div>';
+  });
+  $('rbi-review-list').innerHTML=html;
+  om('m-rbi-review');
+}
+function setRbiForReview(abIdx,newRbi,btn){
+  var ab=G.abs&&G.abs[abIdx];if(!ab)return;
+  ab.rbi=newRbi;
+  // Update the button styling for visual feedback
+  if(btn){
+    var siblings=btn.parentNode.querySelectorAll('.btn');
+    siblings.forEach(function(b){b.style.borderColor='';b.style.color='';});
+    btn.style.borderColor='var(--gold)';btn.style.color='var(--gold)';
+  }
+  sv();// persist locally + syncs to Firebase via wrapped sg
+}
 function endGame(){
   mkShare();// refresh share text first
   var usHome=isOH(),ourScore=usHome?G.hs:G.as,theirScore=usHome?G.as:G.hs;
@@ -4466,6 +4564,22 @@ function endGame(){
   var lines='';
   ourP().forEach(function(p){var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);lines+=sn(p.name)+' '+ip+' IP, '+(p.hits||0)+'H, '+(p.runs_allowed||0)+'R, '+(p.k_pitched||0)+'K, '+(p.bb_allowed||0)+'BB, PC:'+(p.total||0)+'\n';});
   $('eg-lines').textContent=lines||'No pitching data';
+  // v96: error-attributed RBI review prompt — only if setting is ON and there
+  // are candidate ABs (errors logged on a play that also scored runs).
+  var rbiReviewBlock=$('eg-rbi-review');
+  if(rbiReviewBlock){
+    if(A.errorRbiReviewEnabled){
+      var cands=_findErrorRbiCandidates();
+      if(cands.length>0){
+        $('eg-rbi-count').textContent=cands.length;
+        rbiReviewBlock.style.display='block';
+      }else{
+        rbiReviewBlock.style.display='none';
+      }
+    }else{
+      rbiReviewBlock.style.display='none';
+    }
+  }
   om('m-endgame');
 }
 function confirmEndGame(){
@@ -4664,7 +4778,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v95';
+var APP_VERSION='v96';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
