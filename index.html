@@ -374,6 +374,19 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- Opp pick modal -->
 <div class="modal-ov" id="m-opppick"><div class="modal"><h3 id="opp-lp-title">Pick batter</h3><div id="opp-lp-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-opppick')">Cancel</button></div></div></div>
 </div>
+<!-- COACH RATE-ONLY MODE (v92): standalone page coaches use to enter their ratings.
+     Shown when URL has ?rate=<coachId>. All other screens hidden in rate mode. -->
+<div class="screen" id="screen-rate">
+  <div class="hdr"><div><div class="hdr-title">🌟 Rate Mighty Mussels</div><div class="hdr-sub" id="rate-coach-sub">—</div></div></div>
+  <div class="scroll" style="padding:12px;">
+    <div class="panel" style="margin-bottom:10px;">
+      <div style="font-size:12px;font-family:sans-serif;color:var(--text2);line-height:1.5;">Rate each player 0-5 in any category you have an opinion on. Decimals OK. Leave fields blank if you're not sure — they won't pull down the team average. Tap a player to expand their fields.<br><span style="color:var(--amber2);">Your ratings are private to you. The manager only sees the team-wide average across all coaches.</span></div>
+    </div>
+    <div id="rate-list"></div>
+    <div class="row" style="gap:6px;margin-top:14px;"><button class="btn btn-gold btn-full" onclick="saveAllCoachRatings()" style="font-size:14px;padding:12px;">💾 Save all to manager</button></div>
+    <div id="rate-status" style="text-align:center;font-size:11px;color:var(--text3);font-family:sans-serif;margin-top:10px;"></div>
+  </div>
+</div>
 <!-- SCORECARD -->
 <div class="screen" id="screen-sc">
 <div class="hdr" style="padding:4px 12px;"><button class="btn btn-xs" onclick="goHome()">← Home</button><div style="text-align:center;"><div class="hdr-title" id="sc-title" style="font-size:13px;">—</div><div class="hdr-sub" id="sc-sub"></div></div><button class="btn btn-xs" onclick="openSetup()">⚙</button></div>
@@ -433,7 +446,17 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div></div>
 <!-- MODALS -->
 <div id="toast" class="toast"></div>
-<div class="modal-ov" id="m-roster"><div class="modal"><h3>Roster</h3><div id="ros-list"></div><div class="mact"><button class="btn btn-green btn-full" onclick="addRos()">+ Add</button><button class="btn btn-full" onclick="cm('m-roster')">Close</button></div></div></div>
+<div class="modal-ov" id="m-roster"><div class="modal"><h3>Roster</h3><div id="ros-list"></div>
+<!-- v92: Coach rating share links -->
+<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border);">
+<div class="ptitle" style="margin-bottom:6px;">🌟 Share rating link with coaches</div>
+<div style="font-size:11px;font-family:sans-serif;color:var(--text2);margin-bottom:8px;line-height:1.5;">Each coach gets a private link. Their ratings stay separate; the optimal lineup uses the average across all coaches who rated.</div>
+<div class="row" style="gap:6px;align-items:center;"><input type="text" id="coach-handle" placeholder="coach name (e.g. alice)" style="flex:1;text-transform:lowercase;"><button class="btn btn-sm btn-gold" onclick="generateCoachLink()">Make link</button></div>
+<div id="coach-link-out" style="margin-top:8px;font-size:11px;font-family:sans-serif;color:var(--text3);"></div>
+<div style="margin-top:10px;font-size:11px;font-family:sans-serif;color:var(--text2);">Coaches who've already saved:</div>
+<div id="existing-coaches" style="margin-top:4px;font-size:11px;font-family:sans-serif;">Loading…</div>
+</div>
+<div class="mact"><button class="btn btn-green btn-full" onclick="addRos()">+ Add</button><button class="btn btn-full" onclick="cm('m-roster')">Close</button></div></div></div>
 <!-- OPPONENT LINEUP START — fires after our lineup is set -->
 <div class="modal-ov" id="m-oppstart"><div class="modal" style="text-align:center;"><h3 id="oppstart-title">Opponent batting order</h3><div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:14px;">Got their lineup card, or want to add as they bat?</div><div class="mact"><button class="btn btn-gold btn-full" onclick="cm('m-oppstart');goToOppEntry()">📋 Pre-enter their lineup</button><button class="btn btn-full" onclick="cm('m-oppstart');skipOpp()">⚾ Add live as they bat</button></div></div></div>
 <!-- TEST SANDBOX START — choose default vs fresh vs wipe -->
@@ -1410,7 +1433,8 @@ async function _fetchAllFinalGames(){
   }catch(e){console.log('_fetchAllFinalGames error:',e);}
   return games;
 }
-function buildOptimalMusselsLineup(games){
+function buildOptimalMusselsLineup(games,coachDocs){
+  coachDocs=coachDocs||{};
   // Aggregate per-player batting stats from Mussels' own ABs across all games.
   var byPlayer={};
   games.forEach(function(g){
@@ -1438,9 +1462,27 @@ function buildOptimalMusselsLineup(games){
       (g.steals||[]).forEach(function(e){if(e.bi==i)s.sb++;});
     });
   });
+  // v92: Resolve each player's effective ratings — average across all coaches who
+  // rated them. Falls back to local A.roster[i].ratings if no coach docs available
+  // (offline / Firebase unreachable). Whichever path is used, build a per-player
+  // ratings map that the formula consumes uniformly.
+  var hasCoachDocs=Object.keys(coachDocs).length>0;
+  var effectiveRatings={};// {playerName: {hitting, throwing, ..., _coachCount}}
+  A.roster.forEach(function(rp){
+    if(!rp||!rp.name)return;
+    if(hasCoachDocs){
+      effectiveRatings[rp.name]=_aggregateRatings(rp.name,coachDocs);
+    }else{
+      // Fallback: use local ratings only (counts as 1 coach)
+      var local=rp.ratings||{};
+      var out={_coachCount:0};
+      RATING_KEYS.forEach(function(k){if(local[k]!=null){out[k]=local[k];out._coachCount=1;}else{out[k]=null;}});
+      effectiveRatings[rp.name]=out;
+    }
+  });
   // Compute team-avg Hitting across rated players — used as fallback for unrated kids
   // so they don't auto-bottom-rank just because we lack a draft-pool number.
-  var hittingVals=A.roster.map(function(p){return p.ratings&&p.ratings.hitting!=null?p.ratings.hitting:null;}).filter(function(v){return v!=null;});
+  var hittingVals=A.roster.map(function(p){var r=effectiveRatings[p.name];return r&&r.hitting!=null?r.hitting:null;}).filter(function(v){return v!=null;});
   var teamAvgHitting=hittingVals.length?hittingVals.reduce(function(a,b){return a+b;},0)/hittingVals.length:2.5;
   // Score every roster player; missing-data players get 0 and rank last (in roster order).
   // v91 formula reflects manager's LL-specific philosophy: contact + not striking
@@ -1461,19 +1503,17 @@ function buildOptimalMusselsLineup(games){
     var kRate=s.k/paDenom;
     var bipRate=s.bip/paDenom;
     var statsScore=0.5*obp+0.5*slg+1.5*bipRate-1.0*kRate;
-    // Ratings blend
-    var r=rp.ratings||{};
+    // Ratings blend (v92: averaged across all coaches who rated this player)
+    var r=effectiveRatings[rp.name]||{};
     var hRating=r.hitting!=null?r.hitting:teamAvgHitting;
     var hNorm=hRating/5;
     var cNorm=r.confidence!=null?r.confidence/5:0;
     var dNorm=r.discipline!=null?r.discipline/5:0;
     var clNorm=r.clutch!=null?r.clutch/5:0;
     var ratingsTerm=0.3*hNorm+0.1*cNorm+0.1*dNorm+0.1*clNorm;
-    // Players with no PAs and no ratings get a tiny negative tiebreaker so they sort to
-    // the bottom in roster order. Players with PAs OR ratings get a real score.
     var hasAnyRating=r.hitting!=null||r.confidence!=null||r.discipline!=null||r.clutch!=null;
     var score=(s.pa>0||hasAnyRating)?(statsScore+ratingsTerm):(-1-idx*0.0001);
-    return {rp:rp,score:score,pa:s.pa,obp:obp,slg:slg,ba:ba,k:s.k,bip:s.bip,bipRate:bipRate,h:s.h,xbh:s.xbh,rosterIdx:idx,statsScore:statsScore,ratingsTerm:ratingsTerm,hRating:hRating,hRated:r.hitting!=null,confRated:r.confidence!=null,discRated:r.discipline!=null,clutchRated:r.clutch!=null};
+    return {rp:rp,score:score,pa:s.pa,obp:obp,slg:slg,ba:ba,k:s.k,bip:s.bip,bipRate:bipRate,h:s.h,xbh:s.xbh,rosterIdx:idx,statsScore:statsScore,ratingsTerm:ratingsTerm,hRating:hRating,hRated:r.hitting!=null,confRated:r.confidence!=null,discRated:r.discipline!=null,clutchRated:r.clutch!=null,coachCount:r._coachCount||0};
   });
   // Primary sort: composite score desc; tiebreakers: PA desc, then roster idx asc.
   ranked.sort(function(a,b){if(a.score!==b.score)return b.score-a.score;if(a.pa!==b.pa)return b.pa-a.pa;return a.rosterIdx-b.rosterIdx;});
@@ -1501,7 +1541,7 @@ function buildOptimalMusselsLineup(games){
     // With only 2 PA-eligible hitters, swap so highest OBP leads off
     if(ranked[1].obp>ranked[0].obp){var tmp=ranked[0];ranked[0]=ranked[1];ranked[1]=tmp;}
   }
-  return ranked.map(function(r){return {name:r.rp.name||'',jersey:r.rp.jersey||'',rid:r.rp.id,_score:r.score,_pa:r.pa,_obp:r.obp,_slg:r.slg,_ba:r.ba,_k:r.k,_bip:r.bip,_bipRate:r.bipRate,_ratingsTerm:r.ratingsTerm,_hRating:r.hRating,_hRated:r.hRated,_confRated:r.confRated,_discRated:r.discRated,_clutchRated:r.clutchRated};});
+  return ranked.map(function(r){return {name:r.rp.name||'',jersey:r.rp.jersey||'',rid:r.rp.id,_score:r.score,_pa:r.pa,_obp:r.obp,_slg:r.slg,_ba:r.ba,_k:r.k,_bip:r.bip,_bipRate:r.bipRate,_ratingsTerm:r.ratingsTerm,_hRating:r.hRating,_hRated:r.hRated,_confRated:r.confRated,_discRated:r.discRated,_clutchRated:r.clutchRated,_coachCount:r.coachCount};});
 }
 // Export the season-stats screen as a PDF via the browser's print → "Save as PDF"
 // dialog. Adds body.printing-season for the duration so the print stylesheet
@@ -1523,7 +1563,9 @@ async function showOptimalLineup(){
   toast('Fetching season data…');
   var games=await _fetchAllFinalGames();
   if(!games.length){toast('No completed games yet — nothing to optimize on');return;}
-  var lu=buildOptimalMusselsLineup(games);
+  var coachDocs=await _fetchAllCoachRatings();
+  var coachIds=Object.keys(coachDocs);
+  var lu=buildOptimalMusselsLineup(games,coachDocs);
   var rows='';
   lu.forEach(function(p,i){
     var statsLine=p._pa>0?'OBP '+(p._obp>0?fmt3(p._obp):'.000')+' · SLG '+(p._slg>0?fmt3(p._slg):'.000')+' · BIP '+(p._bip||0)+'/'+p._pa+' · K '+p._k:'(no game data)';
@@ -1532,7 +1574,8 @@ async function showOptimalLineup(){
     if(p._confRated)ratingBits.push('Conf ✓');
     if(p._discRated)ratingBits.push('Disc ✓');
     if(p._clutchRated)ratingBits.push('Clutch ✓');
-    var ratingLine='Rated: '+ratingBits.join(' · ')+(p._ratingsTerm?' (+'+p._ratingsTerm.toFixed(2)+')':'');
+    var coachStr=p._coachCount?(' · '+p._coachCount+' coach'+(p._coachCount===1?'':'es')):'';
+    var ratingLine='Rated: '+ratingBits.join(' · ')+(p._ratingsTerm?' (+'+p._ratingsTerm.toFixed(2)+')':'')+coachStr;
     rows+='<div class="lu-row" style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);">'
       +'<span class="lu-ord" style="width:24px;color:var(--gold);font-weight:bold;">'+(i+1)+'</span>'
       +'<div class="bat-jersey">'+(p.jersey||'?')+'</div>'
@@ -1542,7 +1585,8 @@ async function showOptimalLineup(){
       +'</div>';
   });
   $('optlu-body').innerHTML=rows;
-  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · stats (0.5·OBP + 0.5·SLG + 1.5·BIP-rate − 1.0·K-rate) + ratings (0.3·Hit + 0.1·Conf + 0.1·Disc + 0.1·Clutch, all /5). Slot 3 = best hitter, slots 1+2 = top 2 OBPs (within top 5). <span style="color:var(--text3);">* = unrated, used team-avg.</span> <span style="color:var(--amber2);">🌟 on roster rows opens the rating editor.</span>';
+  var coachSummary=coachIds.length?coachIds.length+' coach'+(coachIds.length===1?'':'es')+' rated ('+coachIds.join(', ')+')':'no coach ratings on file';
+  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · '+coachSummary+'<br>stats (0.5·OBP + 0.5·SLG + 1.5·BIP-rate − 1.0·K-rate) + ratings (0.3·Hit + 0.1·Conf + 0.1·Disc + 0.1·Clutch, /5, averaged across coaches). Slot 3 = best hitter, slots 1+2 = top 2 OBPs (within top 5). <span style="color:var(--text3);">* = unrated, used team-avg.</span>';
   om('m-optlu');
 }
 function startTestGame(){
@@ -1614,7 +1658,50 @@ function openRosterModal(){$('ros-list').innerHTML=A.roster.map(function(p){
   var hasAny=p.ratings&&RATING_KEYS.some(function(k){return p.ratings[k]!=null;});
   var ratingBtn='<button class="btn btn-xs" onclick="openRatingModal(\''+p.id+'\')" style="margin-right:4px;'+(hasAny?'border-color:var(--gold);color:var(--gold);':'')+'" title="Rate intangibles">🌟</button>';
   return '<div class="player-row"><div class="pjrsy">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;">'+(p.name||'(none)')+'</span>'+ratingBtn+'<button class="btn btn-xs" onclick="editPl(\''+p.id+'\')">Edit</button></div>';
-}).join('');om('m-roster');}
+}).join('');
+// v92: refresh coach-share UI + existing-coaches list when modal opens
+if($('coach-link-out'))$('coach-link-out').innerHTML='';
+if($('coach-handle'))$('coach-handle').value='';
+_refreshExistingCoaches();
+om('m-roster');}
+function generateCoachLink(){
+  var handle=($('coach-handle').value||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');
+  if(!handle){toast('Enter a coach handle (letters/numbers only)');return;}
+  var url=location.origin+location.pathname+'?rate='+encodeURIComponent(handle);
+  $('coach-link-out').innerHTML=
+    '<div style="word-break:break-all;color:var(--gold);padding:6px;background:var(--bg3);border-radius:var(--rs);">'+esc(url)+'</div>'
+    +'<div class="row" style="gap:6px;margin-top:6px;">'
+    +'<button class="btn btn-xs btn-green" onclick="_copyCoachLink(\''+handle+'\')">📋 Copy link</button>'
+    +'<button class="btn btn-xs" onclick="_openCoachLink(\''+handle+'\')">↗ Open</button>'
+    +'</div>'
+    +'<div style="margin-top:6px;color:var(--text2);">Send to coach <strong>'+esc(handle)+'</strong> via text/email. They tap the link and rate the players.</div>';
+}
+function _copyCoachLink(handle){
+  var url=location.origin+location.pathname+'?rate='+encodeURIComponent(handle);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){toast('Link copied');}).catch(function(){toast('Copy failed — long-press the URL to copy manually');});
+  }else{toast('Long-press the URL to copy manually');}
+}
+function _openCoachLink(handle){
+  var url=location.origin+location.pathname+'?rate='+encodeURIComponent(handle);
+  window.open(url,'_blank');
+}
+async function _refreshExistingCoaches(){
+  var el=$('existing-coaches');if(!el)return;
+  if(typeof db==='undefined'||!db){el.innerHTML='<span style="color:var(--text3);">(Firebase not ready)</span>';return;}
+  try{
+    var snap=await db.collection('coachRatings').get();
+    var lines=[];
+    snap.forEach(function(doc){
+      var d=doc.data()||{};
+      var ratedCount=d.ratings?Object.keys(d.ratings).length:0;
+      var ts=d.updated&&d.updated.toDate?d.updated.toDate():null;
+      var when=ts?ts.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+      lines.push('<div style="margin:3px 0;color:var(--text2);">• <strong>'+esc(doc.id)+'</strong> — '+ratedCount+' player'+(ratedCount===1?'':'s')+(when?' · '+when:'')+'</div>');
+    });
+    el.innerHTML=lines.length?lines.join(''):'<span style="color:var(--text3);">None yet</span>';
+  }catch(e){el.innerHTML='<span style="color:var(--red2);">Error loading coaches list</span>';}
+}
 function addRos(){A.epId='__new__';$('mp-title').textContent='Add player';$('pm-n').value='';$('pm-j').value='';om('m-player');}
 function editPl(id){var p=A.roster.find(r=>r.id===id);if(!p)return;A.epId=id;$('mp-title').textContent='Edit';$('pm-n').value=p.name||'';$('pm-j').value=p.jersey||'';om('m-player');}
 function savePl(){var n=$('pm-n').value.trim(),j=$('pm-j').value.trim();if(!n&&!j){toast('Enter name or #');return;}if(A.epId==='__new__'){A.roster.push({id:uid(),name:n,jersey:j,ratings:_emptyRatings()});}else{var p=A.roster.find(r=>r.id===A.epId);if(p){p.name=n;p.jersey=j;if(!p.ratings)p.ratings=_emptyRatings();}}cm('m-player');sa();openRosterModal();}
@@ -1649,10 +1736,90 @@ function saveRating(){
     p.ratings[k]=Math.max(0,Math.min(5,Math.round(n*10)/10));
   });
   cm('m-rating');sa();openRosterModal();toast('Ratings saved for '+sn(p.name||'player'));
+  // v92: also push Sam's full ratings to Firebase coachRatings/sam so the multi-coach
+  // average reflects this edit immediately. Best-effort — errors don't block the UI.
+  if(typeof pushSamRatingsToFirebase==='function')pushSamRatingsToFirebase();
 }
 function clearRatings(){
   if(!confirm('Clear all ratings for this player?'))return;
   RATING_KEYS.forEach(function(k){$('rate-'+k).value='';});
+}
+// =============================================================================
+// COACH RATE-ONLY MODE (v92) — standalone page invoked via ?rate=<coachId>.
+// Each coach has a private URL. They see only their own values; their saves
+// write to coachRatings/<coachId> in Firestore. Sam's main app reads ALL
+// coach docs and averages them for the optimal-lineup formula.
+// =============================================================================
+var _rateRoster=[],_rateCoachData={},_rateCoachId=null;
+async function _initRateMode(coachId){
+  _rateCoachId=coachId;
+  $('rate-coach-sub').textContent='Coach: '+coachId+' · loading…';
+  try{
+    // Fetch roster from Firestore so coaches' devices have current player names
+    var rosterSnap=await db.collection('appdata').doc('roster').get();
+    var roster=(rosterSnap.exists&&rosterSnap.data().adata&&rosterSnap.data().adata.roster)||RNAMES.map(function(n,i){return{id:'r'+i,name:n,jersey:''};});
+    var coachSnap=await db.collection('coachRatings').doc(coachId).get();
+    _rateRoster=roster;
+    _rateCoachData=coachSnap.exists?(coachSnap.data()||{ratings:{}}):{ratings:{}};
+    if(!_rateCoachData.ratings)_rateCoachData.ratings={};
+    var ratedCount=Object.keys(_rateCoachData.ratings||{}).length;
+    $('rate-coach-sub').textContent='Coach: '+coachId+' · '+roster.length+' players'+(ratedCount?' · '+ratedCount+' previously rated':'');
+    renderRateList();
+  }catch(e){console.log('Rate-mode init error:',e);$('rate-status').innerHTML='<span style="color:var(--red2);">Error loading: '+esc(e.message||String(e))+'</span>';}
+}
+function renderRateList(){
+  var html='';
+  _rateRoster.forEach(function(p){
+    if(!p||!p.name)return;
+    var existing=(_rateCoachData.ratings&&_rateCoachData.ratings[p.name])||{};
+    var filledCount=RATING_KEYS.filter(function(k){return existing[k]!=null;}).length;
+    var summaryColor=filledCount>0?'var(--gold)':'var(--text3)';
+    html+='<details class="rate-card" style="margin-bottom:8px;background:var(--bg2);border-radius:var(--rs);padding:0 10px;border:1px solid var(--border);">';
+    html+='<summary style="padding:10px 0;cursor:pointer;display:flex;align-items:center;justify-content:space-between;list-style:none;">';
+    html+='<span style="font-size:14px;font-weight:bold;">'+esc(p.name)+'</span>';
+    html+='<span style="font-size:11px;color:'+summaryColor+';font-family:sans-serif;">'+filledCount+'/'+RATING_KEYS.length+' rated</span>';
+    html+='</summary>';
+    html+='<div style="padding:0 0 10px;">';
+    RATING_KEYS.forEach(function(k){
+      var v=existing[k];var dispV=(v==null?'':String(v));
+      html+='<div class="mrow" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+      html+='<label style="flex:1;margin:0;">'+_ratingLabels[k]+'</label>';
+      html+='<input type="number" min="0" max="5" step="0.1" inputmode="decimal" data-player="'+esc(p.name)+'" data-key="'+k+'" value="'+esc(dispV)+'" placeholder="—" style="width:70px;text-align:center;">';
+      html+='<span style="font-size:10px;color:var(--text3);font-family:sans-serif;width:18px;">/5</span>';
+      html+='</div>';
+    });
+    html+='</div></details>';
+  });
+  $('rate-list').innerHTML=html;
+}
+async function saveAllCoachRatings(){
+  if(!_rateCoachId){toast('No coach ID');return;}
+  $('rate-status').textContent='Saving…';
+  var ratings={};
+  document.querySelectorAll('#rate-list input[data-player]').forEach(function(el){
+    var name=el.getAttribute('data-player'),key=el.getAttribute('data-key');
+    if(!ratings[name])ratings[name]={};
+    var raw=el.value.trim();
+    if(raw===''){ratings[name][key]=null;return;}
+    var n=parseFloat(raw);
+    if(isNaN(n)){ratings[name][key]=null;return;}
+    ratings[name][key]=Math.max(0,Math.min(5,Math.round(n*10)/10));
+  });
+  // Strip out players with all-null ratings so the doc stays compact
+  Object.keys(ratings).forEach(function(name){
+    var hasValue=RATING_KEYS.some(function(k){return ratings[name][k]!=null;});
+    if(!hasValue)delete ratings[name];
+  });
+  try{
+    await db.collection('coachRatings').doc(_rateCoachId).set({
+      coachId:_rateCoachId,ratings:ratings,updated:new Date()
+    },{merge:false});
+    $('rate-status').innerHTML='<span style="color:var(--green2);">✓ Saved at '+new Date().toLocaleTimeString()+'</span>';
+    _rateCoachData={ratings:ratings};
+    renderRateList();// refresh "rated" counts
+  }catch(e){
+    $('rate-status').innerHTML='<span style="color:var(--red2);">Error saving: '+esc(e.message||String(e))+'</span>';
+  }
 }
 
 // EVENTS
@@ -4431,10 +4598,86 @@ function renderRulesBook(){
 }
 function filterRules(q){renderRulesBook();}
 
+// v92 multi-coach ratings helpers ----------------------------------------------
+// Migrate Sam's localStorage ratings to Firebase coachRatings/sam on first run.
+// Idempotent: if the doc already exists, do nothing (preserves any post-migration
+// edits made via the rate page).
+async function ensureSamRatingsSynced(){
+  if(!fbReady||!db)return;
+  try{
+    var snap=await db.collection('coachRatings').doc('sam').get();
+    if(snap.exists)return;
+    var ratings={};
+    A.roster.forEach(function(p){
+      if(!p.ratings)return;
+      var pruned={};RATING_KEYS.forEach(function(k){if(p.ratings[k]!=null)pruned[k]=p.ratings[k];});
+      if(Object.keys(pruned).length>0)ratings[p.name]=pruned;
+    });
+    await db.collection('coachRatings').doc('sam').set({
+      coachId:'sam',ratings:ratings,migratedFrom:'localStorage v91',updated:new Date()
+    },{merge:true});
+    console.log('Sam ratings migrated to Firebase coachRatings/sam');
+  }catch(e){console.log('ensureSamRatingsSynced error:',e);}
+}
+// Push Sam's full local ratings to Firebase. Called from saveRating() so his edits
+// in the 🌟 modal sync to the multi-coach pool too.
+async function pushSamRatingsToFirebase(){
+  if(!fbReady||!db)return;
+  try{
+    var ratings={};
+    A.roster.forEach(function(p){
+      if(!p.ratings)return;
+      var pruned={};RATING_KEYS.forEach(function(k){if(p.ratings[k]!=null)pruned[k]=p.ratings[k];});
+      if(Object.keys(pruned).length>0)ratings[p.name]=pruned;
+    });
+    await db.collection('coachRatings').doc('sam').set({
+      coachId:'sam',ratings:ratings,updated:new Date()
+    },{merge:false});
+  }catch(e){console.log('pushSamRatingsToFirebase error:',e);}
+}
+// Fetch all coach docs from Firestore. Returns object keyed by coachId.
+async function _fetchAllCoachRatings(){
+  if(!fbReady||!db)return{};
+  try{
+    var snap=await db.collection('coachRatings').get();
+    var byCoach={};
+    snap.forEach(function(doc){byCoach[doc.id]=doc.data()||{};});
+    return byCoach;
+  }catch(e){console.log('_fetchAllCoachRatings error:',e);return{};}
+}
+// Aggregate ratings across coaches for a single player. Returns averaged values
+// (or null where no coach rated that category) and a coachCount diagnostic.
+function _aggregateRatings(playerName,coachDocs){
+  var sums={},counts={};
+  RATING_KEYS.forEach(function(k){sums[k]=0;counts[k]=0;});
+  Object.keys(coachDocs).forEach(function(cid){
+    var rec=coachDocs[cid].ratings&&coachDocs[cid].ratings[playerName];
+    if(!rec)return;
+    RATING_KEYS.forEach(function(k){if(rec[k]!=null){sums[k]+=rec[k];counts[k]++;}});
+  });
+  var out={_coachCount:0};
+  RATING_KEYS.forEach(function(k){
+    if(counts[k]>0){out[k]=sums[k]/counts[k];out._coachCount=Math.max(out._coachCount,counts[k]);}
+    else{out[k]=null;}
+  });
+  return out;
+}
+
 // BOOT
-var APP_VERSION='v91';
+var APP_VERSION='v92';
+// Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
+// not the manager's main app. Skip the home/scorecard flow entirely.
+var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
-loadAll();renderHome();
+loadAll();
+if(_rateMode){
+  // Coach mode: hide all screens, show only the rate screen. Firebase init below
+  // will call _initRateMode() once db is ready.
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('screen-rate').classList.add('active');
+}else{
+  renderHome();
+}
 // Show version on home so the user can confirm refresh worked
 (function(){var el=document.getElementById('app-version');if(el)el.textContent='· '+APP_VERSION;})();
 </script>
@@ -4561,11 +4804,23 @@ function setupSyncListeners(){
   },err=>console.log('Roster listener error:',err));
 }
 
-// Assignment (not declaration) — avoids hoisting so saOrig/sgOrig capture originals
-sa=function(){saOrig();fbSaveRoster();};
-sg=function(){sgOrig();fbSaveGame();};
+// Assignment (not declaration) — avoids hoisting so saOrig/sgOrig capture originals.
+// Skip the auto-sync wrappers in rate mode — coaches' devices shouldn't push their
+// (empty) local roster/game state up to Firebase.
+if(!_rateMode){
+  sa=function(){saOrig();fbSaveRoster();};
+  sg=function(){sgOrig();fbSaveGame();};
+  setupSyncListeners();
+}
 
-setupSyncListeners();
+// v92: rate-mode init runs after Firebase is ready
+if(_rateMode){
+  _initRateMode(_rateMode);
+}else{
+  // Manager mode: migrate Sam's local ratings to Firebase as coachRatings/sam
+  // (one-time, idempotent — only writes if doc doesn't exist).
+  setTimeout(function(){ensureSamRatingsSynced();},1500);
+}
 // If cleanup v21 just ran this boot, push cleaned state up so other devices clear too
 try{
   if(localStorage.getItem('mm_cleanup_v21')==='1'&&!localStorage.getItem('mm_cleanup_v21_pushed')){
