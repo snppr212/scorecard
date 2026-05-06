@@ -1588,25 +1588,20 @@ async function showOptimalLineup(){
   var lu=buildOptimalMusselsLineup(games,coachDocs);
   var rows='';
   lu.forEach(function(p,i){
+    // Stats-line-only display (v97): hides the per-player ratings breakdown so
+    // the modal is cleanly shareable with other coaches. Ratings still factor
+    // into the score sort under the hood.
     var statsLine=p._pa>0?'OBP '+(p._obp>0?fmt3(p._obp):'.000')+' · SLG '+(p._slg>0?fmt3(p._slg):'.000')+' · BIP '+(p._bip||0)+'/'+p._pa+' · K '+p._k:'(no game data)';
-    var ratingBits=[];
-    ratingBits.push('Hit '+(p._hRated?p._hRating.toFixed(1):p._hRating.toFixed(1)+'*'));
-    if(p._confRated)ratingBits.push('Conf ✓');
-    if(p._discRated)ratingBits.push('Disc ✓');
-    if(p._clutchRated)ratingBits.push('Clutch ✓');
-    var coachStr=p._coachCount?(' · '+p._coachCount+' coach'+(p._coachCount===1?'':'es')):'';
-    var ratingLine='Rated: '+ratingBits.join(' · ')+(p._ratingsTerm?' (+'+p._ratingsTerm.toFixed(2)+')':'')+coachStr;
     rows+='<div class="lu-row" style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);">'
       +'<span class="lu-ord" style="width:24px;color:var(--gold);font-weight:bold;">'+(i+1)+'</span>'
       +'<div class="bat-jersey">'+(p.jersey||'?')+'</div>'
       +'<div style="flex:1;"><div style="font-size:13px;">'+esc(p.name||'(unnamed)')+'</div>'
-      +'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+statsLine+'</div>'
-      +'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+ratingLine+'</div></div>'
+      +'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+statsLine+'</div></div>'
       +'</div>';
   });
   $('optlu-body').innerHTML=rows;
-  var coachSummary=coachIds.length?coachIds.length+' coach'+(coachIds.length===1?'':'es')+' rated ('+coachIds.join(', ')+')':'no coach ratings on file';
-  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · '+coachSummary+'<br>stats (0.5·OBP + 0.5·SLG + 1.5·BIP-rate − 1.0·K-rate) + ratings (0.3·Hit + 0.1·Conf + 0.1·Disc + 0.1·Clutch, /5, averaged across coaches). Slot 3 = best hitter, slots 1+2 = top 2 OBPs (within top 5). <span style="color:var(--text3);">* = unrated, used team-avg.</span>';
+  var coachSummary=coachIds.length?coachIds.length+' coach'+(coachIds.length===1?'':'es')+' rated':'no coach ratings yet';
+  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · '+coachSummary+' · slot 3 = best hitter, slots 1+2 = top OBPs';
   om('m-optlu');
 }
 function startTestGame(){
@@ -4778,7 +4773,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v96';
+var APP_VERSION='v97';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
