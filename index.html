@@ -380,10 +380,10 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div class="hdr"><div><div class="hdr-title">🌟 Rate Mighty Mussels</div><div class="hdr-sub" id="rate-coach-sub">—</div></div></div>
   <div class="scroll" style="padding:12px;">
     <div class="panel" style="margin-bottom:10px;">
-      <div style="font-size:12px;font-family:sans-serif;color:var(--text2);line-height:1.5;">Rate each player 0-5 in any category you have an opinion on. Decimals OK. Leave fields blank if you're not sure — they won't pull down the team average. Tap a player to expand their fields.<br><span style="color:var(--amber2);">Your ratings are private to you. The manager only sees the team-wide average across all coaches.</span></div>
+      <div style="font-size:12px;font-family:sans-serif;color:var(--text2);line-height:1.5;">Rate each player 0-5 in any category you have an opinion on. Decimals OK. Leave fields blank if you're not sure — they won't pull down the team average. Tap a player to expand their fields.<br><span style="color:var(--amber2);">Your ratings are private to you. The optimal-lineup view only uses the team-wide average across all coaches — no one sees your individual numbers.</span></div>
     </div>
     <div id="rate-list"></div>
-    <div class="row" style="gap:6px;margin-top:14px;"><button class="btn btn-gold btn-full" onclick="saveAllCoachRatings()" style="font-size:14px;padding:12px;">💾 Save all to manager</button></div>
+    <div class="row" style="gap:6px;margin-top:14px;"><button class="btn btn-gold btn-full" onclick="saveAllCoachRatings()" style="font-size:14px;padding:12px;">💾 Save my ratings</button></div>
     <div id="rate-status" style="text-align:center;font-size:11px;color:var(--text3);font-family:sans-serif;margin-top:10px;"></div>
   </div>
 </div>
@@ -697,9 +697,9 @@ function _testOppDefaultLineup(){return TEST_OPP_ROSTER.filter(function(_,i){ret
 // Pre-season player ratings (1-5 scale, decimals OK). Hitting/Throwing/Fielding
 // come from a 3-4 coach pool average. Pitching values shown here are the manager's
 // own ratings where available, else the coach pool. Confidence/Discipline/Clutch
-// are intangibles the manager fills in over time — left null on seed.
+// are intangibles each coach fills in over time — left null on seed.
 //
-// Manager-supplied estimates (v87+):
+// Sam (assistant coach) — supplied estimates (v87+):
 //   - Ezra (#1): missed evals but is the team's best player — rated above every
 //     coach-rated kid in all four skill categories.
 //   - Mihir (#12): one of the two weakest players (with Cobe); rated near Cobe's
@@ -709,10 +709,10 @@ function _testOppDefaultLineup(){return TEST_OPP_ROSTER.filter(function(_,i){ret
 //   - Miles (#5) [v88]: top overall player ("better than Brody"); tier-2 pitcher
 //     with Ethan; catcher-eligible (decent throw); middling fielding when engaged.
 //
-// Manager-vs-coach-pool divergences NOT auto-applied (use 🌟 to edit if desired):
-//   - Ethan: coach pool fielding 2.90; manager calls him a top-2 fielder (range,
+// Sam-vs-coach-pool divergences NOT auto-applied (use 🌟 to edit if desired):
+//   - Ethan: coach pool fielding 2.90; Sam calls him a top-2 fielder (range,
 //     awareness, glove) — likely deserves a 3.30-3.50 rating.
-//   - Jacob: coach pool throwing 2.50; manager says throws far and fast — likely
+//   - Jacob: coach pool throwing 2.50; Sam says throws far and fast — likely
 //     a 3.00-3.30 rating.
 //   - Julian + Jacob: tagged as "wildcards" — high ceiling, inconsistent. No
 //     numerical change; future feature can capture this as a "wildcard" flag.
@@ -4664,7 +4664,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v92';
+var APP_VERSION='v93';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the manager's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
@@ -4817,7 +4817,7 @@ if(!_rateMode){
 if(_rateMode){
   _initRateMode(_rateMode);
 }else{
-  // Manager mode: migrate Sam's local ratings to Firebase as coachRatings/sam
+  // Main-app mode: migrate Sam's local ratings to Firebase as coachRatings/sam
   // (one-time, idempotent — only writes if doc doesn't exist).
   setTimeout(function(){ensureSamRatingsSynced();},1500);
 }
