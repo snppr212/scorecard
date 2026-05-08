@@ -1400,6 +1400,7 @@ function _renderSeasonLegend(view){
     pitRows=[
       ['G','Games pitched'],
       ['IP','Innings pitched (full + 1/3 outs notation)'],
+      ['BF','Batters faced = ip_outs + hits + BB + HBP. Total opposing batters seen.'],
       ['PC','Total pitch count'],
       ['Ba','Balls thrown'],
       ['St','Strikes thrown (looking + swinging + foul + BIP)'],
@@ -1409,7 +1410,7 @@ function _renderSeasonLegend(view){
       ['BB','Walks issued'],
       ['K','Strikeouts'],
       ['HBP','Hit-by-pitches issued'],
-      ['BAA','Batting average against = H / AB-against'],
+      ['BAA','Batting average against = H / AB-against (ip_outs + H). Derived from pitcher record so it works even on older games without per-AB pitcher tagging.'],
       ['ERA','Earned-run average per 6 innings (LL convention, not 9)']
     ];
   }
@@ -1507,27 +1508,30 @@ function renderSeasonPit(games){
   rows.sort(function(a,b){return b.ip_outs-a.ip_outs;});
   // Pitch-breakdown fallback: if exact pitches weren't all logged,
   //   floor balls at 4*(BB+HBP) and strikes at 3*K. Always reported as ≥ logged value.
-  // BAA = H / (TBF − BB − HBP − SAC).
+  // v102: Derive BF and AB-against from pitcher record (ip_outs + hits + bb + hbp)
+  // rather than walking g.abs. Works for older games where ab.pitcher isn't stamped.
+  // BAA = H / AB-against = H / (ip_outs + H).
   rows.forEach(function(s){
     s.baEst=Math.max(s.ba,4*(s.bb+s.hbp));
     s.stkEst=Math.max(s.stk,3*s.k);
-    s.abAgainst=Math.max(0,s.tbf-s.bb-s.hbp-s.sac);
+    s.abAgainst=s.ip_outs+s.hits;
+    s.bf=s.abAgainst+s.bb+s.hbp+(s.sac||0);
     s.baa=s.abAgainst>0?s.hits/s.abAgainst:0;
   });
-  var h='<thead><tr><th>Pitcher</th><th>G</th><th>IP</th><th>PC</th><th>Ba</th><th>St</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HBP</th><th>BAA</th><th>ERA</th></tr></thead><tbody>';
+  var h='<thead><tr><th>Pitcher</th><th>G</th><th>IP</th><th>BF</th><th>PC</th><th>Ba</th><th>St</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HBP</th><th>BAA</th><th>ERA</th></tr></thead><tbody>';
   rows.forEach(function(s){
     var ip=Math.floor(s.ip_outs/3)+'.'+(s.ip_outs%3);
     var era=s.ip_outs>0?fmt3(s.er/(s.ip_outs/3)*6):'—';
     var baa=s.abAgainst>0?fmt3(s.baa):'—';
     var j=_findJersey(s.name);var nm=j?'#'+j+' '+sn(s.name):sn(s.name);
-    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td class="hi">'+ip+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baa+'</td><td class="hi">'+era+'</td></tr>';
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td class="hi">'+ip+'</td><td>'+s.bf+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baa+'</td><td class="hi">'+era+'</td></tr>';
   });
-  var T={games:games.length,ip_outs:0,pc:0,baEst:0,stkEst:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,abAgainst:0};
-  rows.forEach(function(s){T.ip_outs+=s.ip_outs;T.pc+=s.pc;T.baEst+=s.baEst;T.stkEst+=s.stkEst;T.hits+=s.hits;T.r+=s.r;T.er+=s.er;T.bb+=s.bb;T.k+=s.k;T.hbp+=s.hbp;T.abAgainst+=s.abAgainst;});
+  var T={games:games.length,ip_outs:0,pc:0,baEst:0,stkEst:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,abAgainst:0,bf:0};
+  rows.forEach(function(s){T.ip_outs+=s.ip_outs;T.pc+=s.pc;T.baEst+=s.baEst;T.stkEst+=s.stkEst;T.hits+=s.hits;T.r+=s.r;T.er+=s.er;T.bb+=s.bb;T.k+=s.k;T.hbp+=s.hbp;T.abAgainst+=s.abAgainst;T.bf+=s.bf;});
   var Tip=Math.floor(T.ip_outs/3)+'.'+(T.ip_outs%3);
   var Tera=T.ip_outs>0?fmt3(T.er/(T.ip_outs/3)*6):'—';
   var Tbaa=T.abAgainst>0?fmt3(T.hits/T.abAgainst):'—';
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td></tr></tfoot>';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td></tr></tfoot>';
   $('season-pit').innerHTML=h;
 }
 // =============================================================================
@@ -5201,7 +5205,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v101';
+var APP_VERSION='v102';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
