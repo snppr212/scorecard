@@ -1743,7 +1743,7 @@ function buildOptimalMusselsLineup(games,coachDocs){
     var ba=s.ab>0?s.h/s.ab:0;
     var kRate=s.k/paDenom;
     var bipRate=s.bip/paDenom;
-    var statsScore=0.5*obp+0.5*slg+1.5*bipRate-1.0*kRate;
+    var statsScore=0.5*obp+0.7*slg+1.5*bipRate-1.0*kRate;// v104: SLG bumped 0.5→0.7
     // Ratings blend (v92: averaged across all coaches who rated this player)
     var r=effectiveRatings[rp.name]||{};
     var hRating=r.hitting!=null?r.hitting:teamAvgHitting;
@@ -1758,26 +1758,35 @@ function buildOptimalMusselsLineup(games,coachDocs){
   });
   // Primary sort: composite score desc; tiebreakers: PA desc, then roster idx asc.
   ranked.sort(function(a,b){if(a.score!==b.score)return b.score-a.score;if(a.pa!==b.pa)return b.pa-a.pa;return a.rosterIdx-b.rosterIdx;});
-  // v91 slot rules (coach-specified):
-  //   - Slot 3 = highest composite (best hitter — comes up 3rd in inning 1)
+  // v104 slot rules (slugger-anchored):
+  //   - Slot 3 = highest SLG in top 5 (slugger drives in 1+2)
   //   - Slot 1 = highest OBP among remaining top 5 (set the table)
   //   - Slot 2 = second-highest OBP (also setup)
-  //   - Slot 4 = no nudge (coach said it's flexible)
-  //   - Slots 5+ = composite order (already sorted)
+  //   - Slot 4-5 = remaining top 5 by composite (BIP-out kids slot here so contact
+  //              advances/scores runners ahead of them)
+  //   - Slots 6+ = remainder by composite (already sorted)
+  // Coach rationale (5/9): "high-BIP/no-power kids work BEHIND on-base guys, not
+  // in front." Ben at slot 4-5 (high BIP, low SLG) makes sense once Hunter+Miles
+  // are setting the table and Ezra is sluggin in slot 3.
   var paEligible=ranked.filter(function(r){return r.pa>0;}).length;
   var topN=Math.min(5,paEligible);
   if(topN>=3){
-    // Step 1: pull best composite out and reserve for slot 3 (index 2)
-    var bestHitter=ranked[0];
-    var others=ranked.slice(1,topN);// next 4 candidates
-    var rest=ranked.slice(topN);// everyone past slot 5
-    // Step 2: sort 'others' by OBP desc → slots 1, 2 take the top 2
+    var top5=ranked.slice(0,topN);
+    var rest=ranked.slice(topN);
+    // Step 1: find the slugger (highest SLG in top 5; ties broken by composite)
+    var bestSlugIdx=0;
+    for(var sli=1;sli<top5.length;sli++){
+      if(top5[sli].slg>top5[bestSlugIdx].slg||(top5[sli].slg===top5[bestSlugIdx].slg&&top5[sli].score>top5[bestSlugIdx].score))bestSlugIdx=sli;
+    }
+    var slugger=top5[bestSlugIdx];
+    // Step 2: among the 4 remaining, top 2 by OBP take slots 1 + 2
+    var others=top5.filter(function(_,i){return i!==bestSlugIdx;});
     others.sort(function(a,b){if(a.obp!==b.obp)return b.obp-a.obp;return b.score-a.score;});
     var slot1=others[0],slot2=others[1];
-    // Remaining (typically 2 players if topN===5, 1 if topN===4) go to slots 4+ in composite order
+    // Step 3: remaining 2 go to slots 4-5 in composite order
     var slot4plus=others.slice(2);
     slot4plus.sort(function(a,b){return b.score-a.score;});
-    ranked=[slot1,slot2,bestHitter].concat(slot4plus).concat(rest);
+    ranked=[slot1,slot2,slugger].concat(slot4plus).concat(rest);
   }else if(topN===2){
     // With only 2 PA-eligible hitters, swap so highest OBP leads off
     if(ranked[1].obp>ranked[0].obp){var tmp=ranked[0];ranked[0]=ranked[1];ranked[1]=tmp;}
@@ -1889,7 +1898,7 @@ async function showOptimalLineup(){
   });
   $('optlu-body').innerHTML=rows;
   var coachSummary=coachIds.length?coachIds.length+' coach'+(coachIds.length===1?'':'es')+' rated':'no coach ratings yet';
-  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · '+coachSummary+' · slot 3 = best hitter, slots 1+2 = top OBPs';
+  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · '+coachSummary+' · slot 3 = best slugger, slots 1+2 = top OBPs, slots 4-5 = composite';
   om('m-optlu');
 }
 function startTestGame(){
@@ -5410,7 +5419,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v103';
+var APP_VERSION='v104';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
