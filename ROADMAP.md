@@ -1,7 +1,17 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v89 (housekeeping, 2026-05-03)
-**Status as of:** 2026-05-03. **Season record: 2-3** (W vs Hot Rods, L vs Thunder, W vs Bulls, L vs Devil Rays mercy, L vs Hurricanes mercy). Two heavy game-day shake-downs (5/1 Devil Rays, 5/2 Hurricanes) drove v66-v79 covering live-game fixes: skip-batter, pinch-runner, Firebase sync guards, pitch-rest, view-only mode, pitcher attribution, BIP X, SB filter, opp picker overhaul. Then a quieter polish stretch v80-v89: half-end pitcher sync (v80), play-log popup overhaul with diamond picker (v81-v82), expanded season stats with HBP/BIP/BAA + per-6 ERA + ball/strike breakdown (v83), PDF export (v84), tuned optimal-lineup formula (v85), per-player ratings system seeded from coach pool with editable 🌟 modal (v86-v88), file housekeeping with TOC + section banners (v89). Next game: e10 Tin Caps May 7.
+**Current version:** v102 (BAA fix + BF column, 2026-05-08)
+**Status as of:** 2026-05-08. **Season record: 3-3** after **W 4-3 vs Tin Caps** (5-inning game, called for darkness/time). v89 housekeeping was followed by a deep retroactive-data sprint after the Tin Caps game: full e10 box-score capture from the coach's paper notes (51 ABs, 5 steals, 7 runs, 5 our pitchers + 4 theirs) (5/8). Feature stretch v90-v102 covered: 6-run cap auto-detect + force-out RBI hint + opp-pitcher PC display (v90), pscored schema + opt-in error-RBI review (v96), optimal-lineup display polish (v97), error tracking overhaul with ROE result code + plays-tab error sub-lines + unearned-runs flag (v98), opt-in swing-quality tagging (v99), Season Stats Regular/Advanced toggle (v100), column legend + copy-as-text fallback (v101), BAA fix using ip_outs+hits + new BF column (v102). Plus retroactive backfill of `ab.pitcher` on e2 and e4 (the two pre-v76 games missing per-AB pitcher attribution). Next game: TBD.
+
+## 💡 Future: League-wide baseline stats from opp data
+
+We've logged ~170 opp ABs across e2-e10 plus our pitchers facing ~140 opp batters. Combined with the LMLL draft pool (player names + last initials, plus where each team's roster came from), we could derive a **league-wide baseline** for:
+- Average BIP rate / K rate / OBP among LMLL AA hitters
+- Average strikes-per-pitch / BAA / whiff rate among LMLL AA pitchers
+- "Mighty Mussels in context": percentile rankings vs. league norms
+- Recenter the optimal-lineup formula around league-real averages instead of in-team-avg fallbacks
+
+User has indicated they'll share the draft pool when ready. Park until then.
 
 ## Newly identified items from 5/1 + 5/2 game-day testing
 
