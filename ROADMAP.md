@@ -1,7 +1,11 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v107 (opp pitcher log + paste target, 2026-05-08)
-**Status as of:** 2026-05-08. **Season record: 3-3** after **W 4-3 vs Tin Caps**. Feature stretch v90-v107: 6-run cap auto-detect + force-out RBI hint + opp-pitcher PC (v90), pscored schema + error-RBI review (v96), error tracking overhaul with ROE + unearned runs (v98), swing-quality tagging (v99), Season Stats Regular/Advanced (v100), legend + copy fallback (v101), BAA fix + BF column (v102), Firestore-backed LMLL eval pool + scouting card + danger-stretch alert + eval-display toggle (v103), SLG-weighted optimal lineup w/ slugger at 3 (v104), paste-from-Claude lineup importer (v105), paste fielding plan + relocate paste UI to in-game tabs (v106), opp pitcher log paste target + rest-eligibility surfaced in scouting card (v107). Plus retroactive `ab.pitcher` backfill on e2/e4. Next game: e12 @ Cannonballers May 9.
+**Current version:** v108 (league standings, 2026-05-08)
+**Status as of:** 2026-05-08. **Season record: 3-3** after **W 4-3 vs Tin Caps** — currently 6th in AA (RF 22 / RA 37 / SD −15). Feature stretch v90-v108: 6-run cap auto-detect + force-out RBI hint + opp-pitcher PC (v90), pscored schema + error-RBI review (v96), error tracking overhaul with ROE + unearned runs (v98), swing-quality tagging (v99), Season Stats Regular/Advanced (v100), legend + copy fallback (v101), BAA fix + BF column (v102), Firestore-backed LMLL eval pool + scouting card + danger-stretch alert + eval-display toggle (v103), SLG-weighted optimal lineup w/ slugger at 3 (v104), paste-from-Claude lineup importer (v105), paste fielding plan + relocate paste UI to in-game tabs (v106), opp pitcher log paste target + rest-eligibility surfaced in scouting card (v107), league standings paste target + standings modal + opp record on scout card (v108). Plus retroactive `ab.pitcher` backfill on e2/e4. Next game: e12 @ Cannonballers May 9.
+
+## ✅ v108 SHIPPED — League standings
+
+Standings table pasted from the league website's `Standings` page → stored in Firestore `appdata/leagueStandings`. New 🏆 **Standings** button on home screen opens a sortable modal showing all 12 AA teams with W-L, win pct, RF/RA, run-differential. Mussels row highlighted. Tap any team to drilldown to their scout card (which now also shows their league rank + record + run-diff in the meta line). Team-name normalization handles suffixes like `Tin Caps - sho` → `Tin Caps`.
 
 ## ✅ v107 SHIPPED — Opp pitcher log
 

@@ -312,7 +312,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
 <div class="scroll pad">
 <div class="season-banner"><div class="banner-team">Mighty Mussels</div><div class="banner-sub" id="home-record">LMLL · Spring 2026</div></div>
-<div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button></div>
+<div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button><button class="btn btn-xs btn-gold" onclick="openStandings()" style="flex:1;">🏆 Standings</button></div>
 <div class="row" style="gap:5px;margin-bottom:8px;"><button class="btn btn-xs btn-gold" onclick="startTestGame()" style="flex:1;">🧪 Test Sandbox</button><button class="btn btn-xs btn-red" id="btn-wipe-test" onclick="clearTestData()" style="flex:1;display:none;">Wipe test data</button></div>
 <div class="row-b" style="margin-bottom:8px;"><div style="font-size:10px;color:var(--text2);font-family:sans-serif;text-transform:uppercase;letter-spacing:.07em;">Schedule</div><div class="row" style="gap:5px;"><button class="btn btn-xs" id="f-all" onclick="setFilter('all',this)" style="border-color:var(--gold);color:var(--gold);">All</button><button class="btn btn-xs" id="f-game" onclick="setFilter('game',this)">Games</button><button class="btn btn-xs" id="f-up" onclick="setFilter('upcoming',this)">Upcoming</button></div></div>
 <div id="schedule-list"></div>
@@ -646,7 +646,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-paste"><div class="modal" style="max-width:440px;">
   <h3>📋 Paste from Claude</h3>
   <div style="font-size:11px;font-family:sans-serif;color:var(--text2);margin-bottom:8px;line-height:1.45;">Paste lineups, fielding plans, or opp pitcher data. Auto-detects formats — numbered lists, JSON, league-website tables, etc.</div>
-  <div class="mrow"><label>Apply to</label><select id="paste-target" onchange="_renderPastePreview()"><option value="opp">Opponent lineup (current game)</option><option value="us">Our lineup (current game)</option><option value="roster">Our roster (reorder for future games)</option><option value="fielding">Fielding plan (per inning)</option><option value="opppitch">Opp pitcher log (from league website)</option></select></div>
+  <div class="mrow"><label>Apply to</label><select id="paste-target" onchange="_renderPastePreview()"><option value="opp">Opponent lineup (current game)</option><option value="us">Our lineup (current game)</option><option value="roster">Our roster (reorder for future games)</option><option value="fielding">Fielding plan (per inning)</option><option value="opppitch">Opp pitcher log (from league website)</option><option value="standings">League standings (from league website)</option></select></div>
   <div class="mrow" id="paste-oppteam-row" style="display:none;"><label>Opp team (whose pitcher log)</label><select id="paste-oppteam" onchange="_renderPastePreview()"></select></div>
   <div class="mrow"><label>Paste here</label><textarea id="paste-text" placeholder="Lineup: '1. Name #5' / '#5 Name' / JSON&#10;Fielding: 'Inning 1: Brody P, Miles C, Hunter 1B, ...'&#10;Opp pitcher log: paste 'Pitching' table from league site (incl. date)" style="min-height:140px;font-family:monospace;font-size:12px;"></textarea></div>
   <div id="paste-preview" style="background:var(--bg3);border-radius:var(--rs);padding:8px;margin-bottom:10px;font-size:11px;font-family:sans-serif;color:var(--text3);min-height:30px;">Preview will appear when you paste…</div>
@@ -658,6 +658,13 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div id="scout-meta" style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;"></div>
   <div id="scout-body" style="max-height:60vh;overflow-y:auto;"></div>
   <div class="mact"><button class="btn btn-sm" style="flex:1;" onclick="copyScoutCard()">📋 Copy as text</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-scout')">Close</button></div>
+</div></div>
+<!-- v108: league standings modal -->
+<div class="modal-ov" id="m-standings"><div class="modal" style="max-width:520px;">
+  <h3>🏆 League Standings</h3>
+  <div id="standings-meta" style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;"></div>
+  <div id="standings-body" style="max-height:60vh;overflow-y:auto;"></div>
+  <div class="mact"><button class="btn btn-sm" style="flex:1;" onclick="openPasteLineup('standings')">📋 Update from paste</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-standings')">Close</button></div>
 </div></div>
 
 <!-- PITCH COUNT WARNING MODAL (rest thresholds + 40p rule) -->
@@ -2868,6 +2875,45 @@ function parseOppPitcherTable(txt){
   }
   return outings;
 }
+// v108: parse league standings table from league website. Returns sorted
+// array of {team,g,w,l,t,rf,ra,pct,sd}. Tolerates tabs or 2+-space columns.
+function parseLeagueStandings(txt){
+  txt=String(txt||'').trim();if(!txt)return [];
+  var lines=txt.split(/\r?\n/);
+  var rows=[];
+  var sawHeader=false;
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i].trim();
+    if(!line)continue;
+    // Header detection — "Team G W L T F A % SD" line
+    if(/^team\b/i.test(line)&&/\bw\b/i.test(line)&&/\bl\b/i.test(line)){sawHeader=true;continue;}
+    if(!sawHeader)continue;
+    // Common terminator lines on the league site
+    if(/^showing\s+\d/i.test(line))break;
+    if(/^\s*$/.test(line))continue;
+    // Tab-first parse, fall back to 2+ spaces, then numeric-tail heuristic
+    var fields=lines[i].split(/\t/).map(function(s){return s.trim();}).filter(Boolean);
+    if(fields.length<8)fields=line.split(/\s{2,}/).map(function(s){return s.trim();}).filter(Boolean);
+    if(fields.length<8){
+      var parts=line.split(/\s+/);
+      var tail=[];var p=parts.length-1;
+      while(p>=0&&/^-?\d+(\.\d+)?$/.test(parts[p])){tail.unshift(parts[p]);p--;}
+      if(tail.length>=8){var head=parts.slice(0,p+1).join(' ').trim();if(head)fields=[head].concat(tail);}
+    }
+    if(fields.length<9)continue;
+    var team=fields[0];
+    if(!team||/^team$/i.test(team))continue;
+    var g=parseInt(fields[1]),w=parseInt(fields[2]),l=parseInt(fields[3]),t=parseInt(fields[4]);
+    var rf=parseInt(fields[5]),ra=parseInt(fields[6]),pct=parseFloat(fields[7]),sd=parseInt(fields[8]);
+    if(isNaN(g)||isNaN(w)||isNaN(l))continue;
+    rows.push({team:team,g:g,w:w,l:l,t:t||0,rf:rf||0,ra:ra||0,pct:isNaN(pct)?0:pct,sd:isNaN(sd)?0:sd});
+  }
+  return rows;
+}
+// Strip league-site team-name suffixes (e.g. "Tin Caps - sho" → "Tin Caps").
+function _normalizeStandingsTeam(name){
+  return String(name||'').replace(/\s+-\s+\w+$/,'').trim();
+}
 function _renderPastePreview(){
   var target=$('paste-target')?$('paste-target').value:'opp';
   var btn=$('paste-apply-btn');
@@ -2883,6 +2929,21 @@ function _renderPastePreview(){
       var pieces=Object.keys(slots).map(function(p){return p+':'+esc(slots[p]);});
       return 'Inn '+inn+' — '+pieces.join(', ');
     }).join('<br>');
+    btn.disabled=false;return;
+  }
+  if(target==='standings'){
+    var rows=parseLeagueStandings($('paste-text').value);
+    if(!rows.length){
+      $('paste-preview').innerHTML='<span style="color:var(--text3);">No standings detected. Paste the table from the league site (incl. header row "Team  G  W  L  T  F  A  %  SD").</span>';
+      btn.disabled=true;return;
+    }
+    rows.sort(function(a,b){return b.pct-a.pct||b.sd-a.sd;});
+    var html='<strong>'+rows.length+' teams parsed:</strong>';
+    rows.forEach(function(r,i){
+      var us=_normalizeStandingsTeam(r.team).toLowerCase()==='mighty mussels';
+      html+='<div'+(us?' style="color:var(--gold);font-weight:bold;"':'')+'>'+(i+1)+'. '+esc(r.team)+' — '+r.w+'-'+r.l+(r.t?'-'+r.t:'')+' · RF '+r.rf+' / RA '+r.ra+' · SD '+(r.sd>0?'+':'')+r.sd+'</div>';
+    });
+    $('paste-preview').innerHTML=html;
     btn.disabled=false;return;
   }
   if(target==='opppitch'){
@@ -2918,6 +2979,15 @@ function _renderPastePreview(){
 }
 function applyPastedLineup(){
   var target=$('paste-target').value;
+  if(target==='standings'){
+    var rows=parseLeagueStandings($('paste-text').value);
+    if(!rows.length){toast('No standings detected');return;}
+    _saveLeagueStandings(rows).then(function(n){
+      cm('m-paste');
+      toast('Saved standings — '+n+' teams');
+    }).catch(function(e){console.log('standings save error:',e);toast('Save failed');});
+    return;
+  }
   if(target==='opppitch'){
     var team=$('paste-oppteam')?$('paste-oppteam').value:'';
     if(!team){toast('Pick a team first');return;}
@@ -3068,9 +3138,15 @@ function openScoutCard(teamName){
   }
   var roster=_getTeamRoster(teamName);
   if(!roster.length){
-    // No LMLL eval data, but we may still have an opp pitcher log for them (Tin Caps etc.)
+    // No LMLL eval data, but we may still have an opp pitcher log + standings for them
     var pl=_renderOppPitcherLogSection(teamName);
-    $('scout-meta').textContent=pl?'Pitcher log only (no eval data).':'No eval data for this team.';
+    var st=_getStanding(teamName);
+    var stMeta=st?'#'+st.rank+' · '+st.w+'-'+st.l+(st.t?'-'+st.t:'')+' · SD '+(st.sd>0?'+':'')+st.sd:'';
+    var metaParts=[];
+    if(stMeta)metaParts.push(stMeta);
+    if(pl)metaParts.push('Pitcher log only (no eval data).');
+    else if(!stMeta)metaParts.push('No eval data for this team.');
+    $('scout-meta').innerHTML=metaParts.join(' · ')||'No eval data for this team.';
     $('scout-body').innerHTML=pl||'<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">'+esc(teamName)+' isn\'t in the LMLL AA league pool — likely a non-league or special-division team. No scouting data available.</div>';
     om('m-scout');return;
   }
@@ -3080,7 +3156,10 @@ function openScoutCard(teamName){
   // Compute team avg eval score
   var scores=roster.map(function(p){return p.evalScore||0;}).filter(function(s){return s>0;});
   var teamAvg=scores.length?scores.reduce(function(a,b){return a+b;},0)/scores.length:0;
-  $('scout-meta').innerHTML='<strong>'+roster.length+'</strong> kids · team-avg eval <strong>'+teamAvg.toFixed(1)+'</strong> · 🟡 top hitters · 🟢 top pitchers · ★ district team';
+  // v108: include league record + rank if standings loaded
+  var standing=_getStanding(teamName);
+  var standingHtml=standing?(' · #'+standing.rank+' '+standing.w+'-'+standing.l+(standing.t?'-'+standing.t:'')+' (SD '+(standing.sd>0?'+':'')+standing.sd+')'):'';
+  $('scout-meta').innerHTML='<strong>'+roster.length+'</strong> kids · team-avg eval <strong>'+teamAvg.toFixed(1)+'</strong>'+standingHtml+' · 🟡 top hitters · 🟢 top pitchers · ★ district team';
   var rows=roster.map(function(p,i){
     var isTopHit=topHits.indexOf(p.name)>=0;
     var isTopPit=topPits.indexOf(p.name)>=0;
@@ -3157,6 +3236,43 @@ function _renderOppPitcherLogSection(teamName){
   }).join('');
   return '<div style="background:rgba(200,169,110,.06);padding:8px 10px;border-bottom:2px solid var(--gold);font-size:11px;color:var(--gold);font-family:sans-serif;">🎯 <strong>Pitcher log</strong> — availability for '+esc(targetLabel)+'</div>'+rows
     +'<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:9px;color:var(--text3);font-family:sans-serif;">Rest rule: 1-20p=0d · 21-35=1d · 36-50=2d · 51-65=3d · 66+=4d (calendar days after pitching)</div>';
+}
+// v108: open the standings modal. Renders the table with us highlighted.
+function openStandings(){
+  if(!LEAGUE_STANDINGS||!LEAGUE_STANDINGS.teams||!LEAGUE_STANDINGS.teams.length){
+    $('standings-meta').textContent='No standings loaded yet.';
+    $('standings-body').innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">No standings data. Tap <strong>Update from paste</strong> below to import the league site\'s standings table.</div>';
+    om('m-standings');return;
+  }
+  var teams=LEAGUE_STANDINGS.teams.slice();
+  teams.sort(function(a,b){return b.pct-a.pct||b.sd-a.sd;});
+  var ourStanding=_getStanding('Mighty Mussels');
+  var updated=LEAGUE_STANDINGS.updated?new Date(LEAGUE_STANDINGS.updated).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
+  var meta='AA Division · '+teams.length+' teams · updated '+updated;
+  if(ourStanding)meta+=' · we are <strong>#'+ourStanding.rank+'</strong> ('+ourStanding.w+'-'+ourStanding.l+(ourStanding.t?'-'+ourStanding.t:'')+')';
+  $('standings-meta').innerHTML=meta;
+  // Build table
+  var rows=teams.map(function(r,i){
+    var us=_normalizeStandingsTeam(r.team).toLowerCase()==='mighty mussels';
+    var bg=us?'background:rgba(200,169,110,.14);':'';
+    var sdStr=(r.sd>0?'+':'')+r.sd;
+    var sdCol=r.sd>0?'var(--green2)':r.sd<0?'var(--red2)':'var(--text3)';
+    var rec=r.w+'-'+r.l+(r.t?'-'+r.t:'');
+    return '<div style="padding:6px 8px;border-bottom:1px solid var(--border);'+bg+'display:grid;grid-template-columns:24px 1fr 60px 56px 56px 50px;gap:6px;align-items:center;font-size:12px;font-family:sans-serif;cursor:pointer;" onclick="cm(\'m-standings\');openScoutCard(\''+esc(_normalizeStandingsTeam(r.team)).replace(/\\/g,'\\\\').replace(/\'/g,'\\\'')+'\')">'
+      +'<span style="color:var(--text3);">'+(i+1)+'</span>'
+      +'<span style="'+(us?'color:var(--gold);font-weight:bold;':'color:var(--text);')+'">'+esc(r.team)+'</span>'
+      +'<span style="text-align:center;">'+rec+'</span>'
+      +'<span style="text-align:right;color:var(--text2);">'+r.pct.toFixed(3).replace(/^0/,'')+'</span>'
+      +'<span style="text-align:right;color:var(--text2);font-size:10px;">'+r.rf+'/'+r.ra+'</span>'
+      +'<span style="text-align:right;color:'+sdCol+';font-weight:bold;">'+sdStr+'</span>'
+      +'</div>';
+  }).join('');
+  var header='<div style="padding:5px 8px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:24px 1fr 60px 56px 56px 50px;gap:6px;font-size:9px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;">'
+    +'<span>#</span><span>Team</span><span style="text-align:center;">W-L</span><span style="text-align:right;">Pct</span><span style="text-align:right;">RF/RA</span><span style="text-align:right;">SD</span>'
+    +'</div>';
+  $('standings-body').innerHTML=header+rows
+    +'<div style="padding:6px 8px;font-size:9px;color:var(--text3);font-family:sans-serif;">Tap a team to open their scouting card. SD = run differential (RF − RA).</div>';
+  om('m-standings');
 }
 function copyScoutCard(){
   if(!_scoutCurrentTeam)return;
@@ -5861,9 +5977,52 @@ function _oppPitcherStatus(outings,targetDate){
   var tot=sorted.reduce(function(s,o){return s+o.pitches;},0);
   return {last:last,total:tot,outings:sorted.length,eligible:eligible,eligibleDate:elig,daysSince:ds,restReq:req};
 }
-// Returns an HTML inline badge for an opp batter showing their eval context.
-// Empty string when toggle off, no league data, or kid not in pool (Tin Caps etc).
-function _evalBadge(name){
+// v108: league standings — pasted from league website, stored in Firestore
+// appdata/leagueStandings. Used for the standings modal + opp-record badges
+// on the scout card.
+var LEAGUE_STANDINGS=null;
+async function loadLeagueStandings(){
+  try{
+    var cached=localStorage.getItem('mm_leagueStandings');
+    if(cached){var c=JSON.parse(cached);if(c&&c.teams)LEAGUE_STANDINGS=c;}
+  }catch(e){}
+  if(!fbReady||!db)return;
+  try{
+    var snap=await db.collection('appdata').doc('leagueStandings').get();
+    if(snap.exists&&snap.data()&&snap.data().teams){
+      LEAGUE_STANDINGS={teams:snap.data().teams,updated:snap.data().updated||null};
+      try{localStorage.setItem('mm_leagueStandings',JSON.stringify(LEAGUE_STANDINGS));}catch(e){}
+      // Refresh home screen if standings affect display
+      if(typeof renderHome==='function')renderHome();
+    }
+  }catch(e){console.log('loadLeagueStandings error:',e);}
+}
+async function _saveLeagueStandings(rows){
+  rows.sort(function(a,b){return b.pct-a.pct||b.sd-a.sd;});
+  LEAGUE_STANDINGS={teams:rows,updated:new Date().toISOString()};
+  try{localStorage.setItem('mm_leagueStandings',JSON.stringify(LEAGUE_STANDINGS));}catch(e){}
+  if(fbReady&&db){
+    await db.collection('appdata').doc('leagueStandings').set({
+      teams:rows,
+      updated:new Date()
+    },{merge:false});
+  }
+  if(typeof renderHome==='function')renderHome();
+  return rows.length;
+}
+// Lookup a single team's standing by name. Tolerates suffix variations
+// (e.g. "Tin Caps - sho" matches "Tin Caps").
+function _getStanding(teamName){
+  if(!LEAGUE_STANDINGS||!LEAGUE_STANDINGS.teams)return null;
+  var key=_normalizeStandingsTeam(teamName).toLowerCase();
+  for(var i=0;i<LEAGUE_STANDINGS.teams.length;i++){
+    var t=LEAGUE_STANDINGS.teams[i];
+    if(_normalizeStandingsTeam(t.team).toLowerCase()===key)return Object.assign({rank:i+1},t);
+  }
+  return null;
+}
+// v107: opp pitcher log (per-team, per-pitcher outings parsed from league site).
+// Stored in Firestore appdata/oppPitcherLog and cached locally.
   if(!_evalEnabled())return '';
   var p=_getLeaguePlayer(name);if(!p)return '';
   var cutoffs=_getLeagueCutoffs();
@@ -5942,7 +6101,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v107';
+var APP_VERSION='v108';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
@@ -6103,6 +6262,8 @@ if(_rateMode){
   setTimeout(function(){loadLeaguePool();},500);
   // v107: hydrate opp pitcher log (pitch counts per outing per opp team).
   setTimeout(function(){loadOppPitcherLog();},700);
+  // v108: hydrate league standings.
+  setTimeout(function(){loadLeagueStandings();},900);
 }
 // If cleanup v21 just ran this boot, push cleaned state up so other devices clear too
 try{
