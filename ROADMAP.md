@@ -1,7 +1,13 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v103 (LMLL eval scouting features, 2026-05-08)
-**Status as of:** 2026-05-08. **Season record: 3-3** after **W 4-3 vs Tin Caps**. Feature stretch v90-v103: 6-run cap auto-detect + force-out RBI hint + opp-pitcher PC (v90), pscored schema + error-RBI review (v96), error tracking overhaul with ROE + unearned runs (v98), swing-quality tagging (v99), Season Stats Regular/Advanced (v100), legend + copy fallback (v101), BAA fix + BF column (v102), Firestore-backed LMLL eval pool + scouting card + danger-stretch alert + eval-display toggle (v103). Plus retroactive `ab.pitcher` backfill on e2/e4. Next game: TBD.
+**Current version:** v107 (opp pitcher log + paste target, 2026-05-08)
+**Status as of:** 2026-05-08. **Season record: 3-3** after **W 4-3 vs Tin Caps**. Feature stretch v90-v107: 6-run cap auto-detect + force-out RBI hint + opp-pitcher PC (v90), pscored schema + error-RBI review (v96), error tracking overhaul with ROE + unearned runs (v98), swing-quality tagging (v99), Season Stats Regular/Advanced (v100), legend + copy fallback (v101), BAA fix + BF column (v102), Firestore-backed LMLL eval pool + scouting card + danger-stretch alert + eval-display toggle (v103), SLG-weighted optimal lineup w/ slugger at 3 (v104), paste-from-Claude lineup importer (v105), paste fielding plan + relocate paste UI to in-game tabs (v106), opp pitcher log paste target + rest-eligibility surfaced in scouting card (v107). Plus retroactive `ab.pitcher` backfill on e2/e4. Next game: e12 @ Cannonballers May 9.
+
+## ✅ v107 SHIPPED — Opp pitcher log
+
+Tracks opp pitchers' outings (pitch counts per game) so we can predict who's available against us. Pasted from the league website's box score into the existing `📋 Paste from Claude` modal — pick "Opp pitcher log", pick the team, paste the table.
+
+Stored in Firestore `appdata/oppPitcherLog` (multi-team, multi-game, de-duped by date). Surfaced in the scouting card with `✓ Available` / `🔴 Rest until <date>` badges per pitcher, computed against the next scheduled game vs them using LL Rule C.4. Tin Caps (no LMLL eval data) now also get a scouting card if they have a pitcher log.
 
 ## ✅ v103 SHIPPED — League pool integration
 
