@@ -477,6 +477,10 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <input type="checkbox" id="opt-swing-quality" onchange="toggleSwingQuality(this.checked)" style="width:auto;margin:3px 0 0 0;flex-shrink:0;">
 <span><strong>Track swing quality (good pitch / bad pitch).</strong> When ON, an extra row appears under the pitch buttons in the scorecard. After tapping Strike-swinging / Foul / BIP, you can optionally tag the pitch as 👍 good or 👎 bad. Skip if you can't keep up — untagged pitches still log normally. Safe to turn off mid-game; pitches you already tagged keep their tags.</span>
 </label>
+<label style="display:flex;align-items:flex-start;gap:8px;font-family:sans-serif;font-size:12px;line-height:1.45;color:var(--text2);cursor:pointer;margin-top:10px;">
+<input type="checkbox" id="opt-eval-display" onchange="toggleEvalDisplay(this.checked)" style="width:auto;margin:3px 0 0 0;flex-shrink:0;">
+<span><strong>Show LMLL eval data during games.</strong> When ON, opp batter names show eval tier + score badges in the matchup bar and opp picker, and danger-stretch toasts fire when 3+ tough hitters are coming up. Turn OFF if you want to score the game without bias. Safe to flip mid-game.</span>
+</label>
 </div>
 <div class="mact"><button class="btn btn-green btn-full" onclick="addRos()">+ Add</button><button class="btn btn-full" onclick="cm('m-roster')">Close</button></div></div></div>
 <!-- OPPONENT LINEUP START — fires after our lineup is set -->
@@ -636,6 +640,13 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;line-height:1.45;">Each row is an AB where a fielding error and a run-scoring event happened on the same play. Per LL 9.04, runs that scored <em>solely because of</em> the error don't credit the batter. Adjust RBI down for any plays where the error caused the run.</div>
   <div id="rbi-review-list" style="max-height:55vh;overflow-y:auto;"></div>
   <div class="mact"><button class="btn btn-full" onclick="cm('m-rbi-review')">Done</button></div>
+</div></div>
+<!-- v103b: opp scouting card modal — shows draft eval data for upcoming opponent -->
+<div class="modal-ov" id="m-scout"><div class="modal" style="max-width:440px;">
+  <h3 id="scout-title">🔍 Scouting Card</h3>
+  <div id="scout-meta" style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;"></div>
+  <div id="scout-body" style="max-height:60vh;overflow-y:auto;"></div>
+  <div class="mact"><button class="btn btn-sm" style="flex:1;" onclick="copyScoutCard()">📋 Copy as text</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-scout')">Close</button></div>
 </div></div>
 
 <!-- PITCH COUNT WARNING MODAL (rest thresholds + 40p rule) -->
@@ -1027,7 +1038,7 @@ var tbdBadge=isTbd?'<div style="font-size:9px;color:var(--red2);font-family:sans
 return '<div class="sched-item'+(past?' past':'')+'" style="'+tbdStyle+'" onclick="'+(ev.type==='game'?(isTbd?"toast('Edit to set new date / time / location')":"startG('"+ev.id+"')"):"toast('Practice')")+'">'
 +'<div class="sdate"><div class="sdate-mo" style="'+(isTbd?'color:var(--red2);font-weight:bold;':'')+'">'+mo+'</div><div class="sdate-d" style="'+(isTbd?'color:var(--red2);':'')+'">'+dy+'</div><div class="sdate-dow">'+dow+'</div></div>'
 +'<div class="sinfo"><span class="stype '+ev.type+'">'+ev.type+'</span><div class="smatch">Mussels '+esc(ev.title)+'</div><div class="sloc">'+esc(ev.loc||(isTbd?'Location TBD':''))+'</div>'+tbdBadge+'</div>'
-+'<div style="text-align:right;flex-shrink:0;"><div class="stime">'+esc(ev.time||(isTbd?'Time TBD':''))+'</div>'+rh+'<button class="btn btn-xs" style="margin-top:4px;" onclick="event.stopPropagation();editEv(\''+ev.id+'\')">Edit</button></div></div>';}).join('')||'<div class="empty">No events</div>';}
++'<div style="text-align:right;flex-shrink:0;"><div class="stime">'+esc(ev.time||(isTbd?'Time TBD':''))+'</div>'+rh+'<div class="row" style="gap:4px;margin-top:4px;justify-content:flex-end;">'+(ev.type==='game'&&ev.opponent?'<button class="btn btn-xs" style="border-color:var(--gold);color:var(--gold);" onclick="event.stopPropagation();openScoutCard(\''+esc(ev.opponent)+'\')">🔍</button>':'')+'<button class="btn btn-xs" onclick="event.stopPropagation();editEv(\''+ev.id+'\')">Edit</button></div></div></div>';}).join('')||'<div class="empty">No events</div>';}
 function renderRec(){var games=A.schedule.filter(e=>e.type==='game'&&e.id!=='test-sandbox');var w=0,l=0,t=0,g=games.length;games.forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';var hasTest=!!A.gameResults['test-sandbox']||A.schedule.some(e=>e.id==='test-sandbox')||G.eid==='test-sandbox';var btn=$('btn-wipe-test');if(btn)btn.style.display=hasTest?'':'none';}
 
 // RETRO SCORECARD — open the printable scorecard view for the current game.
@@ -1959,7 +1970,12 @@ _refreshExistingCoaches();
 if($('opt-rbi-review'))$('opt-rbi-review').checked=!!A.errorRbiReviewEnabled;
 // v99: reflect saved swing-quality toggle
 if($('opt-swing-quality'))$('opt-swing-quality').checked=!!A.swingQualityEnabled;
+// v103: reflect saved eval-display toggle (default ON when undefined)
+if($('opt-eval-display'))$('opt-eval-display').checked=A.evalDisplayEnabled!==false;
 om('m-roster');}
+// v103: helpers for eval-display feature ----------------------------
+function _evalEnabled(){return A.evalDisplayEnabled!==false&&!!LEAGUE_POOL;}
+function toggleEvalDisplay(on){A.evalDisplayEnabled=!!on;sa();renderSC&&typeof renderSC==='function'&&renderSC();toast(on?'Eval display ON':'Eval display OFF');}
 function toggleErrorRbiReview(on){A.errorRbiReviewEnabled=!!on;sa();toast(on?'Error-RBI review ON':'Error-RBI review OFF');}
 function toggleSwingQuality(on){
   A.swingQualityEnabled=!!on;sa();
@@ -2638,12 +2654,116 @@ $('mu-pd').innerHTML='<span onclick="quickSwitchPitcher()" style="cursor:pointer
 var batLabel=b?(theyBat()?oppDisplay(b):sn(b.name||'#'+b.jersey)):'Select batter';
 var isPh=b&&isPlaceholder(b.name);
 var batLabelHtml=isPh?'<span style="color:#ff8888;font-style:italic;">'+esc(batLabel)+'</span>':esc(batLabel);
+// v103b: append eval-context badge for opp batters
+var evalBadgeHtml=(theyBat()&&b&&b.name)?_evalBadge(b.name):'';
 if(theyBat()){
-  $('mu-b').innerHTML='<span onclick="openOppBatterPicker()" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--text3);text-underline-offset:3px;">'+batLabelHtml+'</span>';
+  $('mu-b').innerHTML='<span onclick="openOppBatterPicker()" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--text3);text-underline-offset:3px;">'+batLabelHtml+'</span>'+evalBadgeHtml;
 }else{
   $('mu-b').innerHTML=batLabelHtml;
 }
-if(b&&G.cbi>=0){var st=gps(G.cbi,isHB()?'home':'away');var paStr=st.pa>0?(st.h+'-'+st.ab+(st.pa!==st.ab?' ('+st.pa+'PA)':'')):'';$('mu-bd').textContent=paStr;}else $('mu-bd').textContent='';}
+if(b&&G.cbi>=0){var st=gps(G.cbi,isHB()?'home':'away');var paStr=st.pa>0?(st.h+'-'+st.ab+(st.pa!==st.ab?' ('+st.pa+'PA)':'')):'';$('mu-bd').textContent=paStr;}else $('mu-bd').textContent='';
+// v103b: scan next 3-4 opp batters and fire a danger-stretch toast if they're concentrated at the top of the league
+_evalDangerCheck();}
+// v103b: opp scouting card — shows the upcoming opponent's roster ranked by
+// eval score, with top hitters/pitchers highlighted. Tin Caps (non-LMLL) shows
+// graceful "no eval data" fallback.
+var _scoutCurrentTeam=null;
+function openScoutCard(teamName){
+  _scoutCurrentTeam=teamName;
+  $('scout-title').textContent='🔍 Scouting: '+teamName;
+  if(!LEAGUE_POOL){
+    $('scout-meta').textContent='Loading league data…';
+    $('scout-body').innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">League pool not loaded yet. Try again in a moment.</div>';
+    om('m-scout');return;
+  }
+  var roster=_getTeamRoster(teamName);
+  if(!roster.length){
+    $('scout-meta').textContent='No eval data for this team.';
+    $('scout-body').innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">'+esc(teamName)+' isn\'t in the LMLL AA league pool — likely a non-league or special-division team. No scouting data available.</div>';
+    om('m-scout');return;
+  }
+  // Determine top hitters/pitchers within this team
+  var topHits=roster.filter(function(p){return p.hitting!=null;}).sort(function(a,b){return b.hitting-a.hitting;}).slice(0,4).map(function(p){return p.name;});
+  var topPits=roster.filter(function(p){return p.pitching!=null;}).sort(function(a,b){return b.pitching-a.pitching;}).slice(0,2).map(function(p){return p.name;});
+  // Compute team avg eval score
+  var scores=roster.map(function(p){return p.evalScore||0;}).filter(function(s){return s>0;});
+  var teamAvg=scores.length?scores.reduce(function(a,b){return a+b;},0)/scores.length:0;
+  $('scout-meta').innerHTML='<strong>'+roster.length+'</strong> kids · team-avg eval <strong>'+teamAvg.toFixed(1)+'</strong> · 🟡 top hitters · 🟢 top pitchers · ★ district team';
+  var rows=roster.map(function(p,i){
+    var isTopHit=topHits.indexOf(p.name)>=0;
+    var isTopPit=topPits.indexOf(p.name)>=0;
+    var bgColor=isTopHit?'rgba(200,169,110,.10)':(isTopPit?'rgba(42,125,82,.08)':'');
+    var hitDisp=p.hitting!=null?p.hitting.toFixed(1):'—';
+    var thrDisp=p.throwing!=null?p.throwing.toFixed(1):'—';
+    var fldDisp=p.fielding!=null?p.fielding.toFixed(1):'—';
+    var pitDisp=p.pitching!=null?p.pitching.toFixed(1):'—';
+    var dt=p.districtTeam?'★ ':'';
+    var flagBits=[];
+    if(isTopHit)flagBits.push('🟡');
+    if(isTopPit)flagBits.push('🟢');
+    var flags=flagBits.join('');
+    return '<div style="padding:8px 10px;border-bottom:1px solid var(--border);background:'+bgColor+';">'
+      +'<div style="display:flex;align-items:baseline;gap:8px;">'
+      +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;width:18px;">'+(i+1)+'</span>'
+      +'<span style="font-size:13px;flex:1;">'+dt+esc(p.name)+'</span>'
+      +(flags?'<span style="font-size:11px;">'+flags+'</span>':'')
+      +'<span style="font-size:11px;color:var(--gold);font-family:sans-serif;font-weight:bold;">'+(p.evalScore!=null?p.evalScore.toFixed(0):'—')+'</span>'
+      +'</div>'
+      +'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:3px;">Hit '+hitDisp+' · Thr '+thrDisp+' · Fld '+fldDisp+' · Pit '+pitDisp+(p.school?(' · '+esc(p.school)):'')+'</div>'
+      +'</div>';
+  }).join('');
+  $('scout-body').innerHTML=rows;
+  om('m-scout');
+}
+function copyScoutCard(){
+  if(!_scoutCurrentTeam)return;
+  var roster=_getTeamRoster(_scoutCurrentTeam);
+  if(!roster.length){toast('No data to copy');return;}
+  var lines=[];
+  lines.push('Scouting: '+_scoutCurrentTeam);
+  lines.push('');
+  roster.forEach(function(p,i){
+    var dt=p.districtTeam?'★ ':'';
+    var hit=p.hitting!=null?p.hitting.toFixed(1):'—';
+    var pit=p.pitching!=null?p.pitching.toFixed(1):'—';
+    var score=p.evalScore!=null?p.evalScore.toFixed(0):'—';
+    lines.push((i+1)+'. '+dt+p.name+' · eval '+score+' · hit '+hit+' · pit '+pit);
+  });
+  var txt=lines.join('\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){toast('Copied');}).catch(function(){});
+  }else{toast('Copy not supported');}
+}
+// v103b: fires a tiered toast when the next 3-4 opp batters are top-quartile
+// hitters per the league pool. De-duped per (inn, half, startBi, level) so it
+// fires once per stretch, not on every render.
+function _evalDangerCheck(){
+  if(!_evalEnabled())return;
+  if(!theyBat())return;
+  var lu=tlu();if(!lu||lu.length<3)return;
+  var startBi=G.cbi>=0?G.cbi:(isHB()?G.hbi:G.abi);
+  if(startBi<0)startBi=0;
+  var cutoffs=_getLeagueCutoffs();
+  var upcoming=[];var n=lu.length;
+  for(var i=0;i<4;i++){
+    var p=lu[(startBi+i)%n];
+    if(!p||!p.name){upcoming.push({isTop:false});continue;}
+    var lp=_getLeaguePlayer(p.name);
+    upcoming.push({isTop:!!(lp&&lp.hitting!=null&&lp.hitting>=cutoffs.hitQ3)});
+  }
+  var top3=upcoming.slice(0,3).filter(function(p){return p.isTop;}).length;
+  var top4=upcoming.filter(function(p){return p.isTop;}).length;
+  var level=null,msg=null;
+  if(top3===3&&top4===4){level='heavy';msg='🚨 Danger zone — next 4 batters all top-quartile hitters';}
+  else if(top3===3){level='heavy';msg='🚨 Danger stretch — next 3 batters all top-quartile';}
+  else if(top4>=3){level='medium';msg='⚠️ Tough stretch — 3 of next 4 are top hitters';}
+  else if(top3>=2){level='light';msg='ℹ️ Notable — 2 of next 3 are top hitters';}
+  if(!level)return;
+  var key=G.inn+'·'+G.half+'·bi'+startBi+'·'+level;
+  if(G._lastDangerKey===key)return;
+  G._lastDangerKey=key;
+  toast(msg,level==='heavy'?4000:level==='medium'?3000:2500);
+}
 
 // 3.2: unified pitcher switch modal — who='us'|'them', forced=true blocks cancel
 var _pswWho='us',_pswForced=false;
@@ -2877,9 +2997,11 @@ function openOppBatterPicker(r){
     var arrowAttr=isBatted?'disabled style="padding:4px 10px;font-weight:bold;min-width:36px;opacity:.4;cursor:not-allowed;"':'style="padding:4px 10px;font-weight:bold;min-width:36px;" onclick="oppbatSelectFromRoster('+rowIdx+')"';
     // Placeholder names (e.g. "(5-hole)") are tappable to rename in-place
     var isPh=isPlaceholder(row.name)&&inLineup;
+    // v103b: append eval badge inline if eval display is on
+    var rowEvalBadge=_evalBadge(row.name);
     var nameSpan=isPh
       ? '<span style="flex:1;font-size:13px;font-style:italic;color:#ff8888;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;" onclick="event.stopPropagation();oppbatRenameSlot('+rowIdx+')" title="Tap to rename">'+esc(row.name)+' ✎</span>'
-      : '<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+'">'+esc(row.name)+'</span>';
+      : '<span style="flex:1;font-size:13px;'+(row.fromRoster?'':'font-style:italic;')+'">'+esc(row.name)+rowEvalBadge+'</span>';
     // Manage buttons (insert above/below, remove) — shown only for batters already in lineup.
     var manageBtns='';
     if(inLineup){
@@ -5186,6 +5308,41 @@ function _getTeamRoster(teamName){
   });
   return roster.sort(function(a,b){return (b.evalScore||0)-(a.evalScore||0);});
 }
+// v103b: cached league-wide cutoffs (top 15 hitting, top quartile hitting, etc.)
+// Lazily computed once per pool load.
+var _leagueCutoffs=null;
+function _getLeagueCutoffs(){
+  if(_leagueCutoffs)return _leagueCutoffs;
+  if(!LEAGUE_POOL)return {hitTop15:99,hitQ3:99,pitTop15:99};
+  var hits=[],pits=[];
+  Object.keys(LEAGUE_POOL).forEach(function(n){
+    var p=LEAGUE_POOL[n];
+    if(p.hitting!=null)hits.push(p.hitting);
+    if(p.pitching!=null)pits.push(p.pitching);
+  });
+  hits.sort(function(a,b){return b-a;});
+  pits.sort(function(a,b){return b-a;});
+  _leagueCutoffs={
+    hitTop15: hits.length>=15?hits[14]:hits[hits.length-1]||0,
+    hitQ3: hits.length>0?hits[Math.floor(hits.length*0.25)]:0,// top 25% threshold
+    pitTop15: pits.length>=15?pits[14]:pits[pits.length-1]||0
+  };
+  return _leagueCutoffs;
+}
+// Returns an HTML inline badge for an opp batter showing their eval context.
+// Empty string when toggle off, no league data, or kid not in pool (Tin Caps etc).
+function _evalBadge(name){
+  if(!_evalEnabled())return '';
+  var p=_getLeaguePlayer(name);if(!p)return '';
+  var cutoffs=_getLeagueCutoffs();
+  var bits=[];
+  if(p.evalScore!=null)bits.push('T'+(p.evalTier||'?')+'·'+p.evalScore.toFixed(0));
+  if(p.hitting!=null&&p.hitting>=cutoffs.hitTop15)bits.push('🟡 Top hit');
+  else if(p.pitching!=null&&p.pitching>=cutoffs.pitTop15)bits.push('🟢 Top pit');
+  if(p.districtTeam)bits.push('★');
+  if(!bits.length)return '';
+  return '<span style="font-size:9px;color:var(--gold);font-family:sans-serif;margin-left:6px;background:rgba(200,169,110,.10);padding:2px 5px;border-radius:3px;white-space:nowrap;">'+bits.join(' ')+'</span>';
+}
 
 // v92 multi-coach ratings helpers ----------------------------------------------
 // Migrate Sam's localStorage ratings to Firebase coachRatings/sam on first run.
@@ -5253,7 +5410,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v103a';
+var APP_VERSION='v103';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
