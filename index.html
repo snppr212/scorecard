@@ -814,7 +814,7 @@ var OPP_ROSTERS={
 'Bulls':['William Burke','Theo Reznik-Slater','Penn Leonards','William Agnew','Ralph Agnew','Ishaan Guruswamy','Lucas Ziemba','Quinn Strauss','Leo Cohen','Eric Rosenthal','Reece Landis','James Davis'],
 'Devil Rays':['Cavan Harriger','Cole Engler','Beau Abramowitz','Archie Brimacombe','Aron Briskin','Emmanuel Shih','Asher Rizvi','Blake Shore','Henry Eureka','Yasine Berriche','River Adams','Gabriel Pecchio'],
 'Grasshoppers':['Christopher Rieman','William Church','Harris Stellabotte','Franklin Bee','Jack Alwine','Saul Klein','Joseph Gettings','Theo Cherkas','Grant Monna','Graham Haggerson','Campbell Pfister'],
-'Thunder':['Felix Burnett','Duncan Stabert','Jack Land','Brady Duncan','Alexander Cohen','William Ickes','Andre Pendleton','Jacob Gutmann','Rylan Cullen','Henry Livengood','Charlie Breish','Sakhir Allen'],
+'Thunder':['Felix Burnett','Duncan Stabert','Jack Land','Brady S. Duncan','Alexander Cohen','William Ickes','Andre Pendleton','Jacob Gutmann','Rylan Cullen','Henry Livengood','Charlie Breish','Sakhir Allen'],
 'Hurricanes':['Paxton Eggert','Nash Davis','Owen Tatlow','Danny Tantino','Gregory Zervalis','Rivaan Dhyllon','Simon Smith','William Leonard','Seth Gold','Neel Khatnani','Whit Baird','PJ Tanker'],
 'Iron Pigs':['Nolan Roth','Ari Elbaum','Gavin Amoroso','Race Mandel','Ryder Berman','Jeffrey Blisard','Bradley Blisard','Zachary Moyer','Ryan Prince','Asi Frechette','Logan Baill','Kiran Meighan'],
 'Lugnuts':['William Gardner','Leo Kesselman','Peter Christopher','Johnny Richardson','Andrew Zelinsky','Elliot Bockman','Brian Ferreira','Jet Sanders','Austin Schroeder','Andrew Miller','Hale Smith','Oscar Oehlberg'],
@@ -5139,6 +5139,54 @@ function renderRulesBook(){
 }
 function filterRules(q){renderRulesBook();}
 
+// v103 league-pool helpers ------------------------------------------------------
+// Holds the LMLL AA player pool (eval ratings, team assignments, etc.) loaded
+// from Firestore appdata/leaguePool. Cached in localStorage for offline access.
+// Updated season-over-season by uploading a new draft xlsx and re-running the
+// import (no code release needed).
+var LEAGUE_POOL=null;
+var LEAGUE_POOL_BY_LOWER=null;// case-insensitive index built once
+function _buildLeagueLowerIndex(){
+  if(!LEAGUE_POOL)return;
+  LEAGUE_POOL_BY_LOWER={};
+  Object.keys(LEAGUE_POOL).forEach(function(k){LEAGUE_POOL_BY_LOWER[k.toLowerCase().trim()]=k;});
+}
+async function loadLeaguePool(){
+  // Try localStorage first (offline-friendly)
+  try{
+    var cached=localStorage.getItem('mm_leaguePool');
+    if(cached){LEAGUE_POOL=JSON.parse(cached);_buildLeagueLowerIndex();}
+  }catch(e){}
+  // Then refresh from Firestore in background (when fbReady)
+  if(!fbReady||!db)return;
+  try{
+    var snap=await db.collection('appdata').doc('leaguePool').get();
+    if(snap.exists&&snap.data()&&snap.data().players){
+      LEAGUE_POOL=snap.data().players;
+      try{localStorage.setItem('mm_leaguePool',JSON.stringify(LEAGUE_POOL));}catch(e){}
+      _buildLeagueLowerIndex();
+    }
+  }catch(e){console.log('loadLeaguePool error:',e);}
+}
+// Case-insensitive lookup. Returns the league entry for a given player name
+// (matches across in-game name variations) or null if not found.
+function _getLeaguePlayer(name){
+  if(!name||!LEAGUE_POOL_BY_LOWER)return null;
+  var key=String(name).toLowerCase().trim();
+  var canonical=LEAGUE_POOL_BY_LOWER[key];
+  return canonical?LEAGUE_POOL[canonical]:null;
+}
+// Helper: get every player on a given team (sorted by evalScore desc).
+function _getTeamRoster(teamName){
+  if(!LEAGUE_POOL)return [];
+  var roster=[];
+  Object.keys(LEAGUE_POOL).forEach(function(name){
+    var p=LEAGUE_POOL[name];
+    if(p&&p.team===teamName)roster.push(Object.assign({name:name},p));
+  });
+  return roster.sort(function(a,b){return (b.evalScore||0)-(a.evalScore||0);});
+}
+
 // v92 multi-coach ratings helpers ----------------------------------------------
 // Migrate Sam's localStorage ratings to Firebase coachRatings/sam on first run.
 // Idempotent: if the doc already exists, do nothing (preserves any post-migration
@@ -5205,7 +5253,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v102';
+var APP_VERSION='v103a';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
@@ -5361,6 +5409,9 @@ if(_rateMode){
   // Main-app mode: migrate Sam's local ratings to Firebase as coachRatings/sam
   // (one-time, idempotent — only writes if doc doesn't exist).
   setTimeout(function(){ensureSamRatingsSynced();},1500);
+  // v103: hydrate the LMLL league player pool (eval ratings, team assignments).
+  // Reads from cache instantly; refreshes from Firestore in background.
+  setTimeout(function(){loadLeaguePool();},500);
 }
 // If cleanup v21 just ran this boot, push cleaned state up so other devices clear too
 try{
