@@ -312,7 +312,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
 <div class="scroll pad">
 <div class="season-banner"><div class="banner-team">Mighty Mussels</div><div class="banner-sub" id="home-record">LMLL · Spring 2026</div></div>
-<div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button><button class="btn btn-xs" onclick="openPasteLineup('opp')" style="flex:1;">📋 Paste lineup</button></div>
+<div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button></div>
 <div class="row" style="gap:5px;margin-bottom:8px;"><button class="btn btn-xs btn-gold" onclick="startTestGame()" style="flex:1;">🧪 Test Sandbox</button><button class="btn btn-xs btn-red" id="btn-wipe-test" onclick="clearTestData()" style="flex:1;display:none;">Wipe test data</button></div>
 <div class="row-b" style="margin-bottom:8px;"><div style="font-size:10px;color:var(--text2);font-family:sans-serif;text-transform:uppercase;letter-spacing:.07em;">Schedule</div><div class="row" style="gap:5px;"><button class="btn btn-xs" id="f-all" onclick="setFilter('all',this)" style="border-color:var(--gold);color:var(--gold);">All</button><button class="btn btn-xs" id="f-game" onclick="setFilter('game',this)">Games</button><button class="btn btn-xs" id="f-up" onclick="setFilter('upcoming',this)">Upcoming</button></div></div>
 <div id="schedule-list"></div>
@@ -427,11 +427,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
 <!-- FIELD -->
-<div id="tab-field" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:9px;"><div class="ptitle" style="margin:0;">Our fielding</div><div id="fi-livebadge" style="font-size:10px;color:var(--green2);font-family:sans-serif;display:none;">● LIVE</div></div><div class="row" style="gap:4px;align-items:center;margin-bottom:8px;"><div class="team-toggle" style="flex-shrink:0;margin:0;"><div class="team-toggle-btn active" id="fld-mode-list" onclick="setFldMode('list')">By Inning</div><div class="team-toggle-btn" id="fld-mode-grid" onclick="setFldMode('grid')">Grid</div></div></div><div id="fld-list-mode"><div class="row" style="gap:6px;align-items:center;margin-bottom:8px;"><label style="font-size:11px;color:var(--text3);font-family:sans-serif;flex-shrink:0;">Inning</label><select id="fi-pick" onchange="setViewInn(parseInt(this.value))" style="width:auto;flex:1;"></select><button class="btn btn-xs" onclick="goToCurrentInn()" id="fi-now-btn" style="font-size:10px;">⟲ Current</button><button class="btn btn-xs btn-green" onclick="copyField()" style="font-size:10px;">Copy prev.</button></div><div id="fa-list"></div></div><div id="fld-grid-mode" style="display:none;"><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tap any cell to assign. Bench row shows who's sitting that inning.</div><div id="fld-grid-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;"></div></div></div><div class="panel"><div class="ptitle">Innings per player</div><div id="fi-sum"></div></div></div>
+<div id="tab-field" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:9px;"><div class="ptitle" style="margin:0;">Our fielding</div><div class="row" style="gap:4px;align-items:center;"><div id="fi-livebadge" style="font-size:10px;color:var(--green2);font-family:sans-serif;display:none;">● LIVE</div><button class="btn btn-xs" onclick="openPasteLineup('fielding')" title="Paste fielding plan from Claude">📋 Paste plan</button></div></div><div class="row" style="gap:4px;align-items:center;margin-bottom:8px;"><div class="team-toggle" style="flex-shrink:0;margin:0;"><div class="team-toggle-btn active" id="fld-mode-list" onclick="setFldMode('list')">By Inning</div><div class="team-toggle-btn" id="fld-mode-grid" onclick="setFldMode('grid')">Grid</div></div></div><div id="fld-list-mode"><div class="row" style="gap:6px;align-items:center;margin-bottom:8px;"><label style="font-size:11px;color:var(--text3);font-family:sans-serif;flex-shrink:0;">Inning</label><select id="fi-pick" onchange="setViewInn(parseInt(this.value))" style="width:auto;flex:1;"></select><button class="btn btn-xs" onclick="goToCurrentInn()" id="fi-now-btn" style="font-size:10px;">⟲ Current</button><button class="btn btn-xs btn-green" onclick="copyField()" style="font-size:10px;">Copy prev.</button></div><div id="fa-list"></div></div><div id="fld-grid-mode" style="display:none;"><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tap any cell to assign. Bench row shows who's sitting that inning.</div><div id="fld-grid-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;"></div></div></div><div class="panel"><div class="ptitle">Innings per player</div><div id="fi-sum"></div></div></div>
 <!-- PITCHERS -->
 <div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div><div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;"><button class="btn btn-xs btn-full" onclick="if(confirm('Rebuild all pitcher stats from the AB log? Use this if you changed pitcher attribution after the fact.')){recalcPitcherStats();renderPT();renderMU();toast('Pitcher stats rebuilt from ABs',2500);}" style="font-size:10px;border-color:var(--text3);color:var(--text2);">⟲ Recalc stats from ABs (after retroactive change)</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div><div class="panel"><div class="ptitle">This game — pitch totals</div><div class="scroll-x"><table class="tbl" id="opp-pc-tbl"></table></div></div></div></div>
 <!-- LINEUP -->
-<div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><div class="row" style="gap:4px;"><button class="btn btn-xs" id="btn-lu-edit-us" onclick="toggleLuEdit('us')">Edit</button><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><div class="row" style="gap:4px;"><button class="btn btn-xs" id="btn-lu-edit-them" onclick="toggleLuEdit('them')">Edit</button><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div></div><div id="their-lu-list"></div></div></div>
+<div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><div class="row" style="gap:4px;"><button class="btn btn-xs" onclick="openPasteLineup('us')" title="Paste from Claude">📋</button><button class="btn btn-xs" id="btn-lu-edit-us" onclick="toggleLuEdit('us')">Edit</button><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><div class="row" style="gap:4px;"><button class="btn btn-xs" onclick="openPasteLineup('opp')" title="Paste from Claude">📋</button><button class="btn btn-xs" id="btn-lu-edit-them" onclick="toggleLuEdit('them')">Edit</button><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div></div><div id="their-lu-list"></div></div></div>
 <!-- STATS / BOX -->
 <div id="tab-stats" style="display:none;"><div class="panel" id="ls-stats-panel" style="padding:8px 10px;"></div><div class="team-toggle"><div class="team-toggle-btn active" id="st-tog-us" onclick="setST('us',this)">Us</div><div class="team-toggle-btn" id="st-tog-them" onclick="setST('them',this)">Them</div></div><div class="panel"><div class="ptitle" id="st-bt">Batting</div><div class="scroll-x"><table class="tbl" id="st-btbl"></table></div></div><div class="panel"><div class="ptitle" id="st-pt">Pitching</div><div class="scroll-x"><table class="tbl" id="st-ptbl"></table></div></div><div class="panel" id="st-err"><div class="ptitle">Fielding errors</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Pos</th><th>Inn</th><th>Type</th><th>Play</th></tr></thead><tbody id="err-body"></tbody></table></div></div></div>
 <!-- LOG -->
@@ -646,8 +646,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-paste"><div class="modal" style="max-width:440px;">
   <h3>📋 Paste lineup</h3>
   <div style="font-size:11px;font-family:sans-serif;color:var(--text2);margin-bottom:8px;line-height:1.45;">Paste any lineup format from Claude or other sources. Auto-detects: numbered lists (<code>1. Name #5</code>), jersey-prefixed (<code>#5 Name</code>), JSON arrays, or plain names (one per line).</div>
-  <div class="mrow"><label>Apply to</label><select id="paste-target"><option value="opp">Opponent lineup (current game)</option><option value="us">Our lineup (current game)</option><option value="roster">Our roster (reorder for future games)</option></select></div>
-  <div class="mrow"><label>Paste here</label><textarea id="paste-text" placeholder="1. Latton #6&#10;2. Leo #37&#10;3. (3-hole) #18&#10;..." style="min-height:140px;font-family:monospace;font-size:12px;"></textarea></div>
+  <div class="mrow"><label>Apply to</label><select id="paste-target" onchange="_renderPastePreview()"><option value="opp">Opponent lineup (current game)</option><option value="us">Our lineup (current game)</option><option value="roster">Our roster (reorder for future games)</option><option value="fielding">Fielding plan (per inning)</option></select></div>
+  <div class="mrow"><label>Paste here</label><textarea id="paste-text" placeholder="Lineup: '1. Name #5' / '#5 Name' / JSON&#10;Fielding: 'Inning 1: Brody P, Miles C, Hunter 1B, ...'" style="min-height:140px;font-family:monospace;font-size:12px;"></textarea></div>
   <div id="paste-preview" style="background:var(--bg3);border-radius:var(--rs);padding:8px;margin-bottom:10px;font-size:11px;font-family:sans-serif;color:var(--text3);min-height:30px;">Preview will appear when you paste…</div>
   <div class="mact"><button class="btn btn-gold btn-full" id="paste-apply-btn" onclick="applyPastedLineup()" disabled>Apply</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-paste')">Cancel</button></div>
 </div></div>
@@ -2725,9 +2725,86 @@ function parseLineupText(txt){
   });
   return entries;
 }
+// v106: parse fielding plan text into {inn:{POS:name,...},...}
+// Handles JSON, line-by-line "Inning 1: Brody P, Miles C, ...", and per-inning blocks.
+function parseFieldingText(txt){
+  txt=String(txt||'').trim();if(!txt)return null;
+  var validPos=['P','C','1B','2B','3B','SS','LF','CF','RF','EF','RCF'];
+  // Try JSON first
+  try{
+    var json=JSON.parse(txt);
+    if(typeof json==='object'&&json!==null&&!Array.isArray(json)){
+      var out={};
+      Object.keys(json).forEach(function(k){
+        var inn=parseInt(String(k).replace(/[^\d]/g,''));
+        if(inn>=1&&inn<=12&&typeof json[k]==='object'){
+          out[inn]={};
+          Object.keys(json[k]).forEach(function(p){
+            var pu=p.toUpperCase();
+            if(validPos.indexOf(pu)>=0){
+              var v=json[k][p];
+              if(v)out[inn][pu]=String(v).trim();
+            }
+          });
+        }
+      });
+      if(Object.keys(out).length)return out;
+    }
+  }catch(e){}
+  // Text-based parse
+  var posPattern='(?:P|C|1B|2B|3B|SS|LF|CF|RF|EF|RCF)';
+  var out={};var currentInning=null;
+  var lines=txt.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+  lines.forEach(function(line){
+    if(/^[\|\-\s:]+$/.test(line))return;// markdown table separator
+    // Strip leading markdown bullet/list markers
+    line=line.replace(/^[\-\*\|]\s*/,'').trim();
+    // Detect "Inning 1", "1:", "T1", "Top 1", "1.", etc.
+    var innMatch=line.match(/^(?:inning|inn|top|t)\s*(\d+)(?:st|nd|rd|th)?\s*[:.\-]?\s*(.*)$/i)
+      ||line.match(/^(\d+)\s*[:.\-]\s*(.*)$/);
+    var rest=line;
+    if(innMatch){
+      var inn=parseInt(innMatch[1]);
+      if(inn>=1&&inn<=12){
+        currentInning=inn;out[currentInning]=out[currentInning]||{};
+        rest=(innMatch[2]||'').trim();
+        if(!rest)return;
+      }
+    }
+    if(!currentInning||!rest)return;
+    var segments=rest.split(/[,;|]/).map(function(s){return s.trim();}).filter(Boolean);
+    segments.forEach(function(seg){
+      if(!seg)return;
+      var m;
+      // "POS: name" or "POS = name" or "POS name"
+      m=seg.match(new RegExp('^('+posPattern+')\\s*[:=\\s]\\s*(.+)$','i'));
+      if(m&&validPos.indexOf(m[1].toUpperCase())>=0){
+        var n=m[2].trim();if(n)out[currentInning][m[1].toUpperCase()]=n;return;
+      }
+      // "name (POS)" or "name POS"
+      m=seg.match(new RegExp('^(.+?)\\s*\\(?\\s*('+posPattern+')\\s*\\)?\\s*$','i'));
+      if(m&&validPos.indexOf(m[2].toUpperCase())>=0){
+        var n2=m[1].trim();if(n2)out[currentInning][m[2].toUpperCase()]=n2;return;
+      }
+    });
+  });
+  return Object.keys(out).length?out:null;
+}
 function _renderPastePreview(){
-  var entries=parseLineupText($('paste-text').value);
+  var target=$('paste-target')?$('paste-target').value:'opp';
   var btn=$('paste-apply-btn');
+  if(target==='fielding'){
+    var plan=parseFieldingText($('paste-text').value);
+    if(!plan){$('paste-preview').innerHTML='<span style="color:var(--text3);">No fielding plan detected. Try: "Inning 1: Brody P, Miles C, …"</span>';btn.disabled=true;return;}
+    var innings=Object.keys(plan).map(Number).sort(function(a,b){return a-b;});
+    $('paste-preview').innerHTML='<strong>'+innings.length+' inning'+(innings.length===1?'':'s')+':</strong><br>'+innings.map(function(inn){
+      var slots=plan[inn];
+      var pieces=Object.keys(slots).map(function(p){return p+':'+esc(slots[p]);});
+      return 'Inn '+inn+' — '+pieces.join(', ');
+    }).join('<br>');
+    btn.disabled=false;return;
+  }
+  var entries=parseLineupText($('paste-text').value);
   if(!entries.length){
     $('paste-preview').innerHTML='<span style="color:var(--text3);">No valid entries detected.</span>';
     btn.disabled=true;return;
@@ -2738,9 +2815,42 @@ function _renderPastePreview(){
   btn.disabled=false;
 }
 function applyPastedLineup(){
+  var target=$('paste-target').value;
+  if(target==='fielding'){
+    var plan=parseFieldingText($('paste-text').value);
+    if(!plan){toast('No fielding plan detected');return;}
+    if(!G.eid){toast('Start a game first');return;}
+    if(!G.fa)G.fa={};
+    var totalAssigned=0;
+    Object.keys(plan).forEach(function(inn){
+      if(!G.fa[inn])G.fa[inn]={};
+      Object.keys(plan[inn]).forEach(function(pos){
+        var nameInput=String(plan[inn][pos]||'').trim();
+        if(!nameInput)return;
+        // Match against roster: case-insensitive, full-name first, then first-name fallback
+        var lower=nameInput.toLowerCase();
+        var matched=A.roster.find(function(r){return r.name&&r.name.toLowerCase()===lower;});
+        if(!matched){
+          // Substring or first-name match
+          matched=A.roster.find(function(r){
+            if(!r.name)return false;
+            var rl=r.name.toLowerCase();
+            return rl.includes(lower)||lower.includes(rl.split(' ')[0]);
+          });
+        }
+        G.fa[inn][pos]=matched?matched.name:nameInput;
+        totalAssigned++;
+      });
+    });
+    sv();
+    cm('m-paste');
+    toast(totalAssigned+' assignments applied across '+Object.keys(plan).length+' inning'+(Object.keys(plan).length===1?'':'s'));
+    if(typeof renderFD==='function')renderFD();
+    if(typeof renderSC==='function')renderSC();
+    return;
+  }
   var entries=parseLineupText($('paste-text').value);
   if(!entries.length){toast('Nothing to apply');return;}
-  var target=$('paste-target').value;
   if(target==='opp'){
     // Replace opp lineup. Preserve battedOOO/skipped/dnp where the new entry name matches an existing one.
     if(!G.eid){toast('Start a game first');return;}
@@ -2808,6 +2918,8 @@ function openPasteLineup(defaultTarget){
   }
   om('m-paste');
 }
+// Helper: ask Claude for the right paste format. Surfaces a hint label.
+// Future: could deep-link to Claude with a pre-filled prompt.
 // v103b: opp scouting card — shows the upcoming opponent's roster ranked by
 // eval score, with top hitters/pitchers highlighted. Tin Caps (non-LMLL) shows
 // graceful "no eval data" fallback.
@@ -5554,7 +5666,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v105';
+var APP_VERSION='v106';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
