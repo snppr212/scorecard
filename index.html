@@ -242,7 +242,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   body.printing-season #screen-season{display:block!important;position:absolute;top:0;left:0;width:100%;background:#fff;color:#000;padding:0!important;}
   body.printing-season #screen-season .hdr{background:none!important;border:none!important;padding:0 0 6px 0;}
   body.printing-season #screen-season .hdr-title,body.printing-season #screen-season .hdr-sub{color:#000!important;}
-  body.printing-season #screen-season > .hdr button,body.printing-season #season-export-row{display:none!important;}
+  body.printing-season #screen-season > .hdr button,body.printing-season #season-export-row,body.printing-season #season-view-tog,body.printing-season #screen-season details{display:none!important;}
   body.printing-season #screen-season .scroll{overflow:visible!important;height:auto!important;padding:0!important;}
   body.printing-season #screen-season .panel{background:none!important;border:1px solid #999;color:#000!important;page-break-inside:avoid;margin-bottom:8px;padding:6px 8px;}
   body.printing-season #screen-season .ptitle{color:#000!important;font-size:13pt;border-bottom:1px solid #999;padding-bottom:3px;margin-bottom:6px;}
@@ -347,13 +347,15 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="screen" id="screen-season">
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
-<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;"><button class="btn btn-sm btn-gold" style="flex:1;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;" onclick="exportSeasonPDF()">📄 Export PDF</button></div>
+<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
 <!-- v100: Regular vs Advanced view toggle -->
 <div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div></div>
 <!-- Print-only header (hidden on screen via CSS, revealed when body has .printing-season) -->
 <div id="season-print-header" style="display:none;"><h1>Mighty Mussels — Season Stats</h1><div id="season-print-sub">LMLL · Spring 2026</div></div>
-<div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div></div>
-<div class="panel"><div class="ptitle">Pitching</div><div class="scroll-x"><table class="tbl" id="season-pit"></table></div></div>
+<div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div>
+<details class="no-print" style="margin-top:8px;font-size:11px;font-family:sans-serif;color:var(--text2);"><summary style="cursor:pointer;color:var(--gold);">📖 Column legend (batting)</summary><div id="season-bat-legend" style="margin-top:6px;line-height:1.55;"></div></details></div>
+<div class="panel"><div class="ptitle">Pitching</div><div class="scroll-x"><table class="tbl" id="season-pit"></table></div>
+<details class="no-print" style="margin-top:8px;font-size:11px;font-family:sans-serif;color:var(--text2);"><summary style="cursor:pointer;color:var(--gold);">📖 Column legend (pitching)</summary><div id="season-pit-legend" style="margin-top:6px;line-height:1.55;"></div></details></div>
 <div id="season-empty" style="text-align:center;font-size:12px;color:var(--text3);font-family:sans-serif;padding:14px;display:none;">No completed games yet.</div>
 <div id="season-loading" style="text-align:center;font-size:12px;color:var(--text3);font-family:sans-serif;padding:14px;">Loading…</div>
 </div>
@@ -1348,6 +1350,72 @@ function _renderSeasonView(){
   }else{
     renderSeasonBat(games);renderSeasonPit(games);
   }
+  _renderSeasonLegend(view);
+}
+// v101: explain every column in plain English. Toggle reveals legend.
+function _renderSeasonLegend(view){
+  var batRows,pitRows;
+  if(view==='advanced'){
+    batRows=[
+      ['G','Games played'],
+      ['PA','Plate appearances (auto-outs excluded)'],
+      ['P','Total pitches seen'],
+      ['G·Sw','Good swings — swung at a strike (Sg + Fg + Tg + Xg). Pitch was in the zone; you wanted them to swing.'],
+      ['B·Sw','Bad swings — swung at a ball (Sb + Fb + Tb + Xb). Chased something out of zone.'],
+      ['U·Sw','Untagged swings — you didn\'t mark good/bad. Coach decision unknown for these pitches.'],
+      ['G·Tk','Good takes — took a ball (B count). Smart eye, didn\'t chase.'],
+      ['B·Tk','Bad takes — took a strike (L count). Should have swung at a hittable pitch.'],
+      ['Whiff%','S count / total swings. How often the kid swung and missed.'],
+      ['Disc%','(Good swings + good takes) / tagged decisions. The plate-discipline scorecard.']
+    ];
+    pitRows=[
+      ['G','Games pitched'],
+      ['P','Total pitches thrown'],
+      ['St','Strikes thrown (L + S + F + FT + X)'],
+      ['Ba','Balls thrown (B + HBP)'],
+      ['St%','Strike rate = strikes / total pitches'],
+      ['Whf%','Whiff rate — opp swung and missed (S induced) / total opp swings'],
+      ['Ch%','Chase rate — opp swung at a ball (Sb/Fb/Tb/Xb) / total opp swings. High = your stuff is fooling them.'],
+      ['Z·Sw','Zone swings — opp swung at strikes (Sg/Fg/Tg/Xg). Count, not %.']
+    ];
+  }else{
+    batRows=[
+      ['G','Games played'],
+      ['PA','Plate appearances (auto-outs excluded)'],
+      ['AB','At-bats (PA minus BB / HBP / SAC)'],
+      ['R','Runs scored'],
+      ['H','Hits (1B + 2B + 3B + HR + LLHR)'],
+      ['RBI','Runs batted in. Per LL 9.04: any non-DP play credits the batter.'],
+      ['HR','Home runs (HR + LLHR)'],
+      ['BB','Walks'],
+      ['K','Strikeouts (swinging + looking)'],
+      ['HBP','Hit by pitch'],
+      ['SB','Stolen bases'],
+      ['BIP','Balls in play — any contact (hit or non-K out). LL contact-rate proxy.'],
+      ['ROE','Reached on error — counts as AB but not a hit.'],
+      ['BA','Batting average = H / AB'],
+      ['OBP','On-base = (H + BB + HBP) / (AB + BB + HBP + SAC)'],
+      ['SLG','Slugging = total bases / AB']
+    ];
+    pitRows=[
+      ['G','Games pitched'],
+      ['IP','Innings pitched (full + 1/3 outs notation)'],
+      ['PC','Total pitch count'],
+      ['Ba','Balls thrown'],
+      ['St','Strikes thrown (looking + swinging + foul + BIP)'],
+      ['H','Hits allowed'],
+      ['R','Runs allowed (total)'],
+      ['ER','Earned runs (R minus runs marked unearned via post-game review)'],
+      ['BB','Walks issued'],
+      ['K','Strikeouts'],
+      ['HBP','Hit-by-pitches issued'],
+      ['BAA','Batting average against = H / AB-against'],
+      ['ERA','Earned-run average per 6 innings (LL convention, not 9)']
+    ];
+  }
+  function rowHtml(rows){return rows.map(function(r){return '<div style="margin:3px 0;"><strong style="color:var(--gold);min-width:50px;display:inline-block;">'+r[0]+'</strong> — '+r[1]+'</div>';}).join('');}
+  if($('season-bat-legend'))$('season-bat-legend').innerHTML=rowHtml(batRows);
+  if($('season-pit-legend'))$('season-pit-legend').innerHTML=rowHtml(pitRows);
 }
 function setSeasonView(v){A.seasonStatsView=v;sa();_renderSeasonView();}
 function _ourTeamSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
@@ -1715,7 +1783,74 @@ function exportSeasonPDF(){
   // Belt-and-braces fallback in case afterprint doesn't fire (some browsers)
   setTimeout(done,8000);
   // Defer one frame so styles apply before the dialog opens
-  requestAnimationFrame(function(){window.print();});
+  requestAnimationFrame(function(){
+    try{window.print();}
+    catch(e){
+      console.log('window.print failed:',e);
+      done();
+      toast('Print not supported here — use 📋 Copy instead',3500);
+    }
+  });
+}
+// v101: text-clipboard fallback for sharing season stats. Works everywhere
+// window.print might not (mobile PWA quirks, sandboxed iframes, etc.). Generates
+// a plain-text view of whichever season-stats view is active (Regular or Advanced).
+function copySeasonStats(){
+  var batTbl=$('season-bat'),pitTbl=$('season-pit');
+  if(!batTbl||!batTbl.innerHTML.trim()){toast('No stats yet — make sure season data loaded');return;}
+  var d=new Date();var dstr=d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  var sub=$('season-sub')?$('season-sub').textContent:'';
+  var view=A.seasonStatsView==='advanced'?'Advanced':'Regular';
+  var lines=[];
+  lines.push('Mighty Mussels — Season Stats ('+view+')');
+  lines.push('LMLL · Spring 2026 · '+sub+' · '+dstr);
+  lines.push('');
+  lines.push('═══ BATTING ═══');
+  lines.push(_tblToText(batTbl));
+  lines.push('');
+  lines.push('═══ PITCHING ═══');
+  lines.push(_tblToText(pitTbl));
+  var txt=lines.join('\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){toast('Copied! Paste into text/email.',2500);}).catch(function(e){_showCopyFallback(txt);});
+  }else{_showCopyFallback(txt);}
+}
+function _tblToText(tbl){
+  var rows=[];
+  var hdr=tbl.querySelector('thead');
+  if(hdr){
+    var ths=hdr.querySelectorAll('th');
+    var cols=[];ths.forEach(function(th){cols.push(th.textContent.trim());});
+    rows.push(cols);
+  }
+  var bodyRows=tbl.querySelectorAll('tbody tr');
+  bodyRows.forEach(function(tr){
+    var tds=tr.querySelectorAll('td');
+    var vals=[];tds.forEach(function(td){vals.push(td.textContent.trim());});
+    if(vals.length)rows.push(vals);
+  });
+  var foot=tbl.querySelector('tfoot');
+  if(foot){
+    foot.querySelectorAll('tr').forEach(function(tr){
+      var tds=tr.querySelectorAll('td');
+      var vals=[];tds.forEach(function(td){vals.push(td.textContent.trim());});
+      if(vals.length)rows.push(vals);
+    });
+  }
+  if(!rows.length)return '(no data)';
+  // Compute column widths
+  var widths=rows[0].map(function(_,i){return rows.reduce(function(m,r){return Math.max(m,(r[i]||'').length);},0);});
+  return rows.map(function(r,ri){
+    var line=r.map(function(c,i){return (c||'').padEnd(widths[i],' ');}).join(' │ ');
+    return line;
+  }).join('\n');
+}
+function _showCopyFallback(txt){
+  // Last-resort: show in a textarea so the user can long-press → copy manually.
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;display:flex;flex-direction:column;padding:14px;';
+  ov.innerHTML='<div style="color:var(--gold);font-family:sans-serif;margin-bottom:8px;font-size:13px;">Long-press to select → Copy:</div><textarea readonly style="flex:1;width:100%;font-family:monospace;font-size:10px;background:#000;color:var(--text);border:1px solid var(--border);padding:8px;">'+esc(txt)+'</textarea><button class="btn btn-gold" style="margin-top:8px;" onclick="this.parentNode.remove()">Close</button>';
+  document.body.appendChild(ov);
 }
 async function showOptimalLineup(){
   toast('Fetching season data…');
@@ -5066,7 +5201,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v100';
+var APP_VERSION='v101';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
