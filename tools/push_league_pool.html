@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Push League Pool to Firestore</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:780px;margin:auto;}
+h1{color:#c8a96e;}
+.row{margin-bottom:14px;}
+label{display:block;margin-bottom:4px;color:#8fa5bc;font-size:13px;}
+input,textarea{width:100%;padding:8px;border:1px solid rgba(255,255,255,.14);background:#132233;color:#e2ddd4;border-radius:4px;font-family:monospace;font-size:11px;box-sizing:border-box;}
+textarea{min-height:200px;}
+button{background:#c8a96e;color:#000;border:none;padding:10px 18px;border-radius:4px;font-weight:bold;cursor:pointer;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:13px;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+</style>
+</head>
+<body>
+<h1>Push League Pool → Firestore</h1>
+
+<div class="note">
+Run <code>python3 tools/import_league_pool.py /path/to/draft.xlsx --season 2027-AA</code><br>
+Then paste the JSON output from <code>/tmp/league_pool_&lt;season&gt;.json</code> below and click Push.
+</div>
+
+<div class="row">
+<label>Season tag</label>
+<input id="season" type="text" value="2026-AA" placeholder="e.g. 2027-AA">
+</div>
+
+<div class="row">
+<label>League</label>
+<input id="league" type="text" value="LMLL">
+</div>
+
+<div class="row">
+<label>Players JSON (paste contents of /tmp/league_pool_&lt;season&gt;.json)</label>
+<textarea id="players" placeholder='{"Player Name": {"team": "Hot Rods", "evalScore": 50.0, ...}, ...}'></textarea>
+</div>
+
+<button id="push-btn" onclick="doPush()">Push to Firestore</button>
+<div id="status"></div>
+
+<!-- Firebase SDK (must match production project) -->
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+async function doPush(){
+  const btn=document.getElementById('push-btn');
+  const status=document.getElementById('status');
+  status.className='';status.textContent='';btn.disabled=true;
+  try{
+    const season=document.getElementById('season').value.trim();
+    const league=document.getElementById('league').value.trim();
+    const txt=document.getElementById('players').value.trim();
+    if(!txt){throw new Error('Paste the players JSON first');}
+    const players=JSON.parse(txt);
+    const count=Object.keys(players).length;
+    if(!confirm('Push '+count+' players to appdata/leaguePool? This OVERWRITES the existing doc. Existing season "'+season+'" tag will be set.'))return btn.disabled=false;
+    await db.collection('appdata').doc('leaguePool').set({
+      season:season,
+      league:league,
+      updated:new Date(),
+      players:players
+    },{merge:false});
+    // Verify
+    const snap=await db.collection('appdata').doc('leaguePool').get();
+    const got=Object.keys(snap.data().players||{}).length;
+    status.className='ok';
+    status.innerHTML='✓ Pushed '+count+' players. Read-back: '+got+' entries.<br>Reload the running app to see updated data.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>

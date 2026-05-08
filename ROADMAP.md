@@ -1,17 +1,54 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v102 (BAA fix + BF column, 2026-05-08)
-**Status as of:** 2026-05-08. **Season record: 3-3** after **W 4-3 vs Tin Caps** (5-inning game, called for darkness/time). v89 housekeeping was followed by a deep retroactive-data sprint after the Tin Caps game: full e10 box-score capture from the coach's paper notes (51 ABs, 5 steals, 7 runs, 5 our pitchers + 4 theirs) (5/8). Feature stretch v90-v102 covered: 6-run cap auto-detect + force-out RBI hint + opp-pitcher PC display (v90), pscored schema + opt-in error-RBI review (v96), optimal-lineup display polish (v97), error tracking overhaul with ROE result code + plays-tab error sub-lines + unearned-runs flag (v98), opt-in swing-quality tagging (v99), Season Stats Regular/Advanced toggle (v100), column legend + copy-as-text fallback (v101), BAA fix using ip_outs+hits + new BF column (v102). Plus retroactive backfill of `ab.pitcher` on e2 and e4 (the two pre-v76 games missing per-AB pitcher attribution). Next game: TBD.
+**Current version:** v103 (LMLL eval scouting features, 2026-05-08)
+**Status as of:** 2026-05-08. **Season record: 3-3** after **W 4-3 vs Tin Caps**. Feature stretch v90-v103: 6-run cap auto-detect + force-out RBI hint + opp-pitcher PC (v90), pscored schema + error-RBI review (v96), error tracking overhaul with ROE + unearned runs (v98), swing-quality tagging (v99), Season Stats Regular/Advanced (v100), legend + copy fallback (v101), BAA fix + BF column (v102), Firestore-backed LMLL eval pool + scouting card + danger-stretch alert + eval-display toggle (v103). Plus retroactive `ab.pitcher` backfill on e2/e4. Next game: TBD.
 
-## 💡 Future: League-wide baseline stats from opp data
+## ✅ v103 SHIPPED — League pool integration
 
-We've logged ~170 opp ABs across e2-e10 plus our pitchers facing ~140 opp batters. Combined with the LMLL draft pool (player names + last initials, plus where each team's roster came from), we could derive a **league-wide baseline** for:
-- Average BIP rate / K rate / OBP among LMLL AA hitters
-- Average strikes-per-pitch / BAA / whiff rate among LMLL AA pitchers
-- "Mighty Mussels in context": percentile rankings vs. league norms
-- Recenter the optimal-lineup formula around league-real averages instead of in-team-avg fallbacks
+130 LMLL players in Firestore (`appdata/leaguePool`), with eval ratings + team assignments + district-team flags. Updateable for next season via `tools/import_league_pool.py` + `tools/push_league_pool.html` — no code release needed.
 
-User has indicated they'll share the draft pool when ready. Park until then.
+UI surfaces:
+- 🔍 Scout button on schedule rows → opens opp scouting card (top hitters/pitchers highlighted, copy-as-text export)
+- Inline eval badges in matchup bar + opp picker showing tier/score + 🟡 top-hitter / 🟢 top-pitcher / ★ district flags
+- Danger-stretch toasts (light / medium / heavy) when next 3-4 batters are top-quartile in league hitting
+- Toggle in Roster modal — flip mid-game when you want to score without bias
+
+## 💡 Future Phase 2 — Calibration & League Context
+
+Now that league pool is plumbed in, next-tier features become possible:
+
+| Feature | Effort | Notes |
+|---|---|---|
+| **Tiered league baselines** (R1-4 / R5-8 / R9-12 averages on Season Stats) | ~60 min | Coach asked for this format. Add a "vs league" view alongside Regular/Advanced |
+| **Per-opponent post-game recap** | ~60 min | After game, show each rated opp kid's eval vs actual outcome. Builds calibration log over time |
+| **F9 calibrated optimal-lineup** (with revert toggle) | ~60 min | Use league-Q3 / league-mean as anchors instead of team-avg fallback. Gate behind setting so coach can flip back to v91 logic if it feels wrong |
+
+## 💡 Future Phase 3 — Pitcher Intelligence
+
+| Feature | Effort | Notes |
+|---|---|---|
+| **F2 Pitcher availability predictor** | ~90 min | For an upcoming opp, track every pitcher we've scouted (their pitches against us) → eligibility prediction per LL Rule C.4. Combined with eval ratings, predict their likely starter |
+| **F3 Auto game plan text** | ~30 min | Combines F1 + F2 into a one-paragraph summary you can text to coaches |
+| **F6 Pitcher-match recommender** | ~90 min | "Bring in your tier-1 pitcher when their 3-4-5 hitters come up" — uses opp scouting + your roster pitcher tiers |
+
+## 🚀 Future — Multi-team pivot (off-season)
+
+The biggest open architecture decision. Today the app is hardcoded for Mussels:
+- `RNAMES`, `OPP_ROSTERS`, `SCHED`, `DRAFT_RATINGS` all live in code
+- Single Firestore namespace
+- One coach's data
+
+To make this usable by other LMLL coaches (or other leagues entirely), we'd need:
+- Firebase Auth (Google sign-in or email)
+- Per-team Firestore namespacing: `teams/{teamId}/games/`, `teams/{teamId}/roster/`, etc.
+- Setup wizard: team name, league name, schedule entry, roster entry, opp-roster entry
+- App branding becomes "{Team Name} Scorecard"
+
+**Effort:** 3-4 weeks minimum to do right. Real product, not a tweak.
+
+**When:** off-season. Coach wants to use the current single-tenant version through end of Spring 2026.
+
+**v103 already moved us closer:** league pool is Firestore-backed (per-season tag), so the next step is per-team namespacing. Ratings (`coachRatings/`), league pool (`leaguePool`), and game data (`games/`) all already in Firestore. Just need auth + namespacing.
 
 ## Newly identified items from 5/1 + 5/2 game-day testing
 
