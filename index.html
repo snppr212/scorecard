@@ -348,6 +348,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
 <div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;"><button class="btn btn-sm btn-gold" style="flex:1;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;" onclick="exportSeasonPDF()">📄 Export PDF</button></div>
+<!-- v100: Regular vs Advanced view toggle -->
+<div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div></div>
 <!-- Print-only header (hidden on screen via CSS, revealed when body has .printing-season) -->
 <div id="season-print-header" style="display:none;"><h1>Mighty Mussels — Season Stats</h1><div id="season-print-sub">LMLL · Spring 2026</div></div>
 <div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div></div>
@@ -1329,8 +1331,25 @@ async function openSeasonStats(){
   $('season-loading').style.display='none';
   if(!games.length){$('season-empty').style.display='block';return;}
   $('season-sub').textContent='Across '+games.length+' game'+(games.length===1?'':'s');
-  renderSeasonBat(games);renderSeasonPit(games);
+  // v100: cache games for re-render on toggle
+  window._seasonGames=games;
+  _renderSeasonView();
 }
+// v100: dispatcher — picks regular vs advanced renderer based on A.seasonStatsView
+function _renderSeasonView(){
+  var games=window._seasonGames||[];
+  if(!games.length)return;
+  var view=A.seasonStatsView||'regular';
+  // Toggle styling
+  if($('sv-reg'))$('sv-reg').classList.toggle('active',view==='regular');
+  if($('sv-adv'))$('sv-adv').classList.toggle('active',view==='advanced');
+  if(view==='advanced'){
+    renderSeasonBatAdvanced(games);renderSeasonPitAdvanced(games);
+  }else{
+    renderSeasonBat(games);renderSeasonPit(games);
+  }
+}
+function setSeasonView(v){A.seasonStatsView=v;sa();_renderSeasonView();}
 function _ourTeamSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
 function _ourLineup(g){return g.ht==='Mighty Mussels'?g.hlu:g.alu;}
 function _ourPitchers(g){return g.ht==='Mighty Mussels'?g.hp:g.ap;}
@@ -1441,6 +1460,114 @@ function renderSeasonPit(games){
   var Tera=T.ip_outs>0?fmt3(T.er/(T.ip_outs/3)*6):'—';
   var Tbaa=T.abAgainst>0?fmt3(T.hits/T.abAgainst):'—';
   h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td></tr></tfoot>';
+  $('season-pit').innerHTML=h;
+}
+// =============================================================================
+// v100 ADVANCED STATS — derive swing-quality + take-quality from ab.pitchQualities
+// + base pitch types. The two views (Regular / Advanced) live side by side in the
+// same season-bat / season-pit tables; the toggle just swaps which renderer
+// populates them.
+// =============================================================================
+// Per-batter advanced aggregator: walks our ABs in g.abs and counts:
+//   gSw = good swings (Sg/Fg/Tg/Xg)
+//   bSw = bad swings  (Sb/Fb/Tb/Xb)
+//   uSw = untagged swings (S/F/FT/X without quality)
+//   gTk = good takes (B — took a ball, smart)
+//   bTk = bad takes  (L — took a strike, missed a hittable pitch)
+//   whiffs = S count (swing-and-miss strikes specifically)
+//   pitchesSeen = total pitches seen
+function _accumBatAdvanced(s,ab){
+  var p=ab.pitches||[];var q=ab.pitchQualities||[];
+  for(var i=0;i<p.length;i++){
+    var c=p[i],qc=q[i]||null;
+    s.pitchesSeen++;
+    if(c==='B'){s.gTk++;}
+    else if(c==='L'){s.bTk++;}
+    else if(c==='S'){s.whiffs++;if(qc==='good')s.gSw++;else if(qc==='bad')s.bSw++;else s.uSw++;}
+    else if(c==='F'||c==='FT'){if(qc==='good')s.gSw++;else if(qc==='bad')s.bSw++;else s.uSw++;}
+    else if(c==='X'){if(qc==='good')s.gSw++;else if(qc==='bad')s.bSw++;else s.uSw++;}
+  }
+}
+function renderSeasonBatAdvanced(games){
+  var byPlayer={};
+  games.forEach(function(g){
+    var team=_ourTeamSide(g);var lu=_ourLineup(g);
+    lu.forEach(function(p,i){
+      if(!p||!p.name)return;
+      var key=p.name;
+      if(!byPlayer[key])byPlayer[key]={name:p.name,jersey:p.jersey||'',games:0,pa:0,pitchesSeen:0,gSw:0,bSw:0,uSw:0,gTk:0,bTk:0,whiffs:0};
+      var s=byPlayer[key],played=false;
+      (g.abs||[]).forEach(function(ab){
+        if(ab.bi!==i||ab.team!==team)return;
+        played=true;
+        if(!ab.autoOut)s.pa++;
+        _accumBatAdvanced(s,ab);
+      });
+      if(played)s.games++;
+    });
+  });
+  var rows=Object.values(byPlayer).filter(function(s){return s.pa>0;});
+  rows.forEach(function(s){
+    var totalSw=s.gSw+s.bSw+s.uSw;
+    var totalTagged=s.gSw+s.bSw+s.gTk+s.bTk;// decisions where we know quality
+    s.swDec=totalTagged>0?(s.gSw+s.gTk)/totalTagged:0;// "smart decision" rate
+    s.whiffPct=totalSw>0?s.whiffs/totalSw:0;
+    s.totalSw=totalSw;
+  });
+  rows.sort(function(a,b){if(a.swDec!==b.swDec)return b.swDec-a.swDec;return b.pa-a.pa;});
+  var h='<thead><tr><th>Player</th><th>G</th><th>PA</th><th title="Total pitches seen">P</th><th title="Good swings (Sg+Fg+Tg+Xg)">G·Sw</th><th title="Bad swings (Sb+Fb+Tb+Xb)">B·Sw</th><th title="Untagged swings (S/F/FT/X without good/bad)">U·Sw</th><th title="Good takes (B — took a ball)">G·Tk</th><th title="Bad takes (L — took a strike)">B·Tk</th><th title="Whiffs (S count) / total swings">Whiff%</th><th title="(Good swings + good takes) / tagged decisions">Disc%</th></tr></thead><tbody>';
+  rows.forEach(function(s){
+    var nm=s.jersey?'#'+s.jersey+' '+sn(s.name):sn(s.name);
+    var whP=s.totalSw>0?Math.round(s.whiffPct*100)+'%':'—';
+    var dcP=(s.gSw+s.bSw+s.gTk+s.bTk)>0?Math.round(s.swDec*100)+'%':'—';
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pa+'</td><td>'+s.pitchesSeen+'</td><td>'+s.gSw+'</td><td>'+s.bSw+'</td><td>'+s.uSw+'</td><td>'+s.gTk+'</td><td>'+s.bTk+'</td><td class="hi">'+whP+'</td><td class="hi">'+dcP+'</td></tr>';
+  });
+  h+='</tbody>';
+  $('season-bat').innerHTML=h;
+}
+// Per-pitcher advanced aggregator: walks ABs they pitched, counts pitch-type
+// outcomes that paint a picture of stuff (strike rate, whiff rate, chase rate).
+function _accumPitAdvanced(s,ab){
+  var p=ab.pitches||[];var q=ab.pitchQualities||[];
+  for(var i=0;i<p.length;i++){
+    var c=p[i],qc=q[i]||null;
+    s.pitches++;
+    if(c==='B')s.balls++;
+    else if(c==='L'){s.strikes++;s.lookStrikes++;}
+    else if(c==='S'){s.strikes++;s.whiffs++;s.swings++;if(qc==='bad')s.chases++;else if(qc==='good')s.zoneSwings++;}
+    else if(c==='F'||c==='FT'){s.strikes++;s.swings++;if(qc==='bad')s.chases++;else if(qc==='good')s.zoneSwings++;}
+    else if(c==='X'){s.strikes++;s.swings++;if(qc==='bad')s.chases++;else if(qc==='good')s.zoneSwings++;}
+    else if(c==='H')s.balls++;// HBP counts as a ball outcome
+  }
+}
+function renderSeasonPitAdvanced(games){
+  var byPit={};
+  games.forEach(function(g){
+    var pl=_ourPitchers(g);var ourSide=_ourTeamSide(g);
+    pl.forEach(function(p){
+      if(!p||!p.name)return;
+      if(!byPit[p.name])byPit[p.name]={name:p.name,games:0,pitches:0,strikes:0,balls:0,swings:0,whiffs:0,chases:0,zoneSwings:0,lookStrikes:0};
+      if((p.total||0)>0||(p.ip_outs||0)>0)byPit[p.name].games++;
+    });
+    (g.abs||[]).forEach(function(ab){
+      if(!ab.pitcher||ab.pitcherTeam!==ourSide)return;
+      var s=byPit[ab.pitcher];if(!s)return;
+      _accumPitAdvanced(s,ab);
+    });
+  });
+  var rows=Object.values(byPit).filter(function(s){return s.pitches>0;});
+  rows.forEach(function(s){
+    s.strikePct=s.pitches>0?s.strikes/s.pitches:0;
+    s.whiffPct=s.swings>0?s.whiffs/s.swings:0;
+    s.chasePct=s.swings>0?s.chases/s.swings:0;
+  });
+  rows.sort(function(a,b){return b.pitches-a.pitches;});
+  var h='<thead><tr><th>Pitcher</th><th>G</th><th>P</th><th title="Strikes thrown (L+S+F+FT+X)">St</th><th title="Balls thrown (B+HBP)">Ba</th><th title="Strike% = strikes / total pitches">St%</th><th title="Whiffs (S) / opp swings">Whf%</th><th title="Chase = batters swung at a pitch you threw out of zone (Sb/Fb/Tb/Xb) / total opp swings">Ch%</th><th title="Zone swings = batters swung at strikes (Sg/Fg/Tg/Xg) — count">Z·Sw</th></tr></thead><tbody>';
+  rows.forEach(function(s){
+    var j=_findJersey(s.name);var nm=j?'#'+j+' '+sn(s.name):sn(s.name);
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+Math.round(s.strikePct*100)+'%</td><td class="hi">'+(s.swings>0?Math.round(s.whiffPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.chasePct*100)+'%':'—')+'</td><td>'+s.zoneSwings+'</td></tr>';
+  });
+  h+='</tbody>';
   $('season-pit').innerHTML=h;
 }
 // ============================================================================
@@ -4939,7 +5066,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v99';
+var APP_VERSION='v100';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
