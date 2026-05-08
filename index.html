@@ -312,7 +312,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
 <div class="scroll pad">
 <div class="season-banner"><div class="banner-team">Mighty Mussels</div><div class="banner-sub" id="home-record">LMLL · Spring 2026</div></div>
-<div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button></div>
+<div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button><button class="btn btn-xs" onclick="openPasteLineup('opp')" style="flex:1;">📋 Paste lineup</button></div>
 <div class="row" style="gap:5px;margin-bottom:8px;"><button class="btn btn-xs btn-gold" onclick="startTestGame()" style="flex:1;">🧪 Test Sandbox</button><button class="btn btn-xs btn-red" id="btn-wipe-test" onclick="clearTestData()" style="flex:1;display:none;">Wipe test data</button></div>
 <div class="row-b" style="margin-bottom:8px;"><div style="font-size:10px;color:var(--text2);font-family:sans-serif;text-transform:uppercase;letter-spacing:.07em;">Schedule</div><div class="row" style="gap:5px;"><button class="btn btn-xs" id="f-all" onclick="setFilter('all',this)" style="border-color:var(--gold);color:var(--gold);">All</button><button class="btn btn-xs" id="f-game" onclick="setFilter('game',this)">Games</button><button class="btn btn-xs" id="f-up" onclick="setFilter('upcoming',this)">Upcoming</button></div></div>
 <div id="schedule-list"></div>
@@ -592,6 +592,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- OPPONENT BATTER PICKER (on-the-fly lineup entry) -->
 <div class="modal-ov" id="m-oppbat"><div class="modal" style="max-width:380px;">
 <h3 id="m-oppbat-title">Next opponent batter</h3>
+<div class="row" style="margin-bottom:6px;"><button class="btn btn-xs" onclick="cm('m-oppbat');openPasteLineup('opp')" style="flex:1;">📋 Paste opp lineup</button></div>
 <div id="m-oppbat-pending" style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:8px;min-height:1em;"></div>
 <!-- DON'T KNOW — at the top -->
 <button class="btn btn-full" id="m-oppbat-ghost" style="background:var(--bg3);border:1px dashed var(--gold);color:var(--gold);font-size:12px;font-weight:bold;margin-bottom:4px;" onclick="oppbatGhost()">Don't know — use ordinal placeholder</button>
@@ -640,6 +641,15 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;line-height:1.45;">Each row is an AB where a fielding error and a run-scoring event happened on the same play. Per LL 9.04, runs that scored <em>solely because of</em> the error don't credit the batter. Adjust RBI down for any plays where the error caused the run.</div>
   <div id="rbi-review-list" style="max-height:55vh;overflow-y:auto;"></div>
   <div class="mact"><button class="btn btn-full" onclick="cm('m-rbi-review')">Done</button></div>
+</div></div>
+<!-- v105: paste-lineup-from-Claude modal — for importing a pasted lineup card from any source -->
+<div class="modal-ov" id="m-paste"><div class="modal" style="max-width:440px;">
+  <h3>📋 Paste lineup</h3>
+  <div style="font-size:11px;font-family:sans-serif;color:var(--text2);margin-bottom:8px;line-height:1.45;">Paste any lineup format from Claude or other sources. Auto-detects: numbered lists (<code>1. Name #5</code>), jersey-prefixed (<code>#5 Name</code>), JSON arrays, or plain names (one per line).</div>
+  <div class="mrow"><label>Apply to</label><select id="paste-target"><option value="opp">Opponent lineup (current game)</option><option value="us">Our lineup (current game)</option><option value="roster">Our roster (reorder for future games)</option></select></div>
+  <div class="mrow"><label>Paste here</label><textarea id="paste-text" placeholder="1. Latton #6&#10;2. Leo #37&#10;3. (3-hole) #18&#10;..." style="min-height:140px;font-family:monospace;font-size:12px;"></textarea></div>
+  <div id="paste-preview" style="background:var(--bg3);border-radius:var(--rs);padding:8px;margin-bottom:10px;font-size:11px;font-family:sans-serif;color:var(--text3);min-height:30px;">Preview will appear when you paste…</div>
+  <div class="mact"><button class="btn btn-gold btn-full" id="paste-apply-btn" onclick="applyPastedLineup()" disabled>Apply</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-paste')">Cancel</button></div>
 </div></div>
 <!-- v103b: opp scouting card modal — shows draft eval data for upcoming opponent -->
 <div class="modal-ov" id="m-scout"><div class="modal" style="max-width:440px;">
@@ -2673,6 +2683,131 @@ if(theyBat()){
 if(b&&G.cbi>=0){var st=gps(G.cbi,isHB()?'home':'away');var paStr=st.pa>0?(st.h+'-'+st.ab+(st.pa!==st.ab?' ('+st.pa+'PA)':'')):'';$('mu-bd').textContent=paStr;}else $('mu-bd').textContent='';
 // v103b: scan next 3-4 opp batters and fire a danger-stretch toast if they're concentrated at the top of the league
 _evalDangerCheck();}
+// v105: paste-lineup-from-Claude helpers ----------------------------------
+// Parse arbitrary lineup text formats into [{name, jersey}, ...]. Tries JSON
+// first (Claude artifacts), then falls back to per-line parse handling
+// numbered lists ("1. Name #5"), jersey-prefix ("#5 Name"), suffix ("Name 5"),
+// or just plain names.
+function parseLineupText(txt){
+  txt=String(txt||'').trim();if(!txt)return [];
+  // Try JSON
+  try{
+    var json=JSON.parse(txt);
+    var arr=Array.isArray(json)?json:(Array.isArray(json.lineup)?json.lineup:Array.isArray(json.players)?json.players:null);
+    if(arr){
+      return arr.map(function(item){
+        if(typeof item==='string')return {name:item.trim(),jersey:''};
+        if(item&&typeof item==='object')return {name:String(item.name||item.player||'').trim(),jersey:String(item.jersey||item.number||'').trim()};
+        return null;
+      }).filter(function(e){return e&&e.name;});
+    }
+  }catch(e){}
+  // Per-line parse
+  var lines=txt.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+  var entries=[];
+  lines.forEach(function(line){
+    // Strip leading numbering: "1.", "2)", "1:", etc.
+    line=line.replace(/^\d+[\.\)\:]?\s*/,'').trim();
+    if(!line)return;
+    // Find jersey: standalone number, optionally prefixed with #
+    var m=line.match(/(?:^|\s)#(\d+)(?:\s|$)/);
+    var jersey='';
+    if(m){jersey=m[1];line=line.replace(m[0],' ').trim();}
+    else{
+      var m2=line.match(/(?:^|\s)(\d+)(?:\s|$)/);
+      if(m2){jersey=m2[1];line=line.replace(m2[0],' ').trim();}
+    }
+    line=line.replace(/\s+/g,' ').trim();
+    // Strip trailing parenthetical that's clearly a position code (1-3 alphanum, no hyphen).
+    // Preserves placeholder names like "(3-hole)" or "(Cleanup)".
+    line=line.replace(/\s*\([A-Za-z0-9]{1,3}\)\s*$/,'').trim();
+    if(line)entries.push({name:line,jersey:jersey});
+  });
+  return entries;
+}
+function _renderPastePreview(){
+  var entries=parseLineupText($('paste-text').value);
+  var btn=$('paste-apply-btn');
+  if(!entries.length){
+    $('paste-preview').innerHTML='<span style="color:var(--text3);">No valid entries detected.</span>';
+    btn.disabled=true;return;
+  }
+  $('paste-preview').innerHTML='<strong>'+entries.length+' entries:</strong><br>'+entries.map(function(e,i){
+    return (i+1)+'. '+(e.jersey?'#'+esc(e.jersey)+' ':'')+esc(e.name);
+  }).join('<br>');
+  btn.disabled=false;
+}
+function applyPastedLineup(){
+  var entries=parseLineupText($('paste-text').value);
+  if(!entries.length){toast('Nothing to apply');return;}
+  var target=$('paste-target').value;
+  if(target==='opp'){
+    // Replace opp lineup. Preserve battedOOO/skipped/dnp where the new entry name matches an existing one.
+    if(!G.eid){toast('Start a game first');return;}
+    var lu=isHB()?G.alu:G.hlu;// opp is whoever isn't us
+    if(!isHB())lu=G.hlu;// when we're away (theyBat top), opp is home — but we typically use alu for opp
+    // Actually: if we're home (isOH true), opp bats top → alu is opp. If we're away, opp is home → hlu is opp.
+    var oppKey=isOH()?'alu':'hlu';
+    var existing=G[oppKey]||[];
+    var existingByName={};existing.forEach(function(p){if(p&&p.name)existingByName[(p.name||'').toLowerCase()]=p;});
+    G[oppKey]=entries.map(function(e){
+      var prev=existingByName[(e.name||'').toLowerCase()];
+      return Object.assign({name:e.name,jersey:e.jersey||(prev?prev.jersey:'')},prev?{dnp:prev.dnp||false,skipped:prev.skipped||false,battedOOO:prev.battedOOO||false}:{});
+    });
+    G.oppLuDone=true;
+    sv();
+    cm('m-paste');
+    toast('Applied '+entries.length+' to opp lineup');
+    if(typeof renderSC==='function')renderSC();
+  }else if(target==='us'){
+    if(!G.eid){toast('Start a game first');return;}
+    // Reorder our in-game lineup by matching names against A.roster
+    var ourKey=isOH()?'hlu':'alu';
+    var newLu=[];var unmatched=[];
+    entries.forEach(function(e){
+      var rp=A.roster.find(function(r){return r.name&&r.name.toLowerCase().includes(e.name.toLowerCase())||(e.name.toLowerCase()===(r.name||'').toLowerCase());});
+      if(rp)newLu.push({name:rp.name,jersey:rp.jersey||'',rid:rp.id});
+      else unmatched.push(e.name);
+    });
+    if(!newLu.length){toast('Couldn\'t match any names to roster');return;}
+    G[ourKey]=newLu;
+    sv();
+    cm('m-paste');
+    toast(unmatched.length?('Applied '+newLu.length+' (skipped '+unmatched.length+' unmatched)'):'Applied '+newLu.length+' to lineup');
+    if(typeof renderSC==='function')renderSC();
+  }else if(target==='roster'){
+    // Reorder A.roster by matching names. Only changes order; doesn't add/remove.
+    var newOrder=[];var seen={};var unmatched2=[];
+    entries.forEach(function(e){
+      var rp=A.roster.find(function(r){return r.name&&!seen[r.id]&&((r.name.toLowerCase().includes(e.name.toLowerCase()))||(e.name.toLowerCase()===(r.name||'').toLowerCase()));});
+      if(rp){newOrder.push(rp);seen[rp.id]=true;}
+      else unmatched2.push(e.name);
+    });
+    // Append any roster players not in the paste, preserving original order
+    A.roster.forEach(function(r){if(!seen[r.id])newOrder.push(r);});
+    A.roster=newOrder;
+    sa();
+    cm('m-paste');
+    toast(unmatched2.length?('Reordered roster (skipped '+unmatched2.length+' unmatched)'):'Roster reordered for future games');
+  }
+}
+function openPasteLineup(defaultTarget){
+  $('paste-text').value='';
+  $('paste-preview').innerHTML='Preview will appear when you paste…';
+  $('paste-apply-btn').disabled=true;
+  if($('paste-target')&&defaultTarget){$('paste-target').value=defaultTarget;}
+  // Update opp option label to current game's opp name if in-game
+  var oppOpt=$('paste-target').querySelector('option[value="opp"]');
+  if(oppOpt){
+    if(G.eid){var oppName=isOH()?G.at:G.ht;oppOpt.textContent='Opponent lineup ('+oppName+')';}
+    else{oppOpt.textContent='Opponent lineup (start a game first)';}
+  }
+  if(!$('paste-text')._listenerWired){
+    $('paste-text').addEventListener('input',_renderPastePreview);
+    $('paste-text')._listenerWired=true;
+  }
+  om('m-paste');
+}
 // v103b: opp scouting card — shows the upcoming opponent's roster ranked by
 // eval score, with top hitters/pitchers highlighted. Tin Caps (non-LMLL) shows
 // graceful "no eval data" fallback.
@@ -5419,7 +5554,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v104';
+var APP_VERSION='v105';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
