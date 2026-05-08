@@ -1,7 +1,11 @@
 # Mighty Mussels Scorecard — Roadmap
 
-**Current version:** v108 (league standings, 2026-05-08)
+**Current version:** v109 (opp pitcher season totals, 2026-05-08)
 **Status as of:** 2026-05-08. **Season record: 3-3** after **W 4-3 vs Tin Caps** — currently 6th in AA (RF 22 / RA 37 / SD −15). Feature stretch v90-v108: 6-run cap auto-detect + force-out RBI hint + opp-pitcher PC (v90), pscored schema + error-RBI review (v96), error tracking overhaul with ROE + unearned runs (v98), swing-quality tagging (v99), Season Stats Regular/Advanced (v100), legend + copy fallback (v101), BAA fix + BF column (v102), Firestore-backed LMLL eval pool + scouting card + danger-stretch alert + eval-display toggle (v103), SLG-weighted optimal lineup w/ slugger at 3 (v104), paste-from-Claude lineup importer (v105), paste fielding plan + relocate paste UI to in-game tabs (v106), opp pitcher log paste target + rest-eligibility surfaced in scouting card (v107), league standings paste target + standings modal + opp record on scout card (v108). Plus retroactive `ab.pitcher` backfill on e2/e4. Next game: e12 @ Cannonballers May 9.
+
+## ✅ v109 SHIPPED — Opp pitcher season totals
+
+Second paste target for opp pitchers — handles the league site's full-season pitching table (different column order: PT near start, GP at end, no dates). Auto-canonicalizes "First L" short names ("Declan P" → "Declan Prisinzano") via OPP_ROSTERS lookup so they merge with per-game data. Scout card now shows season PT, GP, avg p/g, and a ⚙ workhorse flag (≥4 GP & ≥25p/g). Pitchers with only season data show "⚠ No outing dates" since rest can't be inferred.
 
 ## ✅ v108 SHIPPED — League standings
 

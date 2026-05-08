@@ -646,7 +646,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-paste"><div class="modal" style="max-width:440px;">
   <h3>📋 Paste from Claude</h3>
   <div style="font-size:11px;font-family:sans-serif;color:var(--text2);margin-bottom:8px;line-height:1.45;">Paste lineups, fielding plans, or opp pitcher data. Auto-detects formats — numbered lists, JSON, league-website tables, etc.</div>
-  <div class="mrow"><label>Apply to</label><select id="paste-target" onchange="_renderPastePreview()"><option value="opp">Opponent lineup (current game)</option><option value="us">Our lineup (current game)</option><option value="roster">Our roster (reorder for future games)</option><option value="fielding">Fielding plan (per inning)</option><option value="opppitch">Opp pitcher log (from league website)</option><option value="standings">League standings (from league website)</option></select></div>
+  <div class="mrow"><label>Apply to</label><select id="paste-target" onchange="_renderPastePreview()"><option value="opp">Opponent lineup (current game)</option><option value="us">Our lineup (current game)</option><option value="roster">Our roster (reorder for future games)</option><option value="fielding">Fielding plan (per inning)</option><option value="opppitch">Opp pitcher log — single game (date + table)</option><option value="opppitchseason">Opp pitcher log — season totals</option><option value="standings">League standings (from league website)</option></select></div>
   <div class="mrow" id="paste-oppteam-row" style="display:none;"><label>Opp team (whose pitcher log)</label><select id="paste-oppteam" onchange="_renderPastePreview()"></select></div>
   <div class="mrow"><label>Paste here</label><textarea id="paste-text" placeholder="Lineup: '1. Name #5' / '#5 Name' / JSON&#10;Fielding: 'Inning 1: Brody P, Miles C, Hunter 1B, ...'&#10;Opp pitcher log: paste 'Pitching' table from league site (incl. date)" style="min-height:140px;font-family:monospace;font-size:12px;"></textarea></div>
   <div id="paste-preview" style="background:var(--bg3);border-radius:var(--rs);padding:8px;margin-bottom:10px;font-size:11px;font-family:sans-serif;color:var(--text3);min-height:30px;">Preview will appear when you paste…</div>
@@ -2875,6 +2875,69 @@ function parseOppPitcherTable(txt){
   }
   return outings;
 }
+// v109: parse opp pitcher SEASON totals from league site. Different column
+// order than per-game: "# Name PT WP L W K ERA ER IP GS GP". No dates — these
+// are full-season cumulative stats per pitcher. Returns [{name,pt,gp,gs}].
+function parseOppPitcherSeason(txt){
+  txt=String(txt||'').trim();if(!txt)return [];
+  var lines=txt.split(/\r?\n/);
+  var out=[];
+  var inPitching=false;
+  var sawHeader=false;
+  for(var i=0;i<lines.length;i++){
+    var raw=lines[i];
+    var line=raw.trim();
+    if(!line)continue;
+    if(/^pitching\b/i.test(line)){inPitching=true;sawHeader=false;continue;}
+    if(/^(batting|hitting|fielding|defense|offense)\b/i.test(line)){inPitching=false;continue;}
+    // Skip non-data context lines
+    if(/^(home|schedule|stats|roster|spring\s+\d+|fall\s+\d+|regular\s+season)\b/i.test(line))continue;
+    if(!inPitching)continue;
+    // Skip column-header
+    if(!sawHeader){
+      if(/\bname\b/i.test(line)&&/\bpt\b/i.test(line)&&/\bgp\b/i.test(line)){sawHeader=true;continue;}
+      sawHeader=true;
+    }
+    // Tab-split, drop empties (handles the leading "#" + spacer columns)
+    var fields=raw.split(/\t/).map(function(s){return s.trim();}).filter(function(s){return s!=='';});
+    if(fields.length<11){
+      var tryFields=line.split(/\s{2,}/).map(function(s){return s.trim();}).filter(Boolean);
+      if(tryFields.length>=11)fields=tryFields;
+    }
+    if(fields.length<11)continue;
+    // Layout: [optional jersey, name, PT, WP%, L, W, K, ERA, ER, IP, GS, GP]
+    // Name is 11th from end; PT is 10th from end; GS is 2nd from end; GP is last.
+    var nameIdx=fields.length-11;
+    var name=fields[nameIdx];
+    if(!name||/^name$/i.test(name))continue;
+    if(/^(team\s+)?totals?$/i.test(name)||/^[\-—\.\s]+$/.test(name))continue;
+    var pt=parseInt(fields[fields.length-10]);
+    var gs=parseInt(fields[fields.length-2]);
+    var gp=parseInt(fields[fields.length-1]);
+    if(isNaN(pt)||pt<=0)continue;
+    out.push({name:name,pt:pt,gs:isNaN(gs)?0:gs,gp:isNaN(gp)?0:gp});
+  }
+  return out;
+}
+// v109: canonicalize "First L" short names to full roster names. League site
+// shows "Declan P" — this maps to "Declan Prisinzano" via OPP_ROSTERS lookup.
+// Returns the input unchanged if no roster match.
+function _canonicalizeFromShort(shortName,teamName){
+  if(!shortName||typeof OPP_ROSTERS!=='object')return shortName;
+  var roster=OPP_ROSTERS[teamName];
+  if(!roster||!roster.length)return shortName;
+  var m=String(shortName).match(/^(\S+)\s+([A-Za-z])\.?$/);
+  if(!m)return shortName;
+  var fn=m[1].toLowerCase(),li=m[2].toLowerCase();
+  for(var i=0;i<roster.length;i++){
+    var parts=roster[i].split(/\s+/);
+    if(parts.length<2)continue;
+    var firstMatch=parts[0].toLowerCase()===fn;
+    var lastInitial=(parts[parts.length-1]||'').charAt(0).toLowerCase();
+    if(firstMatch&&lastInitial===li)return roster[i];
+  }
+  return shortName;
+}
 // v108: parse league standings table from league website. Returns sorted
 // array of {team,g,w,l,t,rf,ra,pct,sd}. Tolerates tabs or 2+-space columns.
 function parseLeagueStandings(txt){
@@ -2917,9 +2980,9 @@ function _normalizeStandingsTeam(name){
 function _renderPastePreview(){
   var target=$('paste-target')?$('paste-target').value:'opp';
   var btn=$('paste-apply-btn');
-  // v107: show/hide the opp-team picker for opppitch target
+  // v107/v109: show the opp-team picker for both opp-pitcher targets
   var teamRow=$('paste-oppteam-row');
-  if(teamRow)teamRow.style.display=(target==='opppitch')?'':'none';
+  if(teamRow)teamRow.style.display=(target==='opppitch'||target==='opppitchseason')?'':'none';
   if(target==='fielding'){
     var plan=parseFieldingText($('paste-text').value);
     if(!plan){$('paste-preview').innerHTML='<span style="color:var(--text3);">No fielding plan detected. Try: "Inning 1: Brody P, Miles C, …"</span>';btn.disabled=true;return;}
@@ -2945,6 +3008,25 @@ function _renderPastePreview(){
     });
     $('paste-preview').innerHTML=html;
     btn.disabled=false;return;
+  }
+  if(target==='opppitchseason'){
+    var sp=parseOppPitcherSeason($('paste-text').value);
+    var stTeam=$('paste-oppteam')?$('paste-oppteam').value:'';
+    if(!sp.length){
+      $('paste-preview').innerHTML='<span style="color:var(--text3);">No season-totals rows detected. Need a "Pitching" header followed by columns "# Name PT WP L W K ERA ER IP GS GP".</span>';
+      btn.disabled=true;return;
+    }
+    sp.sort(function(a,b){return b.pt-a.pt;});
+    var rows2=sp.map(function(p,i){
+      var canon=_canonicalizeFromShort(p.name,stTeam);
+      var canonNote=(canon!==p.name)?' <span style="color:var(--text3);">→ '+esc(canon)+'</span>':'';
+      var avg=p.gp>0?(p.pt/p.gp).toFixed(1):'—';
+      return '<div>'+(i+1)+'. '+esc(p.name)+canonNote+' — '+p.pt+'p · '+p.gp+' GP ('+avg+'p/g)'+(p.gs>0?' · '+p.gs+' GS':'')+'</div>';
+    }).join('');
+    $('paste-preview').innerHTML='<strong>'+sp.length+' pitchers'+(stTeam?' → '+esc(stTeam):'')+':</strong>'+rows2;
+    btn.disabled=!stTeam;
+    if(!stTeam)$('paste-preview').innerHTML+='<div style="color:var(--amber2);margin-top:4px;">⚠ Pick a team above first.</div>';
+    return;
   }
   if(target==='opppitch'){
     var outings=parseOppPitcherTable($('paste-text').value);
@@ -2998,6 +3080,20 @@ function applyPastedLineup(){
       toast('Saved '+res.added+' outings for '+team+' ('+res.pitchers+' pitchers)');
     }).catch(function(e){
       console.log('opp pitcher save error:',e);
+      toast('Save failed — see console');
+    });
+    return;
+  }
+  if(target==='opppitchseason'){
+    var team2=$('paste-oppteam')?$('paste-oppteam').value:'';
+    if(!team2){toast('Pick a team first');return;}
+    var sp2=parseOppPitcherSeason($('paste-text').value);
+    if(!sp2.length){toast('No season totals detected');return;}
+    _saveOppPitcherSeason(team2,sp2).then(function(res){
+      cm('m-paste');
+      toast('Saved season totals for '+team2+' ('+res.pitchers+' pitchers)');
+    }).catch(function(e){
+      console.log('opp pitcher season save error:',e);
       toast('Save failed — see console');
     });
     return;
@@ -3188,11 +3284,19 @@ function openScoutCard(teamName){
   $('scout-body').innerHTML=pitcherLogHtml+rows;
   om('m-scout');
 }
-// v107: build the pitcher-log section for a given team. Returns '' if no data.
-// Computes per-pitcher rest status relative to the next scheduled game vs them.
+// v107/v109: build the pitcher-log section for a team. Merges per-outing
+// data (rest eligibility) with season totals (workload, GP, avg p/g).
+// Returns '' if no data of either kind.
 function _renderOppPitcherLogSection(teamName){
   var log=_getOppPitcherLog(teamName);
-  if(!log||!log.pitchers||!Object.keys(log.pitchers).length)return '';
+  if(!log)return '';
+  var perOuting=log.pitchers||{};
+  var season=(log.seasonTotals&&log.seasonTotals.pitchers)||{};
+  var allNames={};
+  Object.keys(perOuting).forEach(function(n){allNames[n]=true;});
+  Object.keys(season).forEach(function(n){allNames[n]=true;});
+  var names=Object.keys(allNames);
+  if(!names.length)return '';
   // Find next scheduled game vs this team to compute eligibility
   var targetDate=null;
   try{
@@ -3202,40 +3306,63 @@ function _renderOppPitcherLogSection(teamName){
     if(upcoming.length)targetDate=new Date(upcoming[0].date);
   }catch(e){}
   var targetLabel=targetDate?targetDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'today';
-  var pitchers=Object.keys(log.pitchers).map(function(n){
-    var p=log.pitchers[n];
-    var status=_oppPitcherStatus(p.outings,targetDate);
-    return {name:n,jersey:p.jersey||'',outings:p.outings||[],status:status};
-  }).filter(function(p){return p.status;});
-  if(!pitchers.length)return '';
-  // Sort by total pitches desc (most-used at top)
-  pitchers.sort(function(a,b){return b.status.total-a.status.total;});
+  // Build merged row data
+  var pitchers=names.map(function(n){
+    var po=perOuting[n];
+    var sn=season[n];
+    var outings=po?(po.outings||[]):[];
+    var status=outings.length?_oppPitcherStatus(outings,targetDate):null;
+    return {
+      name:n,
+      jersey:(po&&po.jersey)||'',
+      outings:outings,
+      status:status,
+      season:sn||null,
+      // Workload score: prefer season PT, fall back to per-outing total
+      workload:sn?sn.pt:(status?status.total:0)
+    };
+  });
+  // Sort by workload desc — most-used pitchers first
+  pitchers.sort(function(a,b){return b.workload-a.workload;});
   var rows=pitchers.map(function(p){
-    var s=p.status;
-    var eligStr=s.eligibleDate.toLocaleDateString('en-US',{month:'short',day:'numeric'});
     var availColor,availLabel;
-    if(s.eligible){availColor='var(--green2)';availLabel='✓ Available';}
-    else{availColor='var(--red2)';availLabel='🔴 Rest until '+eligStr;}
-    var lastDateStr=new Date(s.last.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    var lastIp=s.last.ip>0?(' · '+s.last.ip+' IP'):'';
+    if(p.status){
+      var eligStr=p.status.eligibleDate.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      if(p.status.eligible){availColor='var(--green2)';availLabel='✓ Available';}
+      else{availColor='var(--red2)';availLabel='🔴 Rest until '+eligStr;}
+    }else{
+      availColor='var(--amber2)';availLabel='⚠ No outing dates';
+    }
+    var seasonLine='';
+    if(p.season){
+      var avg=p.season.gp>0?(p.season.pt/p.season.gp).toFixed(1):'—';
+      seasonLine='Season: '+p.season.pt+'p · '+p.season.gp+' GP'+(p.season.gs>0?' · '+p.season.gs+' GS':'')+' ('+avg+'p/g)';
+    }
+    var lastLine='';
+    if(p.status){
+      var lastDateStr=new Date(p.status.last.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      var lastIp=p.status.last.ip>0?(' · '+p.status.last.ip+' IP'):'';
+      lastLine='Last: '+lastDateStr+' '+p.status.last.pitches+'p'+lastIp+' · '+p.status.outings+' outing'+(p.status.outings===1?'':'s')+' logged';
+    }
+    var subLine=[seasonLine,lastLine].filter(Boolean).join(' · ');
     var outingChips=p.outings.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,5).map(function(o){
       var d=new Date(o.date).toLocaleDateString('en-US',{month:'numeric',day:'numeric'});
       return '<span style="display:inline-block;padding:1px 5px;margin:1px 3px 1px 0;background:rgba(255,255,255,.06);border-radius:3px;font-size:9px;color:var(--text2);font-family:sans-serif;">'+d+': '+o.pitches+'p</span>';
     }).join('');
+    // Workhorse flag: GP >= 4 AND avg PT/g >= 25
+    var isWorkhorse=p.season&&p.season.gp>=4&&(p.season.pt/p.season.gp)>=25;
     return '<div style="padding:7px 10px;border-bottom:1px solid var(--border);">'
       +'<div style="display:flex;align-items:baseline;gap:8px;">'
       +(p.jersey?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;width:22px;">#'+esc(p.jersey)+'</span>':'')
-      +'<span style="font-size:13px;flex:1;">'+esc(p.name)+'</span>'
+      +'<span style="font-size:13px;flex:1;">'+esc(p.name)+(isWorkhorse?' <span style="font-size:9px;color:var(--gold);">⚙ workhorse</span>':'')+'</span>'
       +'<span style="font-size:10px;color:'+availColor+';font-family:sans-serif;font-weight:bold;">'+availLabel+'</span>'
       +'</div>'
-      +'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:3px;">'
-      +'Last: '+lastDateStr+' '+s.last.pitches+'p'+lastIp+' · '+s.outings+' outing'+(s.outings===1?'':'s')+' · '+s.total+'p total'
-      +'</div>'
+      +(subLine?'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:3px;">'+subLine+'</div>':'')
       +(outingChips?'<div style="margin-top:3px;">'+outingChips+'</div>':'')
       +'</div>';
   }).join('');
   return '<div style="background:rgba(200,169,110,.06);padding:8px 10px;border-bottom:2px solid var(--gold);font-size:11px;color:var(--gold);font-family:sans-serif;">🎯 <strong>Pitcher log</strong> — availability for '+esc(targetLabel)+'</div>'+rows
-    +'<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:9px;color:var(--text3);font-family:sans-serif;">Rest rule: 1-20p=0d · 21-35=1d · 36-50=2d · 51-65=3d · 66+=4d (calendar days after pitching)</div>';
+    +'<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:9px;color:var(--text3);font-family:sans-serif;">Rest rule: 1-20p=0d · 21-35=1d · 36-50=2d · 51-65=3d · 66+=4d (calendar days after pitching). ⚙ Workhorse = ≥4 GP &amp; ≥25p/g.</div>';
 }
 // v108: open the standings modal. Renders the table with us highlighted.
 function openStandings(){
@@ -3292,8 +3419,10 @@ function copyScoutCard(){
     });
     lines.push('');
   }
-  // v107: include pitcher log in copy text
-  if(pLog&&pLog.pitchers&&Object.keys(pLog.pitchers).length){
+  // v107/v109: include pitcher log (per-outing + season totals) in copy text
+  var hasPerOuting=pLog&&pLog.pitchers&&Object.keys(pLog.pitchers).length;
+  var hasSeason=pLog&&pLog.seasonTotals&&pLog.seasonTotals.pitchers&&Object.keys(pLog.seasonTotals.pitchers).length;
+  if(hasPerOuting||hasSeason){
     var targetDate=null;
     try{
       var today=new Date();today.setHours(0,0,0,0);
@@ -3303,16 +3432,31 @@ function copyScoutCard(){
     }catch(e){}
     var tgtLabel=targetDate?targetDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'today';
     lines.push('Pitcher log (availability for '+tgtLabel+'):');
-    var pitchers=Object.keys(pLog.pitchers).map(function(n){
-      var p=pLog.pitchers[n];
-      return {name:n,status:_oppPitcherStatus(p.outings,targetDate),outings:p.outings};
-    }).filter(function(p){return p.status;}).sort(function(a,b){return b.status.total-a.status.total;});
+    var allNames={};
+    if(hasPerOuting)Object.keys(pLog.pitchers).forEach(function(n){allNames[n]=true;});
+    if(hasSeason)Object.keys(pLog.seasonTotals.pitchers).forEach(function(n){allNames[n]=true;});
+    var pitchers=Object.keys(allNames).map(function(n){
+      var po=hasPerOuting?pLog.pitchers[n]:null;
+      var sn=hasSeason?pLog.seasonTotals.pitchers[n]:null;
+      var outs=(po&&po.outings)||[];
+      var status=outs.length?_oppPitcherStatus(outs,targetDate):null;
+      return {name:n,status:status,season:sn,workload:sn?sn.pt:(status?status.total:0)};
+    }).sort(function(a,b){return b.workload-a.workload;});
     pitchers.forEach(function(p){
-      var s=p.status;
-      var elig=s.eligibleDate.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      var label=s.eligible?'available':'rest until '+elig;
-      var lastDate=new Date(s.last.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      lines.push('· '+p.name+' — last '+lastDate+' '+s.last.pitches+'p · '+s.outings+' outing(s), '+s.total+'p total · '+label);
+      var parts=[p.name];
+      if(p.season){
+        var avg=p.season.gp>0?(p.season.pt/p.season.gp).toFixed(1):'—';
+        parts.push('season '+p.season.pt+'p in '+p.season.gp+' GP ('+avg+'p/g)');
+      }
+      if(p.status){
+        var lastDate=new Date(p.status.last.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+        parts.push('last '+lastDate+' '+p.status.last.pitches+'p');
+        var elig=p.status.eligibleDate.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+        parts.push(p.status.eligible?'available':'rest until '+elig);
+      }else{
+        parts.push('no outing dates');
+      }
+      lines.push('· '+parts.join(' · '));
     });
   }
   var txt=lines.join('\n');
@@ -5962,6 +6106,30 @@ function _getOppPitcherLog(team){
   if(!OPP_PITCHER_LOG||!OPP_PITCHER_LOG.teams)return null;
   return OPP_PITCHER_LOG.teams[team]||null;
 }
+// v109: save season totals for a team. Replaces the previous seasonTotals
+// wholesale (since it's cumulative — only the latest paste is correct).
+// Canonicalizes "First L" short names to full names via OPP_ROSTERS lookup
+// so they cross-reference with the per-outing log.
+async function _saveOppPitcherSeason(team,pitchers){
+  if(!OPP_PITCHER_LOG.teams)OPP_PITCHER_LOG.teams={};
+  var t=OPP_PITCHER_LOG.teams[team]||{pitchers:{}};
+  if(!t.pitchers)t.pitchers={};
+  var seasonByName={};
+  pitchers.forEach(function(p){
+    var canonical=_canonicalizeFromShort(p.name,team)||p.name;
+    seasonByName[canonical]={pt:p.pt,gp:p.gp,gs:p.gs};
+  });
+  t.seasonTotals={pitchers:seasonByName,updated:new Date().toISOString()};
+  OPP_PITCHER_LOG.teams[team]=t;
+  try{localStorage.setItem('mm_oppPitcherLog',JSON.stringify(OPP_PITCHER_LOG));}catch(e){}
+  if(fbReady&&db){
+    await db.collection('appdata').doc('oppPitcherLog').set({
+      teams:OPP_PITCHER_LOG.teams,
+      updated:new Date()
+    },{merge:false});
+  }
+  return {pitchers:Object.keys(seasonByName).length};
+}
 // Compute rest/eligibility status for a pitcher's last outing relative to a target date.
 // Returns null if no outings. Mirrors pStatus() but for opp pitchers.
 function _oppPitcherStatus(outings,targetDate){
@@ -6101,7 +6269,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v108';
+var APP_VERSION='v109';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
