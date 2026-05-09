@@ -415,12 +415,12 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="view-only-banner" id="view-only-banner">🏁 Game complete · view only<br><span style="font-size:11px;color:var(--text3);">Use the Plays tab to edit at-bats.</span></div>
 <div class="matchup-bar"><div class="mu-side"><div class="mu-label">Pitcher</div><div class="mu-name" id="mu-p">—</div><div class="mu-detail" id="mu-pd"></div></div><div class="mu-vs">vs</div><div class="mu-side"><div class="mu-label">Batter</div><div class="mu-name" id="mu-b">—</div><div class="mu-detail" id="mu-bd"></div></div></div>
 <div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);padding:8px 0;"><div style="max-width:380px;margin:0 auto;" id="field-svg"></div></div>
-<div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><div style="display:flex;gap:5px;"><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Pitch</button><button class="btn btn-xs btn-red" onclick="undoAB()" id="undo-ab-btn" style="display:none;">↩ AB</button></div></div></div>
+<div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><div style="display:flex;gap:5px;"><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Pitch</button><button class="btn btn-xs btn-red" onclick="undoAB()" id="undo-ab-btn" disabled style="opacity:.4;">↩ AB</button></div></div></div>
 <div class="panel" id="pitch-panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div>
 <!-- v99: swing-quality row (hidden unless A.swingQualityEnabled) -->
 <div id="swq-row" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
   <div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tag last swing/foul/BIP as <strong>good pitch</strong> or <strong>bad pitch</strong>:</div>
-  <div class="row" style="gap:6px;"><button id="swq-good" class="btn btn-sm" disabled onclick="tagLastPitchQuality('good')" style="flex:1;border-color:var(--green2);color:var(--green2);opacity:.4;font-weight:bold;">˙ · Good pitch</button><button id="swq-bad" class="btn btn-sm" disabled onclick="tagLastPitchQuality('bad')" style="flex:1;border-color:var(--red2);color:var(--red2);opacity:.4;font-weight:bold;">¸ · Bad pitch</button></div>
+  <div class="row" style="gap:6px;"><button id="swq-good" class="btn btn-sm" disabled onclick="tagLastPitchQuality('good')" style="flex:1;border-color:var(--green2);color:var(--green2);opacity:.4;font-weight:bold;">˚ · Good pitch</button><button id="swq-bad" class="btn btn-sm" disabled onclick="tagLastPitchQuality('bad')" style="flex:1;border-color:var(--red2);color:var(--red2);opacity:.4;font-weight:bold;">¸ · Bad pitch</button></div>
 </div></div>
 <div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
 <div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
@@ -667,7 +667,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-pquality"><div class="modal" style="max-width:340px;text-align:center;">
   <h3 id="pq-title">Tag pitch</h3>
   <div id="pq-meta" style="font-size:12px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;line-height:1.4;"></div>
-  <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--green2);color:var(--green2);font-weight:bold;" onclick="_setRetagQuality('good')">˙ · Good pitch (in zone)</button>
+  <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--green2);color:var(--green2);font-weight:bold;" onclick="_setRetagQuality('good')">˚ · Good pitch (in zone)</button>
   <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--red2);color:var(--red2);font-weight:bold;" onclick="_setRetagQuality('bad')">¸ · Bad pitch (out of zone)</button>
   <button class="btn btn-full" style="margin-bottom:6px;" onclick="_setRetagQuality(null)">Clear tag</button>
   <button class="btn btn-full" onclick="cm('m-pquality')">Cancel</button>
@@ -2136,7 +2136,7 @@ var _retagSlot=null;
 function _openRetagModal(pitchType,currentQuality){
   var pitchName={'S':'Strike (swinging)','L':'Strike (called)','F':'Foul','FT':'Foul tip','X':'Ball in play','B':'Ball','H':'HBP'}[pitchType]||pitchType;
   $('pq-title').textContent='Tag pitch — '+_pitchDisplay(pitchType);
-  $('pq-meta').innerHTML=esc(pitchName)+(currentQuality?' · currently tagged: <strong>'+(currentQuality==='good'?'˙ good':'¸ bad')+'</strong>':' · currently untagged');
+  $('pq-meta').innerHTML=esc(pitchName)+(currentQuality?' · currently tagged: <strong>'+(currentQuality==='good'?'˚ good':'¸ bad')+'</strong>':' · currently untagged');
   om('m-pquality');
 }
 // Open the retagger for a pitch in the CURRENT (in-progress) AB.
@@ -3932,11 +3932,13 @@ $('sb-cb-b').innerHTML=bd;$('sb-cb-s').innerHTML=sd;$('sb-cb-o').innerHTML=od;}
 // v125: compact display codes for pitch sequences. Underlying storage stays
 // 'F'/'FT' so all stat aggregation still works; we only swap the rendered glyph.
 function _pitchDisplay(c){return c==='F'?'/':c==='FT'?'t':c;}
-// v125: quality markers use spacing diacritics instead of letters.
-//   ˙ (U+02D9 dot above) = good pitch (in zone)
-//   ¸ (U+00B8 cedilla)   = bad pitch (out of zone)
+// v125/v126: quality markers use spacing diacritics — switched to ring above
+// (˚) per coach feedback that the dot above (˙) was hard to see at small
+// font sizes. Ring is more visible.
+//   ˚ (U+02DA ring above)  = good pitch (in zone)
+//   ¸ (U+00B8 cedilla)     = bad pitch (out of zone)
 function _qualityMark(q){
-  if(q==='good')return '<span style="color:var(--green2);font-weight:bold;">˙</span>';
+  if(q==='good')return '<span style="color:var(--green2);font-weight:bold;">˚</span>';
   if(q==='bad') return '<span style="color:var(--red2);font-weight:bold;">¸</span>';
   return '';
 }
@@ -4867,7 +4869,8 @@ cm('m-play');finAB(res,not,G.prbi);}
 function finAB(r,not,rbi){
 chkPW();// check pitch thresholds for every AB outcome (1B,2B,GO,FO,etc.)
 saveSnap();// save state before any mutation so we can undo
-if($('undo-ab-btn'))$('undo-ab-btn').style.display='inline-flex';
+// v126: button is always visible; we toggle disabled state instead
+if($('undo-ab-btn')){$('undo-ab-btn').disabled=false;$('undo-ab-btn').style.opacity='1';}
 var lu=clu(),b=lu[G.cbi],t=isHB()?'home':'away';
 // Stamp the pitcher who faced this AB — captures mid-inning changes accurately
 var _fp=curPitcher();
@@ -5042,7 +5045,8 @@ function saveSnap(){_lastGSnap=JSON.parse(JSON.stringify(G));}
 function undoAB(){if(_voGuard())return;if(!_lastGSnap){toast('Nothing to undo');return;}
   confirmModal('Undo last AB?','Restores bases, score, and batting order to before that AB.',function(){
     G=_lastGSnap;_lastGSnap=null;
-    if($('undo-ab-btn'))$('undo-ab-btn').style.display='none';
+    // v126: button stays visible, just re-disabled until next finAB
+    if($('undo-ab-btn')){$('undo-ab-btn').disabled=true;$('undo-ab-btn').style.opacity='.4';}
     sv();renderSC();toast('Last AB undone');
   },null,{yesLabel:'Undo',danger:true});}
 
@@ -5941,11 +5945,12 @@ function mkHalf(abs,label,inn,half){
       lastPitcher=thisPitcher;
     }
     var pitches=ab.pitches||[];
-    // v99: include quality markers (👍/👎) when ab.pitchQualities is present
+    // v126: use shared _pitchDisplay + _qualityMark so the Plays tab matches
+    // the scorecard view (compact F→/, FT→t, ring/cedilla quality markers,
+    // tap-to-retag).
     var pq=ab.pitchQualities||[];
     var seq=pitches.map(function(c,i){
-      var mark=(pq[i]==='good'?'<span style="color:var(--green2);font-size:9px;">👍</span>':pq[i]==='bad'?'<span style="color:var(--red2);font-size:9px;">👎</span>':'');
-      return '<span class="ps-'+c+'">'+c+'</span>'+mark;
+      return '<span class="ps-'+c+'" style="cursor:pointer;" onclick="_retagABPitch('+ab.num+','+i+')" title="Tap to tag good/bad/clear">'+_pitchDisplay(c)+'</span>'+_qualityMark(pq[i]);
     }).join(' ');
     var pcount=pitches.length;
     var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
@@ -6695,7 +6700,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v125';
+var APP_VERSION='v126';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
@@ -6809,12 +6814,26 @@ function setupSyncListeners(){
     if(unsubGame)unsubGame();
     unsubGame=db.collection('games').doc(G.eid).onSnapshot(snap=>{
       if(!snap.exists||!snap.data()||!snap.data().gdata)return;
+      // v126: ignore snapshots for our own pending writes (they echo back
+      // immediately and can race with rapid taps like pitch+undo). Server-
+      // confirmed snapshots have hasPendingWrites=false; we still process
+      // those for multi-device sync.
+      if(snap.metadata&&snap.metadata.hasPendingWrites)return;
       var remoteG=snap.data().gdata;
-      if(JSON.stringify(remoteG)!==JSON.stringify(G)){
+      if(JSON.stringify(remoteG)===JSON.stringify(G))return;
+      // v126: when user is mid-AB on this device, preserve the live in-AB
+      // state (cpitch, balls, strikes, outs, bases, current batter) rather
+      // than letting a stale server snapshot reset the count after an undo.
+      // Non-transient fields (abs, score, inning, fielding, lineups) still
+      // accept remote updates so true multi-device changes flow through.
+      var localActive=(G.cbi>=0)||(G.cpitch&&G.cpitch.length>0);
+      if(localActive){
+        var preserve={cpitch:G.cpitch,cpitchQuality:G.cpitchQuality,balls:G.balls,strikes:G.strikes,outs:G.outs,bases:G.bases,cbi:G.cbi};
+        Object.assign(G,remoteG,preserve);
+      }else{
         Object.assign(G,remoteG);
-        renderSC();
-        // v124: removed per-pitch sync toast (was firing on every save echo)
       }
+      renderSC();
     },err=>console.log('Game listener error:',err));
   }
   if(unsubRoster)unsubRoster();
