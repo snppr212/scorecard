@@ -420,7 +420,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- v99: swing-quality row (hidden unless A.swingQualityEnabled) -->
 <div id="swq-row" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
   <div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tag last swing/foul/BIP as <strong>good pitch</strong> or <strong>bad pitch</strong>:</div>
-  <div class="row" style="gap:6px;"><button id="swq-good" class="btn btn-sm" disabled onclick="tagLastPitchQuality('good')" style="flex:1;border-color:var(--green2);color:var(--green2);opacity:.4;font-weight:bold;">g · Good pitch</button><button id="swq-bad" class="btn btn-sm" disabled onclick="tagLastPitchQuality('bad')" style="flex:1;border-color:var(--red2);color:var(--red2);opacity:.4;font-weight:bold;">b · Bad pitch</button></div>
+  <div class="row" style="gap:6px;"><button id="swq-good" class="btn btn-sm" disabled onclick="tagLastPitchQuality('good')" style="flex:1;border-color:var(--green2);color:var(--green2);opacity:.4;font-weight:bold;">˙ · Good pitch</button><button id="swq-bad" class="btn btn-sm" disabled onclick="tagLastPitchQuality('bad')" style="flex:1;border-color:var(--red2);color:var(--red2);opacity:.4;font-weight:bold;">¸ · Bad pitch</button></div>
 </div></div>
 <div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
 <div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
@@ -667,8 +667,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-pquality"><div class="modal" style="max-width:340px;text-align:center;">
   <h3 id="pq-title">Tag pitch</h3>
   <div id="pq-meta" style="font-size:12px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;line-height:1.4;"></div>
-  <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--green2);color:var(--green2);font-weight:bold;" onclick="_setRetagQuality('good')">g · Good pitch (in zone)</button>
-  <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--red2);color:var(--red2);font-weight:bold;" onclick="_setRetagQuality('bad')">b · Bad pitch (out of zone)</button>
+  <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--green2);color:var(--green2);font-weight:bold;" onclick="_setRetagQuality('good')">˙ · Good pitch (in zone)</button>
+  <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--red2);color:var(--red2);font-weight:bold;" onclick="_setRetagQuality('bad')">¸ · Bad pitch (out of zone)</button>
   <button class="btn btn-full" style="margin-bottom:6px;" onclick="_setRetagQuality(null)">Clear tag</button>
   <button class="btn btn-full" onclick="cm('m-pquality')">Cancel</button>
 </div></div>
@@ -2135,8 +2135,8 @@ function tagLastPitchQuality(q){
 var _retagSlot=null;
 function _openRetagModal(pitchType,currentQuality){
   var pitchName={'S':'Strike (swinging)','L':'Strike (called)','F':'Foul','FT':'Foul tip','X':'Ball in play','B':'Ball','H':'HBP'}[pitchType]||pitchType;
-  $('pq-title').textContent='Tag pitch — '+pitchType;
-  $('pq-meta').innerHTML=esc(pitchName)+(currentQuality?' · currently tagged: <strong>'+currentQuality+'</strong>':' · currently untagged');
+  $('pq-title').textContent='Tag pitch — '+_pitchDisplay(pitchType);
+  $('pq-meta').innerHTML=esc(pitchName)+(currentQuality?' · currently tagged: <strong>'+(currentQuality==='good'?'˙ good':'¸ bad')+'</strong>':' · currently untagged');
   om('m-pquality');
 }
 // Open the retagger for a pitch in the CURRENT (in-progress) AB.
@@ -2806,12 +2806,11 @@ function renderABDetail(){
     var h='<div style="margin-bottom:10px;"><div style="font-weight:bold;padding:4px 0;border-bottom:1px solid var(--border);">'+label+'</div>';
     // Sort by index (leadoff 0 = top, so reverse for display)
     abs.reverse().forEach(function(ab){
-      // v124: clickable pitch spans for retagging good/bad. Quality marker
-      // (g/b) appears as a sup tag after the pitch when set.
+      // v124/v125: clickable pitch spans (tap to retag) + compact display
+      // glyphs (F→/, FT→t) and ˙/¸ quality markers.
       var pq=ab.pitchQualities||[];
       var pSeq=ab.pitches.map(function(c,pi){
-        var mark=(pq[pi]==='good'?'<sup style="color:var(--green2);font-size:9px;font-weight:bold;">g</sup>':pq[pi]==='bad'?'<sup style="color:var(--red2);font-size:9px;font-weight:bold;">b</sup>':'');
-        return '<span class="ps-'+c+'" style="cursor:pointer;" onclick="_retagABPitch('+ab.num+','+pi+')" title="Tap to tag good/bad/clear">'+c+'</span>'+mark;
+        return '<span class="ps-'+c+'" style="cursor:pointer;" onclick="_retagABPitch('+ab.num+','+pi+')" title="Tap to tag good/bad/clear">'+_pitchDisplay(c)+'</span>'+_qualityMark(pq[pi]);
       }).join(' ');
       var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
       h+='<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);align-items:baseline;">';
@@ -3930,16 +3929,23 @@ for(var i=0;i<3;i++)sd+='<div class="odot'+(i<G.strikes?' on':'')+'" style="'+(i
 for(var i=0;i<3;i++)od+='<div class="odot'+(i<G.outs?' on':'')+'" style="'+(i<G.outs?'background:var(--gold);border-color:var(--gold);':'')+'"></div>';
 $('sb-cb-b').innerHTML=bd;$('sb-cb-s').innerHTML=sd;$('sb-cb-o').innerHTML=od;}
 
+// v125: compact display codes for pitch sequences. Underlying storage stays
+// 'F'/'FT' so all stat aggregation still works; we only swap the rendered glyph.
+function _pitchDisplay(c){return c==='F'?'/':c==='FT'?'t':c;}
+// v125: quality markers use spacing diacritics instead of letters.
+//   ˙ (U+02D9 dot above) = good pitch (in zone)
+//   ¸ (U+00B8 cedilla)   = bad pitch (out of zone)
+function _qualityMark(q){
+  if(q==='good')return '<span style="color:var(--green2);font-weight:bold;">˙</span>';
+  if(q==='bad') return '<span style="color:var(--red2);font-weight:bold;">¸</span>';
+  return '';
+}
 function renderSeq(){
 var lap=G.lastABPitches||[];
 if(G.cpitch.length){
-  // v99/v124: render lowercase g/b after each tagged pitch. Tap any pitch
-  // span to retag it via the m-pquality modal (handles both current AB and
-  // past ABs; current AB's index passes via _retagCurrentPitch).
   var pq=G.cpitchQuality||[];
   $('cur-seq').innerHTML=G.cpitch.map(function(c,i){
-    var mark=(pq[i]==='good'?'<sup style="color:var(--green2);font-size:9px;font-weight:bold;">g</sup>':pq[i]==='bad'?'<sup style="color:var(--red2);font-size:9px;font-weight:bold;">b</sup>':'');
-    return '<span class="ps-'+c+'" style="cursor:pointer;" onclick="_retagCurrentPitch('+i+')" title="Tap to tag good/bad/clear">'+c+'</span>'+mark;
+    return '<span class="ps-'+c+'" style="cursor:pointer;" onclick="_retagCurrentPitch('+i+')" title="Tap to tag good/bad/clear">'+_pitchDisplay(c)+'</span>'+_qualityMark(pq[i]);
   }).join(' ');
 }else if(!curPitcher()){
   $('cur-seq').innerHTML='<span style="color:var(--red2);font-family:sans-serif;font-size:11px;">⚠️ Tap pitcher name above to set</span>';
@@ -6689,7 +6695,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v124';
+var APP_VERSION='v125';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
