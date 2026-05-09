@@ -583,7 +583,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- B1: Generic prompt modal — replaces native prompt() across the app -->
 <div class="modal-ov" id="m-prompt"><div class="modal"><h3 id="m-prompt-title">Enter</h3><div class="mrow"><label id="m-prompt-label"></label><input type="text" id="m-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();_promptSubmit();}"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="_promptSubmit()">OK</button><button class="btn btn-full" onclick="_promptCancel()">Cancel</button></div></div></div>
 <!-- EDIT-AB MODAL: fix a logged at-bat (wrong batter, wrong result, wrong RBI) -->
-<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
 <!-- v127: add-steal-to-AB picker modal -->
 <div class="modal-ov" id="m-absb"><div class="modal" style="max-width:340px;"><h3>Add steal during this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">LMLL: no steal of home permitted.</div><div class="mrow"><label>Runner</label><select id="absb-runner"></select></div><div class="mrow"><label>Steal</label><select id="absb-bases"><option value="1-2">1st → 2nd</option><option value="2-3">2nd → 3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddSBToAB()">Log steal</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-absb')">Cancel</button></div></div></div>
 <!-- SWAP-AB MODAL: swap two ABs in the same half-inning (out-of-order fix) -->
@@ -4930,6 +4930,23 @@ if(G.cpitchQuality&&G.cpitchQuality.length){
   if(G.cpitchQuality.some(function(q){return q;})){_pq=G.cpitchQuality.slice(0,G.cpitch.length);}
 }
 G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pitchQualities:_pq,pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null,pscored:[],hitLoc:_meta.hitLoc||null,throwTo:_meta.throwTo||null,unassisted:_meta.unassisted||null,trajectory:_meta.trajectory||null,hardness:_meta.hardness||null});
+// v130: capture additional outs (forced runners on FC/DP/GIDP/TP) BEFORE the
+// bases get nulled below. atBase is where they were thrown out (1 = 2nd,
+// 2 = 3rd, 3 = home, since fcout/dpout indices represent the SOURCE base).
+(function(){
+  var _newAb=G.abs[G.abs.length-1];
+  var _outs=[];
+  if(r==='FC'&&G.fcout!=null&&G.bases[G.fcout]){
+    _outs.push({name:G.bases[G.fcout].name||'?',fromBase:G.fcout+1,atBase:G.fcout+2});
+  }
+  if((r==='DP'||r==='GIDP')&&G.dpout!=null&&G.bases[G.dpout]){
+    _outs.push({name:G.bases[G.dpout].name||'?',fromBase:G.dpout+1,atBase:G.dpout+2});
+  }
+  if(r==='TP'){
+    G.bases.forEach(function(rb,i){if(rb)_outs.push({name:rb.name||'?',fromBase:i+1,atBase:i+2});});
+  }
+  if(_outs.length)_newAb.outOnAB=_outs;
+})();
 var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
 // attribute result to fielding pitcher (already computed above)
 if(_fp){
@@ -5852,6 +5869,14 @@ function openEditAB(idx){
 }
 // v127: render steals tied to the AB currently being edited (matched by
 // during_ab_num === ab.num). Each row gets a ✕ to remove that steal.
+// v130: bridge — closes the Edit modal then opens the Swap modal pre-populated
+// with the AB the user was editing. Avoids stacked modals.
+function _swapFromEditModal(){
+  if(_editAbIdx<0)return;
+  var idx=_editAbIdx;
+  cm('m-editab');
+  setTimeout(function(){openSwapAB(idx);},80);
+}
 function _renderEditAbSteals(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
@@ -6031,14 +6056,16 @@ function abBatterHtml(ab){
   return esc(t);
 }
 // 4.1: derive display notation — prefer user-entered not, fall back to standard codes
+// v130: combine result code + scorer's notation so the chip shows e.g.
+// "FC 1u" / "DP 6-4-3" / "GO 1-3" instead of just "1u" or "1-3" alone.
+// Pure-letter results (K, BB, HR, etc.) stay as-is.
 function abNotation(ab){
   var r=ab.result,n=(ab.not||'').trim();
-  // if user typed something meaningful, use it
-  if(n&&n!==r)return n;
-  // standard fallbacks
   var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',
-    FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP'};
-  return map[r]||r;
+    FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',ROE:'ROE'};
+  var rLabel=map[r]||r;
+  if(n&&n!==r&&n!==rLabel)return rLabel+' '+n;
+  return rLabel;
 }
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
 var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
@@ -6101,12 +6128,10 @@ function mkHalf(abs,label,inn,half){
     }else{
       pitchCell='<span style="color:var(--text3);">—</span>';
     }
-    // 4-COLUMN GRID + edit/swap icons: # | batter | pitches | result | ✎ ⇄
+    // v130: swap (⇄) moved into the Edit modal — it was eating row width and
+    // is rare enough to not warrant its own column. Edit (✎) stays here.
     var globalIdx=G.abs.indexOf(ab);
-    var editBtns='<span style="display:inline-flex;gap:3px;align-items:center;">'
-      +'<span onclick="event.stopPropagation();openEditAB('+globalIdx+')" style="cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;" title="Edit AB">✎</span>'
-      +'<span onclick="event.stopPropagation();openSwapAB('+globalIdx+')" style="cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;" title="Swap with another AB">⇄</span>'
-      +'</span>';
+    var editBtns='<span onclick="event.stopPropagation();openEditAB('+globalIdx+')" style="cursor:pointer;font-size:13px;color:var(--text3);padding:2px 6px;" title="Edit AB">✎</span>';
     pieces.push('<div style="display:grid;grid-template-columns:22px minmax(80px,auto) 1fr 50px auto;gap:6px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);'+runStyle+'">'
     +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+(i+1)+'</span>'
     +'<span style="font-size:13px;">'+abBatterHtml(ab)+'</span>'
@@ -6143,6 +6168,13 @@ function mkHalf(abs,label,inn,half){
       var typeLabel={F:'Field',T:'Throw',M:'Mental',C:'Catch'}[e.type]||e.type;
       subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--amber2);font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
     });
+    // v130: outs on bases recorded during this AB (FC, DP, GIDP, TP)
+    if(ab.outOnAB&&ab.outOnAB.length){
+      ab.outOnAB.forEach(function(out){
+        var atLabel=out.atBase>=4?'home':['','1st','2nd','3rd'][out.atBase]||'?';
+        subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--red2);font-family:sans-serif;font-style:italic;">↳ '+esc(_shortName(out.name||'?'))+' out at '+atLabel+'</div>');
+      });
+    }
     // Runs scored on this AB
     if(ab.pscored&&ab.pscored.length){
       // v96: pscored entries can be either strings (legacy) or {bi, team, name}
@@ -6827,7 +6859,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v129';
+var APP_VERSION='v130';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
