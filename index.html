@@ -6112,11 +6112,14 @@ function abBatterHtml(ab){
   return esc(t);
 }
 // 4.1: derive display notation — prefer user-entered not, fall back to standard codes
-// v130: combine result code + scorer's notation so the chip shows e.g.
+// v130/v132: combine result code + scorer's notation so the chip shows e.g.
 // "FC 1u" / "DP 6-4-3" / "GO 1-3" instead of just "1u" or "1-3" alone.
-// Pure-letter results (K, BB, HR, etc.) stay as-is.
+// v132: single-fielder notation auto-appends "u" for unassisted (e.g. user
+// types "1" → renders "1u"). Standard scorebook convention. Stored ab.not
+// is unchanged; this is display-only.
 function abNotation(ab){
   var r=ab.result,n=(ab.not||'').trim();
+  if(/^[1-9]$/.test(n))n=n+'u';
   var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',
     FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',ROE:'ROE'};
   var rLabel=map[r]||r;
@@ -6915,7 +6918,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v131';
+var APP_VERSION='v132';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
