@@ -663,6 +663,15 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div id="scout-body" style="max-height:60vh;overflow-y:auto;"></div>
   <div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-sm" style="flex:1;" onclick="_scoutImport('opppitch')" title="Paste a single-game pitcher table for this team">📋 +Game</button><button class="btn btn-sm" style="flex:1;" onclick="_scoutImport('opppitchseason')" title="Paste season totals for this team">📋 +Season</button><button class="btn btn-sm" style="flex:1;" onclick="copyScoutCard()">Copy</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-scout')">Close</button></div>
 </div></div>
+<!-- v129: strikeout quality prompt — opens on the 3rd strike to tag the K-pitch
+     before the AB ends and cpitch is cleared. -->
+<div class="modal-ov" id="m-kq"><div class="modal" style="max-width:320px;text-align:center;">
+  <h3>Strikeout — tag pitch</h3>
+  <div style="margin-bottom:14px;font-size:13px;">Pitch: <span id="kq-pitch" style="font-family:monospace;font-weight:bold;font-size:16px;color:var(--gold);"></span></div>
+  <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--green2);color:var(--green2);font-weight:bold;" onclick="_setKQuality('good')">˚ · Good (in zone)</button>
+  <button class="btn btn-full" style="margin-bottom:6px;border-color:var(--red2);color:var(--red2);font-weight:bold;" onclick="_setKQuality('bad')">¸ · Bad (out of zone)</button>
+  <button class="btn btn-full" onclick="_setKQuality(null)">Skip — no tag</button>
+</div></div>
 <!-- v124: pitch quality retag modal — opens when user taps any pitch span
      (current AB or past AB in inning detail). Shows current quality and
      lets user pick Good / Bad / Clear. Identifies the pitch via either
@@ -2132,6 +2141,28 @@ function tagLastPitchQuality(q){
   G.cpitchQuality[idx]=q;
   sv();
   _refreshSwqButtonState();
+}
+// v129: strikeout quality prompt — fires from lp() on 3rd strike when
+// A.swingQualityEnabled. Holds the K result code in _pendingKResult while
+// the user picks; resumes endAB() after the modal closes. Skip just clears
+// the pending result and ends the AB without tagging.
+var _pendingKResult=null;
+function _openKQualityPrompt(pitchCode){
+  $('kq-pitch').textContent=_pitchDisplay(pitchCode);
+  om('m-kq');
+}
+function _setKQuality(q){
+  if(q!=null){
+    if(!G.cpitchQuality)G.cpitchQuality=[];
+    while(G.cpitchQuality.length<G.cpitch.length)G.cpitchQuality.push(null);
+    var idx=G.cpitch.length-1;
+    if(idx>=0)G.cpitchQuality[idx]=q;
+  }
+  cm('m-kq');
+  if(_pendingKResult){
+    var r=_pendingKResult;_pendingKResult=null;
+    endAB(r);
+  }
 }
 // v124: tap-to-retag any pitch (current AB or any past AB in the log).
 // _retagSlot describes which pitch is being retagged so the modal handler
@@ -4522,7 +4553,13 @@ G.cpitch.push(c);pAdd(c);
 // v99: keep cpitchQuality parallel array in sync (pad with null for new pitch)
 if(A.swingQualityEnabled){if(!G.cpitchQuality)G.cpitchQuality=[];G.cpitchQuality.push(null);}
 if(c==='X'){sv();renderSC();return;}
-if(c==='S'||c==='L'){G.strikes++;if(G.strikes>=3){chkPW();toast('Strikeout!');endAB(c==='S'?'K':'KL');return;}}
+if(c==='S'||c==='L'){G.strikes++;if(G.strikes>=3){chkPW();toast('Strikeout!');var _resCode=c==='S'?'K':'KL';
+  // v129: when swing-quality tracking is on, prompt for the K-pitch quality
+  // BEFORE the AB ends. Otherwise the AB would clear cpitch and the user
+  // would have to dig into the Plays tab to retag — easy to miss in the
+  // moment. Skip closes the modal and proceeds without tagging.
+  if(A.swingQualityEnabled){_pendingKResult=_resCode;_openKQualityPrompt(c);return;}
+  endAB(_resCode);return;}}
 else if(c==='F'||c==='FT'){if(G.strikes<2)G.strikes++;}
 else if(c==='B'){G.balls++;if(G.balls>=4){chkPW();toast('Walk!');endAB('BB');return;}}
 else if(c==='H'){
@@ -6790,7 +6827,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v128';
+var APP_VERSION='v129';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
