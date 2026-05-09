@@ -696,12 +696,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 
 <!-- PITCH LIMIT BLOCK MODAL (3.1) -->
 <div class="modal-ov" id="m-plimit"><div class="modal" style="text-align:center;">
-<h3 style="color:var(--red2);">🛑 Pitcher Must Be Removed</h3>
-<div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;" id="plimit-msg"></div>
-<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">A pitching change is required before the next batter.</div>
-<button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="G.finishBatter=true;G.plb=false;sv();cm('m-plimit');toast('Finish this batter, then pitcher must be removed.',3000);">Finish batter →</button>
+<h3 style="color:var(--red2);">🛑 Remove Pitcher</h3>
+<div style="font-size:13px;font-family:sans-serif;margin-bottom:14px;" id="plimit-msg"></div>
+<button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="G.finishBatter=true;G.plb=false;sv();cm('m-plimit');toast('Finish batter, then remove',3000);">Finish batter →</button>
 <button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="cm('m-plimit');openPSwitch('us',true)">Make pitching change →</button>
-<button class="btn btn-red btn-full btn-sm" onclick="if(confirm('Override pitch limit? This violates Little League rules and will be noted.')){G.plb=false;sv();cm('m-plimit');toast('⚠️ Override recorded',3000);}">Override — accept rule violation</button>
+<button class="btn btn-red btn-full btn-sm" onclick="if(confirm('Override pitch limit?')){G.plb=false;sv();cm('m-plimit');toast('Override recorded',3000);}">Override</button>
 </div></div>
 
 <!-- 6-RUN LIMIT MODAL -->
@@ -4227,11 +4226,11 @@ else if(c==='H'){
   var _cp=curPitcher();var _hbpTot=_cp?(_cp.hbp||0):0;// already incremented by pAdd
   var _weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
   if(_hbpTot>=3){chkPW();endAB('HBP');
-    if(_weField){G.plb=true;sv();$('plimit-msg').textContent=(_cp?sn(_cp.name):'Pitcher')+' hit 3 batters — must be removed before next batter.';om('m-plimit');}
-    else{showPWarn(_cp?sn(_cp.name):'Opponent P','🚨 3rd HBP — Remove Pitcher','Opponent must remove this pitcher before the next batter.','Notify the umpire.');}
+    if(_weField){G.plb=true;sv();$('plimit-msg').textContent=(_cp?sn(_cp.name):'Pitcher')+' — 3rd HBP, remove before next batter.';om('m-plimit');}
+    else{showPWarn(_cp?sn(_cp.name):'Opp P','3rd HBP','Remove before next batter','');}
     return;}
-  else if(_hbpTot===2)toast('⚠️ '+(_cp?sn(_cp.name):'Pitcher')+' — 2nd HBP (next HBP = remove)',4000);
-  else toast('HBP #'+_hbpTot+' for '+(_cp?sn(_cp.name):'pitcher'));
+  else if(_hbpTot===2)toast((_cp?sn(_cp.name):'Pitcher')+' — 2nd HBP (next = remove)',4000);
+  else toast('HBP #'+_hbpTot+' — '+(_cp?sn(_cp.name):'pitcher'));
   chkPW();endAB('HBP');return;}
 sv();renderSC();chkPW();}
 // [PITCHING] ================================================================
@@ -4255,62 +4254,51 @@ if(i<0||!l[i])return;
 var p=l[i],c=p.total||0,nm=sn(p.name)||'Pitcher';
 var lastN=p._lastNotif||0;if(c<=lastN)return;// each threshold fires once per pitcher
 var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
-// v115: proactive 2-pitches-ahead URGENT modals so coach has time to discuss
-// pull. Fires only for our pitcher, only if not already past the threshold,
-// deduped per-threshold via p._t2Notif. Independent of the if/else chain
-// below — multiple T-2 modals can queue if multiple thresholds approach in
-// one pitch. Also adds a 5-ahead toast for the 40-pitch rule (no advance
-// warning existed before).
+// v115/v116: proactive 2-pitches-ahead modals + missing 5-ahead toast for 40
+// rule. Fires for our pitcher only, deduped per-threshold via p._t2Notif.
 if(weField){
   if(!p._t2Notif)p._t2Notif={};
-  // Missing 5-ahead toast for 40-pitch rule (other thresholds have it below)
   if(c>=35&&c<40&&!p._t2Notif.t40_5){
     p._t2Notif.t40_5=true;
-    toast('⚠️ '+nm+' — 5 pitches to 40-pitch rule',3500);
+    toast(nm+' — '+(40-c)+' to 40-pitch rule',3500);
   }
   var T2=[
-    {at:21,label:'1-day rest threshold',cons:'Crossing 21p = 1 calendar day rest required.'},
-    {at:36,label:'2-day rest threshold',cons:'Crossing 36p = 2 calendar days rest required.'},
-    {at:40,label:'40-pitch rule',cons:'Crossing >40 = INELIGIBLE for next game.'},
-    {at:51,label:'3-day rest threshold',cons:'Crossing 51p = 3 calendar days rest required.'},
-    {at:66,label:'4-day rest threshold',cons:'Crossing 66p = 4 calendar days rest required.'},
-    {at:75,label:'75-pitch daily limit',cons:'Crossing 75p = MUST remove pitcher (daily cap).'},
+    {at:21,label:'21 (1-day rest)'},
+    {at:36,label:'36 (2-day rest)'},
+    {at:40,label:'40-pitch rule'},
+    {at:51,label:'51 (3-day rest)'},
+    {at:66,label:'66 (4-day rest)'},
+    {at:75,label:'75 (daily cap)'},
   ];
   T2.forEach(function(thr){
     var k='t'+thr.at;
     if(c>=thr.at-2&&c<thr.at&&!p._t2Notif[k]){
       p._t2Notif[k]=true;
       var diff=thr.at-c;
-      var pitchTxt=diff===1?'1 pitch':diff+' pitches';
-      showPWarn(nm,'🚨 '+pitchTxt+' to '+thr.label,'At '+c+' pitches now.',thr.cons+' Talk to head coach about pulling.');
+      showPWarn(nm,c+'p — '+diff+' to '+thr.label,'','');
     }
   });
 }
 if(c>=75&&lastN<75){p._lastNotif=75;
-  if(weField){G.plb=true;sv();$('plimit-msg').textContent=nm+' has thrown '+c+' pitches (limit: 75). Must be removed before next batter.';om('m-plimit');}
-  else showPWarn(nm,'🛑 Opponent at 75+ Pitches','Opponent pitcher must be removed. Notify the umpire.','Rule: pitcher may finish current batter only.');}
-// Use >= for thresholds so jumps over a boundary still trigger the warning
-// (e.g. 19 → 22 pitches via a 3-pitch K still fires the 21-pitch warning).
-// The dedup flag (p._lastNotif) prevents the same threshold from re-firing.
-// Heads-up toasts (5 pitches before each rest threshold) for OUR pitcher only —
-// they help the coach plan a substitution. Opponent toasts would just be noise.
-else if(c>=70&&lastN<70){p._lastNotif=70;if(weField)toast('⚠️ '+nm+' — 5 pitches to daily limit (75)',3500);}
-else if(c>=66&&lastN<66){p._lastNotif=66;showPWarn(nm,'⚠️ Rest Required — 66+ pitches','Requires 4 calendar days rest after this game.','Limit: 75 pitches today.');}
-else if(c>=65&&lastN<65){p._lastNotif=65;showPWarn(nm,'⚠️ 65 Pitches — 10 Left','10 pitches remaining today before limit.','Rest: 3 days required.');}
-else if(c>=61&&lastN<61){p._lastNotif=61;if(weField)toast('⚠️ '+nm+' — 5 pitches to 4-day rest (66)',3500);}
-else if(c>=51&&lastN<51){p._lastNotif=51;showPWarn(nm,'⚠️ Rest Required — 51+ pitches','Requires 3 calendar days rest.','');}
-else if(c>=46&&lastN<46){p._lastNotif=46;if(weField)toast('⚠️ '+nm+' — 5 pitches to 3-day rest (51)',3500);}
-else if(c>=41&&lastN<41){p._lastNotif=41;showPWarn(nm,'⚠️ 40-Pitch Rule (LMLL C.4)','Now over 40p — ineligible to pitch in the next game.','At exactly 40 they were still eligible. Can continue today up to 75 pitches.');}
-else if(c>=36&&lastN<36){p._lastNotif=36;showPWarn(nm,'⚠️ Rest Required — 36+ pitches','Requires 2 calendar days rest.','Plan your substitution.');}
-else if(c>=31&&lastN<31){p._lastNotif=31;if(weField)toast('⚠️ '+nm+' — 5 pitches to 2-day rest (36)',3500);}
-else if(c>=21&&lastN<21){p._lastNotif=21;showPWarn(nm,'⚠️ Rest Required — 21+ pitches','Requires 1 calendar day rest.','Can continue pitching today until the inning ends.');}
-else if(c>=16&&lastN<16){p._lastNotif=16;if(weField)toast('⚠️ '+nm+' — 5 pitches to 1-day rest (21)',3500);}}
+  if(weField){G.plb=true;sv();$('plimit-msg').textContent=nm+' at '+c+'p — daily cap.';om('m-plimit');}
+  else showPWarn(nm,'Opp pitcher at '+c+'p','75 cap','');}
+else if(c>=70&&lastN<70){p._lastNotif=70;if(weField)toast(nm+' at '+c+'p — '+(75-c)+' to 75',3500);}
+else if(c>=66&&lastN<66){p._lastNotif=66;showPWarn(nm,c+'p — over 66','4-day rest','');}
+else if(c>=65&&lastN<65){p._lastNotif=65;showPWarn(nm,c+'p — '+(75-c)+' to 75','3-day rest band','');}
+else if(c>=61&&lastN<61){p._lastNotif=61;if(weField)toast(nm+' at '+c+'p — '+(66-c)+' to 66',3500);}
+else if(c>=51&&lastN<51){p._lastNotif=51;showPWarn(nm,c+'p — over 51','3-day rest','');}
+else if(c>=46&&lastN<46){p._lastNotif=46;if(weField)toast(nm+' at '+c+'p — '+(51-c)+' to 51',3500);}
+else if(c>=41&&lastN<41){p._lastNotif=41;showPWarn(nm,c+'p — over 40','Ineligible next game','');}
+else if(c>=36&&lastN<36){p._lastNotif=36;showPWarn(nm,c+'p — over 36','2-day rest','');}
+else if(c>=31&&lastN<31){p._lastNotif=31;if(weField)toast(nm+' at '+c+'p — '+(36-c)+' to 36',3500);}
+else if(c>=21&&lastN<21){p._lastNotif=21;showPWarn(nm,c+'p — over 21','1-day rest','');}
+else if(c>=16&&lastN<16){p._lastNotif=16;if(weField)toast(nm+' at '+c+'p — '+(21-c)+' to 21',3500);}}
 // 3.1: check pitch limit when WE start fielding a new half-inning
 function chkPitcherLimit(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
   var c=p[i].total||0;
   // 40-pitch warning (non-blocking) — fires at 41+ per final LMLL rules
-  if(c>40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — over 40, ineligible next game',4000);
+  if(c>40)toast(sn(p[i].name)+' at '+c+'p — over 40, ineligible next game',4000);
   // 75-pitch hard block
   if(c>=75){G.plb=true;sv();
     $('plimit-msg').textContent=sn(p[i].name)+' has thrown '+c+' pitches (limit: 75).';
@@ -4318,7 +4306,7 @@ function chkPitcherLimit(){
 }
 function chkFieldingWarnOnly(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
-  var c=p[i].total||0;if(c>40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — over 40, ineligible next game',4000);
+  var c=p[i].total||0;if(c>40)toast(sn(p[i].name)+' at '+c+'p — over 40, ineligible next game',4000);
 }
 function undoPitch(){if(_voGuard())return;if(!G.cpitch.length){toast('Nothing to undo');return;}var c=G.cpitch.pop();if(G.cpitchQuality)G.cpitchQuality.pop();var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i>=0&&l[i]){var p=l[i];p.total=Math.max(0,(p.total||1)-1);
 if(c==='S'){p.sw=Math.max(0,(p.sw||1)-1);p.stk=Math.max(0,(p.stk||1)-1);}
@@ -6382,7 +6370,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v115';
+var APP_VERSION='v116';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
