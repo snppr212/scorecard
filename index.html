@@ -700,7 +700,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div style="font-size:13px;font-family:sans-serif;margin-bottom:14px;" id="plimit-msg"></div>
 <button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="G.finishBatter=true;G.plb=false;sv();cm('m-plimit');toast('Finish batter, then remove',3000);">Finish batter →</button>
 <button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="cm('m-plimit');openPSwitch('us',true)">Make pitching change →</button>
-<button class="btn btn-red btn-full btn-sm" onclick="if(confirm('Override pitch limit?')){G.plb=false;sv();cm('m-plimit');toast('Override recorded',3000);}">Override</button>
+<button class="btn btn-red btn-full btn-sm" onclick="if(confirm('OVERRIDE the LMLL 75-pitch daily cap? This is a rules violation. The override will be logged to the game record.')){if(G.eid){if(!A.gameResults[G.eid])A.gameResults[G.eid]={};if(!A.gameResults[G.eid].overrides)A.gameResults[G.eid].overrides=[];var _cp=curPitcher();A.gameResults[G.eid].overrides.push({type:'75-cap',pitcher:_cp?_cp.name:'?',pitches:_cp?_cp.total:0,at:new Date().toISOString()});sa();}G.plb=false;sv();cm('m-plimit');toast('⚠️ 75p override LOGGED',4000);}">Override (logged)</button>
 </div></div>
 
 <!-- 6-RUN LIMIT MODAL -->
@@ -1629,11 +1629,13 @@ function renderSeasonBatAdvanced(games){
 }
 // Per-pitcher advanced aggregator: walks ABs they pitched, counts pitch-type
 // outcomes that paint a picture of stuff (strike rate, whiff rate, chase rate).
-function _accumPitAdvanced(s,ab){
+// v118: skipPitchInc=true → don't increment s.pitches (caller handles it from
+// gameDoc.total). Strikes/balls/swings still aggregate from the AB log.
+function _accumPitAdvanced(s,ab,skipPitchInc){
   var p=ab.pitches||[];var q=ab.pitchQualities||[];
   for(var i=0;i<p.length;i++){
     var c=p[i],qc=q[i]||null;
-    s.pitches++;
+    if(!skipPitchInc)s.pitches++;
     if(c==='B')s.balls++;
     else if(c==='L'){s.strikes++;s.lookStrikes++;}
     else if(c==='S'){s.strikes++;s.whiffs++;s.swings++;if(qc==='bad')s.chases++;else if(qc==='good')s.zoneSwings++;}
@@ -1649,17 +1651,28 @@ function renderSeasonPitAdvanced(games){
     pl.forEach(function(p){
       if(!p||!p.name)return;
       if(!byPit[p.name])byPit[p.name]={name:p.name,games:0,pitches:0,strikes:0,balls:0,swings:0,whiffs:0,chases:0,zoneSwings:0,lookStrikes:0};
-      if((p.total||0)>0||(p.ip_outs||0)>0)byPit[p.name].games++;
+      if((p.total||0)>0||(p.ip_outs||0)>0){
+        byPit[p.name].games++;
+        // v118: use the authoritative gameDoc total (incremented per pitch tap)
+        // for P. The AB log walked below gives us strikes/balls/swings for the
+        // percentage stats, but if some games' ab.pitches arrays are short
+        // (e.g. retroactive backfill), only gameDoc.total has the true count.
+        byPit[p.name].pitches+=(p.total||0);
+      }
     });
     (g.abs||[]).forEach(function(ab){
       if(!ab.pitcher||ab.pitcherTeam!==ourSide)return;
       var s=byPit[ab.pitcher];if(!s)return;
-      _accumPitAdvanced(s,ab);
+      _accumPitAdvanced(s,ab,true);// skip pitch increment — already done above
     });
   });
   var rows=Object.values(byPit).filter(function(s){return s.pitches>0;});
   rows.forEach(function(s){
-    s.strikePct=s.pitches>0?s.strikes/s.pitches:0;
+    // v118: percentage denominator = categorized pitches (St+Ba), not P. P is
+    // the authoritative gameDoc count (may be higher than St+Ba when an old
+    // game's ab.pitches log is shorter than the live pitch tap counter).
+    var loggedPitches=s.strikes+s.balls;
+    s.strikePct=loggedPitches>0?s.strikes/loggedPitches:0;
     s.whiffPct=s.swings>0?s.whiffs/s.swings:0;
     s.chasePct=s.swings>0?s.chases/s.swings:0;
   });
@@ -6393,7 +6406,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v117';
+var APP_VERSION='v118';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
