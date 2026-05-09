@@ -570,6 +570,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-runner"><div class="modal"><h3 id="mr-t">Runner</h3><div id="mr-btns"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-runner')">Close</button></div></div></div>
 <!-- PINCH-RUN MODAL: swap a runner on base for another player so SB/run credits go to the right kid -->
 <div class="modal-ov" id="m-prun"><div class="modal" style="max-width:380px;"><h3 id="prun-title">Pinch run</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;" id="prun-sub"></div><div id="prun-list" style="max-height:300px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-prun')">Cancel</button></div></div></div>
+<!-- v128: add-runner-back picker — used when a base needs a runner placed on it (e.g. the app dropped one by mistake) -->
+<div class="modal-ov" id="m-addrun"><div class="modal" style="max-width:380px;"><h3 id="addrun-title">Add runner</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;" id="addrun-sub">Tap the runner who belongs on this base.</div><div id="addrun-list" style="max-height:300px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rs);"></div><div class="row" style="gap:6px;margin-bottom:6px;align-items:center;"><input id="addrun-custom-nm" type="text" placeholder="Or type a name (custom)" style="flex:1;font-size:13px;"><button class="btn btn-sm btn-green" onclick="_addRunnerCustom()" style="padding:6px 12px;">+ Add</button></div><div class="mact"><button class="btn btn-full" onclick="cm('m-addrun')">Cancel</button></div></div></div>
 <!-- STANDALONE FIELDING ERROR MODAL — for errors not tied to an AB (overthrow on a steal, missed pickoff, etc.) -->
 <div class="modal-ov" id="m-serr"><div class="modal"><h3>Log fielding error</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">For errors during baserunning (overthrow, missed cutoff). For errors during an AB, use the play modal instead.</div><div class="mrow"><label>Position</label><select id="serr-p"></select></div><div class="mrow"><label>Type</label><select id="serr-t"><option value="F">Fielding (booted)</option><option value="T">Throwing</option><option value="M">Mental (missed cutoff/cover)</option><option value="C">Catching (drop)</option></select></div><div class="mrow"><label>Description (optional)</label><input type="text" id="serr-d" placeholder="e.g. overthrow on SB allowed runner to 3rd"></div><div class="mrow"><label>Bases advanced (extra)</label><select id="serr-adv"><option value="0">None</option><option value="1">1 base</option><option value="2">2 bases (LL: only 1 on overthrow per Rules)</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmStandaloneErr()">Log error</button><button class="btn btn-full" onclick="cm('m-serr')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-phist"><div class="modal"><h3>Season Pitching</h3><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Total</th><th>Last</th><th>Rest</th><th>Avail?</th></tr></thead><tbody id="ph-body"></tbody></table></div><div class="mact"><button class="btn btn-full" onclick="cm('m-phist')">Close</button></div></div></div>
@@ -5229,13 +5231,7 @@ function chkFW(inn){
 
 // RUNNERS
 function runnerM(b){if(_voGuard())return;var r=G.bases[b-1];
-if(!r){
-  promptModal('Add runner to '+['','1st','2nd','3rd'][b],'Player name','',function(nm){
-    if(!nm)return;
-    G.bases[b-1]={name:nm,jerseyNum:'',bi:-1,team:isHB()?'home':'away'};sv();renderSC();
-  });
-  return;
-}
+if(!r){_openAddRunnerPicker(b);return;}
 $('mr-t').textContent='Runner on '+['','1st','2nd','3rd'][b]+(r.name!=='?'?' — '+r.name:'');
 var opts=[];
 if(b<3&&!G.bases[b])opts.push({l:'Advance to '+['','2nd','3rd'][b],f:'advRun('+b+','+(b+1)+')'});
@@ -5250,6 +5246,43 @@ function backRun(f,t){if(G.bases[t-1]){toast('Base '+t+' is occupied!');return;}
 function scoreRun(b){var r=G.bases[b-1];if(r)logRun(r.bi,r.team);G.bases[b-1]=null;addR(1);sv();renderSC();}
 function outRun(b){G.bases[b-1]=null;G.outs=Math.min(3,G.outs+1);sv();if(G.outs>=3)showIE();else renderSC();}
 function rmRun(b){G.bases[b-1]=null;sv();renderSC();}
+// v128: lineup-based add-runner picker. Replaces the old text-prompt fallback
+// in runnerM so the user can pick from the BATTING team's lineup instead of
+// having to retype names. Custom-name input is the escape hatch when a kid
+// isn't in the lineup yet (e.g. opponent placeholder).
+var _addRunBase=0;
+function _openAddRunnerPicker(b){
+  _addRunBase=b;
+  $('addrun-title').textContent='Add runner to '+['','1st','2nd','3rd'][b];
+  // The team running the bases is whoever's batting — clu() returns that lineup.
+  var lu=clu();
+  var onBaseBis={};G.bases.forEach(function(rb){if(rb&&rb.bi!=null&&rb.bi>=0)onBaseBis[rb.bi]=1;});
+  var rows=lu.map(function(p,i){
+    if(!p.name&&!p.jersey)return null;
+    if(p.dnp)return null;
+    var blocked=onBaseBis[i]===1;
+    var blockedNote=blocked?' <span style="font-size:10px;color:var(--red2);">(already on base)</span>':'';
+    return '<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:sans-serif;font-size:13px;'+(blocked?'opacity:.4;':'cursor:pointer;')+'" '+(blocked?'':'onclick="_addRunnerFromLineup('+i+')"')+'><strong style="color:var(--gold);">'+(p.jersey?'#'+esc(p.jersey)+' ':'')+'</strong>'+esc(p.name||'?')+blockedNote+'</div>';
+  }).filter(Boolean).join('');
+  $('addrun-list').innerHTML=rows||'<div style="padding:14px;text-align:center;font-size:12px;color:var(--text3);font-family:sans-serif;">No lineup yet — use the custom name input below</div>';
+  $('addrun-custom-nm').value='';
+  om('m-addrun');
+}
+function _addRunnerFromLineup(idx){
+  var b=_addRunBase;if(!b)return;
+  var lu=clu();var p=lu[idx];if(!p){toast('Player not found');return;}
+  G.bases[b-1]={name:p.name||('#'+(p.jersey||'?')),jerseyNum:p.jersey||'',bi:idx,team:isHB()?'home':'away'};
+  sv();cm('m-addrun');renderSC();
+  toast(esc(p.name||'Runner')+' placed on '+['','1st','2nd','3rd'][b]);
+}
+function _addRunnerCustom(){
+  var b=_addRunBase;if(!b)return;
+  var nm=($('addrun-custom-nm').value||'').trim();
+  if(!nm){toast('Enter a name first');return;}
+  G.bases[b-1]={name:nm,jerseyNum:'',bi:-1,team:isHB()?'home':'away'};
+  sv();cm('m-addrun');renderSC();
+  toast(esc(nm)+' placed on '+['','1st','2nd','3rd'][b]);
+}
 
 // PINCH RUN — replace the runner on base with another player so SB / run credit goes to the right kid.
 // Used when a player gets banged up after reaching base and a teammate runs for them.
@@ -6757,7 +6790,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v127';
+var APP_VERSION='v128';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
