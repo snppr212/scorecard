@@ -3337,13 +3337,25 @@ function _renderOppPitcherLogSection(teamName){
   // Sort by workload desc — most-used pitchers first
   pitchers.sort(function(a,b){return b.workload-a.workload;});
   var rows=pitchers.map(function(p){
-    var availColor,availLabel;
+    // v114: two distinct availability checks per the commissioner's email + PDF
+    //   1) Rest-day rule based on ACTUAL pitch count + days elapsed
+    //   2) 40-pitch rule (>40 → ineligible immediate next game)
+    var restBadge,p40Badge;
     if(p.status){
       var eligStr=p.status.eligibleDate.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      if(p.status.eligible){availColor='var(--green2)';availLabel='✓ Available';}
-      else{availColor='var(--red2)';availLabel='🔴 Rest until '+eligStr;}
+      if(p.status.eligible){
+        restBadge='<span style="font-size:10px;color:var(--green2);font-family:sans-serif;font-weight:bold;" title="Rest days satisfied">✓ Rest</span>';
+      }else{
+        restBadge='<span style="font-size:10px;color:var(--red2);font-family:sans-serif;font-weight:bold;" title="Needs '+p.status.restReq+' day(s) rest after '+p.status.last.pitches+'p outing">🔴 '+eligStr+'</span>';
+      }
+      if(p.status.over40){
+        p40Badge='<span style="font-size:10px;color:var(--amber2);font-family:sans-serif;font-weight:bold;" title="Last game was '+p.status.last.pitches+'p — over 40, ineligible for team\'s immediate next game (per LMLL C.4)">⚠ Over 40</span>';
+      }else{
+        p40Badge='<span style="font-size:10px;color:var(--green2);font-family:sans-serif;font-weight:bold;" title="Last game was '+p.status.last.pitches+'p — under 40-pitch threshold">✓ ≤40</span>';
+      }
     }else{
-      availColor='var(--amber2)';availLabel='⚠ No outing dates';
+      restBadge='<span style="font-size:10px;color:var(--amber2);font-family:sans-serif;font-weight:bold;">⚠ No dates</span>';
+      p40Badge='<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">—</span>';
     }
     var seasonLine='';
     if(p.season){
@@ -3352,29 +3364,34 @@ function _renderOppPitcherLogSection(teamName){
     }
     var lastLine='';
     if(p.status){
-      var lastDateStr=new Date(p.status.last.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      var lastDateStr=_parseLocalISODate(p.status.last.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
       var lastIp=p.status.last.ip>0?(' · '+p.status.last.ip+' IP'):'';
       lastLine='Last: '+lastDateStr+' '+p.status.last.pitches+'p'+lastIp+' · '+p.status.outings+' outing'+(p.status.outings===1?'':'s')+' logged';
     }
     var subLine=[seasonLine,lastLine].filter(Boolean).join(' · ');
     var outingChips=p.outings.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,5).map(function(o){
-      var d=new Date(o.date).toLocaleDateString('en-US',{month:'numeric',day:'numeric'});
-      return '<span style="display:inline-block;padding:1px 5px;margin:1px 3px 1px 0;background:rgba(255,255,255,.06);border-radius:3px;font-size:9px;color:var(--text2);font-family:sans-serif;">'+d+': '+o.pitches+'p</span>';
+      var d=_parseLocalISODate(o.date).toLocaleDateString('en-US',{month:'numeric',day:'numeric'});
+      var over=o.pitches>40?';color:var(--amber2)':'';
+      return '<span style="display:inline-block;padding:1px 5px;margin:1px 3px 1px 0;background:rgba(255,255,255,.06);border-radius:3px;font-size:9px;color:var(--text2);font-family:sans-serif'+over+';">'+d+': '+o.pitches+'p</span>';
     }).join('');
     // Workhorse flag: GP >= 4 AND avg PT/g >= 25
     var isWorkhorse=p.season&&p.season.gp>=4&&(p.season.pt/p.season.gp)>=25;
     return '<div style="padding:7px 10px;border-bottom:1px solid var(--border);">'
-      +'<div style="display:flex;align-items:baseline;gap:8px;">'
+      +'<div style="display:flex;align-items:baseline;gap:6px;">'
       +(p.jersey?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;width:22px;">#'+esc(p.jersey)+'</span>':'')
-      +'<span style="font-size:13px;flex:1;">'+esc(p.name)+(isWorkhorse?' <span style="font-size:9px;color:var(--gold);">⚙ workhorse</span>':'')+'</span>'
-      +'<span style="font-size:10px;color:'+availColor+';font-family:sans-serif;font-weight:bold;">'+availLabel+'</span>'
+      +'<span style="font-size:13px;flex:1;">'+esc(p.name)+(isWorkhorse?' <span style="font-size:9px;color:var(--gold);">⚙</span>':'')+'</span>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0;">'+restBadge+p40Badge+'</div>'
       +'</div>'
       +(subLine?'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:3px;">'+subLine+'</div>':'')
       +(outingChips?'<div style="margin-top:3px;">'+outingChips+'</div>':'')
       +'</div>';
   }).join('');
   return '<div style="background:rgba(200,169,110,.06);padding:8px 10px;border-bottom:2px solid var(--gold);font-size:11px;color:var(--gold);font-family:sans-serif;">🎯 <strong>Pitcher log</strong> — availability for '+esc(targetLabel)+'</div>'+rows
-    +'<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:9px;color:var(--text3);font-family:sans-serif;">Rest rule: 1-20p=0d · 21-35=1d · 36-50=2d · 51-65=3d · 66+=4d (calendar days after pitching). ⚙ Workhorse = ≥4 GP &amp; ≥25p/g.</div>';
+    +'<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.5;">'
+    +'<strong>Rest:</strong> 1-20p=0d · 21-35=1d · 36-50=2d · 51-65=3d · 66+=4d (uses actual count). '
+    +'<strong>40p:</strong> >40 in last game → ineligible their next game (cap rule may exempt — checks ACTUAL count). '
+    +'⚙ Workhorse = ≥4 GP &amp; ≥25p/g.'
+    +'</div>';
 }
 // v108: open the standings modal. Renders the table with us highlighted.
 function openStandings(){
@@ -3473,10 +3490,11 @@ function copyScoutCard(){
         parts.push('season '+p.season.pt+'p in '+p.season.gp+' GP ('+avg+'p/g)');
       }
       if(p.status){
-        var lastDate=new Date(p.status.last.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+        var lastDate=_parseLocalISODate(p.status.last.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
         parts.push('last '+lastDate+' '+p.status.last.pitches+'p');
         var elig=p.status.eligibleDate.toLocaleDateString('en-US',{month:'short',day:'numeric'});
         parts.push(p.status.eligible?'available':'rest until '+elig);
+        if(p.status.over40)parts.push('⚠ over 40');
       }else{
         parts.push('no outing dates');
       }
@@ -6164,20 +6182,39 @@ async function _saveOppPitcherSeason(team,pitchers){
   }
   return {pitchers:Object.keys(seasonByName).length,raw:pitchers.length};
 }
+// v114: parse "YYYY-MM-DD" as a LOCAL date (not UTC). Bare ISO date strings
+// get treated as UTC midnight by Date(); in EDT/EST that displays as the
+// previous calendar day. Use this everywhere we display opp outing dates.
+function _parseLocalISODate(s){
+  if(!s)return null;
+  var m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m)return new Date(s);// fall back for non-ISO inputs
+  return new Date(parseInt(m[1]),parseInt(m[2])-1,parseInt(m[3]));
+}
 // Compute rest/eligibility status for a pitcher's last outing relative to a target date.
 // Returns null if no outings. Mirrors pStatus() but for opp pitchers.
+// v114: separates the two LMLL rules per the commissioner's clarification:
+//   - rest-day rule: uses ACTUAL pitch count (last.pitches) against bands
+//   - 40-pitch rule: a pitcher with >40 actual pitches is probably ineligible
+//     for their team's IMMEDIATE next game; cleared once they pitch again.
 function _oppPitcherStatus(outings,targetDate){
   if(!outings||!outings.length)return null;
   var sorted=outings.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
   var last=sorted[sorted.length-1];
-  var lastDate=new Date(last.date);
+  var lastDate=_parseLocalISODate(last.date);
   var tgt=targetDate||new Date();
   var ds=daysBtwn(lastDate,tgt);
   var req=restD(last.pitches);
   var eligible=ds>req;
   var elig=new Date(lastDate);elig.setDate(elig.getDate()+req+1);
   var tot=sorted.reduce(function(s,o){return s+o.pitches;},0);
-  return {last:last,total:tot,outings:sorted.length,eligible:eligible,eligibleDate:elig,daysSince:ds,restReq:req};
+  // v114: 40-pitch rule. Last outing > 40 means ineligible for the team's
+  // immediate next game. Since we don't have team-level game schedule for opps,
+  // we treat the target date as a candidate "next game" and warn if last outing
+  // was over 40. Note this is conservative — cap math could reduce to ≤40 in
+  // edge cases (last batter took ≥10 pitches).
+  var over40=last.pitches>40;
+  return {last:last,total:tot,outings:sorted.length,eligible:eligible,eligibleDate:elig,daysSince:ds,restReq:req,over40:over40};
 }
 // v108: league standings — pasted from league website, stored in Firestore
 // appdata/leagueStandings. Used for the standings modal + opp-record badges
@@ -6314,7 +6351,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v113';
+var APP_VERSION='v114';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
