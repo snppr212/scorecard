@@ -6211,8 +6211,9 @@ function _getStanding(teamName){
   }
   return null;
 }
-// v107: opp pitcher log (per-team, per-pitcher outings parsed from league site).
-// Stored in Firestore appdata/oppPitcherLog and cached locally.
+// Returns an HTML inline badge for an opp batter showing their eval context.
+// Empty string when toggle off, no league data, or kid not in pool (Tin Caps etc).
+function _evalBadge(name){
   if(!_evalEnabled())return '';
   var p=_getLeaguePlayer(name);if(!p)return '';
   var cutoffs=_getLeagueCutoffs();
@@ -6291,7 +6292,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v110';
+var APP_VERSION='v111';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
