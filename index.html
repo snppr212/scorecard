@@ -1645,42 +1645,43 @@ function _accumPitAdvanced(s,ab,skipPitchInc){
   }
 }
 function renderSeasonPitAdvanced(games){
+  // v119: Advanced view shows ONLY logged-pitch data (per-pitch types/types).
+  // P here = sum of categorized pitches walked from ab.pitches arrays. May be
+  // less than the live count (gameDoc.hp[].total / pitchLog) for old games
+  // where ab.pitcher was retroactively backfilled with limited per-pitch
+  // detail. We surface the gap as a "+Np untyped" note rather than padding P.
   var byPit={};
   games.forEach(function(g){
     var pl=_ourPitchers(g);var ourSide=_ourTeamSide(g);
     pl.forEach(function(p){
       if(!p||!p.name)return;
-      if(!byPit[p.name])byPit[p.name]={name:p.name,games:0,pitches:0,strikes:0,balls:0,swings:0,whiffs:0,chases:0,zoneSwings:0,lookStrikes:0};
-      if((p.total||0)>0||(p.ip_outs||0)>0){
-        byPit[p.name].games++;
-        // v118: use the authoritative gameDoc total (incremented per pitch tap)
-        // for P. The AB log walked below gives us strikes/balls/swings for the
-        // percentage stats, but if some games' ab.pitches arrays are short
-        // (e.g. retroactive backfill), only gameDoc.total has the true count.
-        byPit[p.name].pitches+=(p.total||0);
-      }
+      if(!byPit[p.name])byPit[p.name]={name:p.name,games:0,pitches:0,strikes:0,balls:0,swings:0,whiffs:0,chases:0,zoneSwings:0,lookStrikes:0,liveTotal:0};
+      if((p.total||0)>0||(p.ip_outs||0)>0)byPit[p.name].games++;
+      byPit[p.name].liveTotal+=(p.total||0);
     });
     (g.abs||[]).forEach(function(ab){
       if(!ab.pitcher||ab.pitcherTeam!==ourSide)return;
       var s=byPit[ab.pitcher];if(!s)return;
-      _accumPitAdvanced(s,ab,true);// skip pitch increment — already done above
+      _accumPitAdvanced(s,ab);// no skipPitchInc — Advanced P = logged pitches
     });
   });
-  var rows=Object.values(byPit).filter(function(s){return s.pitches>0;});
+  var rows=Object.values(byPit).filter(function(s){return s.pitches>0||s.liveTotal>0;});
   rows.forEach(function(s){
-    // v118: percentage denominator = categorized pitches (St+Ba), not P. P is
-    // the authoritative gameDoc count (may be higher than St+Ba when an old
-    // game's ab.pitches log is shorter than the live pitch tap counter).
-    var loggedPitches=s.strikes+s.balls;
-    s.strikePct=loggedPitches>0?s.strikes/loggedPitches:0;
+    // v119: P (s.pitches) is the categorized-pitch count from ab.pitches. The
+    // % stats use it directly. liveTotal is the gameDoc total — when it's
+    // higher we surface the gap as "(+N untyped)" so it's visible without
+    // padding P with uncounted pitches.
+    s.strikePct=s.pitches>0?s.strikes/s.pitches:0;
     s.whiffPct=s.swings>0?s.whiffs/s.swings:0;
     s.chasePct=s.swings>0?s.chases/s.swings:0;
+    s.untyped=Math.max(0,(s.liveTotal||0)-s.pitches);
   });
-  rows.sort(function(a,b){return b.pitches-a.pitches;});
-  var h='<thead><tr><th>Pitcher</th><th>G</th><th>P</th><th title="Strikes thrown (L+S+F+FT+X)">St</th><th title="Balls thrown (B+HBP)">Ba</th><th title="Strike% = strikes / total pitches">St%</th><th title="Whiffs (S) / opp swings">Whf%</th><th title="Chase = batters swung at a pitch you threw out of zone (Sb/Fb/Tb/Xb) / total opp swings">Ch%</th><th title="Zone swings = batters swung at strikes (Sg/Fg/Tg/Xg) — count">Z·Sw</th></tr></thead><tbody>';
+  rows.sort(function(a,b){return b.liveTotal-a.liveTotal;});
+  var h='<thead><tr><th>Pitcher</th><th>G</th><th title="Logged (categorized) pitches. May be < live PC if older games had retroactive AB attribution with partial pitch sequences.">P</th><th title="Strikes thrown (L+S+F+FT+X)">St</th><th title="Balls thrown (B+HBP)">Ba</th><th title="Strike% = strikes / logged pitches">St%</th><th title="Whiffs (S) / opp swings">Whf%</th><th title="Chase = batters swung at a pitch you threw out of zone (Sb/Fb/Tb/Xb) / total opp swings">Ch%</th><th title="Zone swings = batters swung at strikes (Sg/Fg/Tg/Xg) — count">Z·Sw</th></tr></thead><tbody>';
   rows.forEach(function(s){
     var j=_findJersey(s.name);var nm=j?'#'+j+' '+sn(s.name):sn(s.name);
-    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+Math.round(s.strikePct*100)+'%</td><td class="hi">'+(s.swings>0?Math.round(s.whiffPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.chasePct*100)+'%':'—')+'</td><td>'+s.zoneSwings+'</td></tr>';
+    var pCell=s.pitches+(s.untyped>0?' <span style="color:var(--text3);font-size:10px;" title="'+s.untyped+' pitches were logged in the live counter but not categorized in the AB log (older retroactive entries)">+'+s.untyped+'?</span>':'');
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+pCell+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+(s.pitches>0?Math.round(s.strikePct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.whiffPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.chasePct*100)+'%':'—')+'</td><td>'+s.zoneSwings+'</td></tr>';
   });
   h+='</tbody>';
   $('season-pit').innerHTML=h;
@@ -6406,7 +6407,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v118';
+var APP_VERSION='v119';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
