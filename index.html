@@ -309,7 +309,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <body>
 <!-- HOME -->
 <div class="screen active" id="screen-home">
-<div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" title="Paste opp data, lineup, fielding plan, etc." onclick="openPasteLineup('opppitchseason')">📋</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
+<div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" title="Paste opp data, lineup, fielding plan, etc." onclick="openPasteLineup('opppitchseason')">📋</button><button class="btn btn-sm" title="Game-day options" onclick="openOptionsModal()">⚙</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
 <div class="scroll pad">
 <div class="season-banner"><div class="banner-team">Mighty Mussels</div><div class="banner-sub" id="home-record">LMLL · Spring 2026</div></div>
 <div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button><button class="btn btn-xs btn-gold" onclick="openStandings()" style="flex:1;">🏆 Standings</button></div>
@@ -328,7 +328,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div>
 <!-- Step 2: numbered lineup spots -->
 <div id="avail-step2" style="display:none;">
-<div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Batting order</div><button class="btn btn-sm" onclick="importLastLineup()">↑ Import last game</button></div>
+<div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Batting order</div><div class="row" style="gap:5px;"><button class="btn btn-sm btn-gold" onclick="importOptimalLineup()" title="Use the season-data-driven optimal order">🎯 Optimal</button><button class="btn btn-sm" onclick="importLastLineup()">↑ Last game</button></div></div>
 <div id="lineup-spots"></div></div>
 <div class="panel"><div class="ptitle">Available players</div><div id="lineup-pool"></div></div>
 <div class="g2" style="margin-top:8px;"><button class="btn btn-gold btn-full" onclick="confirmAvail()">Confirm lineup →</button><button class="btn btn-sm" onclick="backToPresence()">← Back</button></div>
@@ -494,7 +494,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div></div></div>
 <!-- OPTIMAL LINEUP DISPLAY -->
 <div class="modal-ov" id="m-optlu"><div class="modal" style="max-width:420px;"><h3>🎯 Optimal Mussels lineup</h3><div id="optlu-meta" style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.4;"></div><div id="optlu-body" style="max-height:55vh;overflow-y:auto;"></div><div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-gold btn-sm" id="optlu-apply-game" style="flex:1;" onclick="_applyOptimalToCurrentGame()" title="Set this as our batting order in the active game">↳ Use for current game</button><button class="btn btn-sm" style="flex:1;" onclick="_applyOptimalToRoster()" title="Reorder roster so this becomes the default for future games">Save as roster order</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-optlu')">Close</button></div></div></div>
-<div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#" inputmode="numeric"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
 <!-- PLAYER RATINGS (v86) — per-player intangibles + skills, 0-5 scale, decimals OK -->
 <div class="modal-ov" id="m-rating"><div class="modal" style="max-width:380px;"><h3 id="rate-title">Rate player</h3><div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;line-height:1.4;">0-5 scale (decimals OK). Leave a field blank if you don't have a rating yet — the optimal-lineup formula skips blanks.<br><span style="color:var(--amber2);">Hitting/Throwing/Fielding/Pitching seeded from draft pool. Confidence/Discipline/Clutch are intangibles you fill in over time.</span></div><div id="rate-fields"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveRating()">Save</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="clearRatings()">Clear all</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-rating')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-event"><div class="modal"><h3>Event</h3><div class="mrow"><label>Type</label><select id="ev-type"><option value="game">Game</option><option value="practice">Practice</option></select></div><div class="mrow"><label>Date</label><input type="text" id="ev-date"></div><div class="mrow"><label>Time</label><input type="text" id="ev-time"></div><div class="mrow"><label>Title/opponent</label><input type="text" id="ev-opp"></div><div class="mrow"><label>Location</label><input type="text" id="ev-loc"></div><div class="mrow"><label>Home/Away</label><select id="ev-ha"><option value="home">Home</option><option value="away">Away</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveEv()">Save</button><button class="btn btn-full" onclick="cm('m-event')">Cancel</button></div></div></div>
@@ -658,6 +658,24 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div id="scout-meta" style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;"></div>
   <div id="scout-body" style="max-height:60vh;overflow-y:auto;"></div>
   <div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-sm" style="flex:1;" onclick="_scoutImport('opppitch')" title="Paste a single-game pitcher table for this team">📋 +Game</button><button class="btn btn-sm" style="flex:1;" onclick="_scoutImport('opppitchseason')" title="Paste season totals for this team">📋 +Season</button><button class="btn btn-sm" style="flex:1;" onclick="copyScoutCard()">Copy</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-scout')">Close</button></div>
+</div></div>
+<!-- v122: focused game-day options modal — same toggles as the roster modal's
+     options block but accessible without opening the full Roster screen. -->
+<div class="modal-ov" id="m-options"><div class="modal" style="max-width:440px;">
+  <h3>⚙️ Game-day options</h3>
+  <label style="display:flex;align-items:flex-start;gap:8px;font-family:sans-serif;font-size:12px;line-height:1.45;color:var(--text2);cursor:pointer;margin-bottom:12px;">
+    <input type="checkbox" id="opt2-swing-quality" onchange="toggleSwingQuality(this.checked);if($('opt-swing-quality'))$('opt-swing-quality').checked=this.checked;" style="width:auto;margin:3px 0 0 0;flex-shrink:0;">
+    <span><strong>Track swing quality (good / bad pitch).</strong> Adds a 👍/👎 row under the pitch buttons after a Strike-swinging / Foul / BIP, so you can tag whether the pitch was in or out of zone. Skip if you can't keep up — untagged pitches log normally.</span>
+  </label>
+  <label style="display:flex;align-items:flex-start;gap:8px;font-family:sans-serif;font-size:12px;line-height:1.45;color:var(--text2);cursor:pointer;margin-bottom:12px;">
+    <input type="checkbox" id="opt2-rbi-review" onchange="toggleErrorRbiReview(this.checked);if($('opt-rbi-review'))$('opt-rbi-review').checked=this.checked;" style="width:auto;margin:3px 0 0 0;flex-shrink:0;">
+    <span><strong>Error-attributed RBI review at end of game.</strong> Per LL 9.04, runs scoring solely due to a fielding error don't credit RBI. End Game modal surfaces a review prompt for plays where errors and runs both happened.</span>
+  </label>
+  <label style="display:flex;align-items:flex-start;gap:8px;font-family:sans-serif;font-size:12px;line-height:1.45;color:var(--text2);cursor:pointer;margin-bottom:12px;">
+    <input type="checkbox" id="opt2-eval-display" onchange="toggleEvalDisplay(this.checked);if($('opt-eval-display'))$('opt-eval-display').checked=this.checked;" style="width:auto;margin:3px 0 0 0;flex-shrink:0;">
+    <span><strong>Show LMLL eval data during games.</strong> Opp batter names show eval tier + score badges in the matchup bar. Danger-stretch toasts fire when 3+ tough hitters are coming up. Turn OFF if you want to score without bias.</span>
+  </label>
+  <div class="mact"><button class="btn btn-full" onclick="cm('m-options')">Close</button></div>
 </div></div>
 <!-- v108: league standings modal -->
 <div class="modal-ov" id="m-standings"><div class="modal" style="max-width:520px;">
@@ -1927,6 +1945,14 @@ async function showOptimalLineup(){
 // v121: apply the optimal lineup to the active game's batting order. Maps each
 // optimal-list player back to A.roster (case-insensitive) so we get the rid
 // reference that the in-game lineup needs. Skips anyone not on roster.
+// v122: open the dedicated game-day options modal from the home screen.
+// Hydrates the checkboxes from current A.* state on each open.
+function openOptionsModal(){
+  if($('opt2-swing-quality'))$('opt2-swing-quality').checked=!!A.swingQualityEnabled;
+  if($('opt2-rbi-review'))$('opt2-rbi-review').checked=!!A.errorRbiReviewEnabled;
+  if($('opt2-eval-display'))$('opt2-eval-display').checked=A.evalDisplayEnabled!==false;
+  om('m-options');
+}
 function _applyOptimalToCurrentGame(){
   if(!_lastOptimalLineup||!_lastOptimalLineup.length){toast('No optimal lineup loaded — open it first');return;}
   if(!G.eid){toast('Start a game first');return;}
@@ -2322,7 +2348,7 @@ setViewOnly(false);
 resetG(ev);
 enterLineupFlow(ev);
 }
-function resumeConfirm(resume){
+async function resumeConfirm(resume){
   cm('m-resume');
   var ev=_pendingEv;_pendingEv=null;
   if(!ev)return;
@@ -2331,7 +2357,14 @@ function resumeConfirm(resume){
     // (lineup, fielding, pitchers are already set in G from the Firebase fetch)
     enterSC();
   }else{
-    // Start fresh — wipe state and walk through lineup builder
+    // Start fresh — wipe local state AND delete the remote game doc so it
+    // can't re-hydrate from Firestore on next open. v122: previously the
+    // remote doc persisted and the snapshot listener would pull old state
+    // back, making "erase" feel like it didn't work.
+    if(fbReady&&db&&ev.id){
+      try{await db.collection('games').doc(ev.id).delete();}
+      catch(e){console.log('startFresh: delete remote failed',e);}
+    }
     resetG(ev);
     enterLineupFlow(ev);
   }
@@ -2422,6 +2455,29 @@ _lineupOrder=found.filter(id=>G.pp.indexOf(id)>=0);// only keep present players
 // add present players not in last lineup
 G.pp.forEach(id=>{if(_lineupOrder.indexOf(id)<0)_lineupOrder.push(id);});
 renderLineupSpots();toast('Imported!');}
+// v122: import optimal lineup directly from this screen. Computes from final
+// games + coach ratings, maps to roster ids, and seeds _lineupOrder with
+// present players in the optimal order (absent ones skipped).
+async function importOptimalLineup(){
+  toast('Computing optimal lineup…');
+  var games=await _fetchAllFinalGames();
+  if(!games.length){toast('No completed games yet — nothing to optimize on');return;}
+  var coachDocs=await _fetchAllCoachRatings();
+  var lu=buildOptimalMusselsLineup(games,coachDocs);
+  // Map each optimal entry → roster id, in order; only include present players.
+  var newOrder=[];var unmatched=[];
+  lu.forEach(function(p){
+    var rp=A.roster.find(function(r){return r.name&&r.name.toLowerCase()===String(p.name||'').toLowerCase();});
+    if(!rp){unmatched.push(p.name);return;}
+    if(G.pp.indexOf(rp.id)<0)return;// skip absent players
+    if(newOrder.indexOf(rp.id)<0)newOrder.push(rp.id);
+  });
+  // Append any present players not in the optimal list (newcomers / data gaps)
+  G.pp.forEach(function(id){if(newOrder.indexOf(id)<0)newOrder.push(id);});
+  _lineupOrder=newOrder;
+  renderLineupSpots();
+  toast('Optimal lineup loaded'+(unmatched.length?' (skipped '+unmatched.length+' unmatched)':''),3000);
+}
 
 function confirmAvail(){
 // build lineup from ordered spots (skip nulls)
@@ -2459,11 +2515,16 @@ function getOppLU(){return isOH()?G.alu:G.hlu;}
 function setOppLU(lu){if(isOH())G.alu=lu;else G.hlu=lu;}
 function renderOppLU(){
   var lu=getOppLU();while(lu.length<9)lu.push({name:'',jersey:''});
-  $('opp-rows').innerHTML=lu.map(function(p,i){
+  // v122: build a datalist of OPP_ROSTERS names so the name input shows a
+  // picker dropdown when this opponent's roster is known.
+  var oppName=isOH()?G.at:G.ht;
+  var roster=(typeof OPP_ROSTERS==='object'&&OPP_ROSTERS[oppName])||[];
+  var datalist=roster.length?'<datalist id="opp-roster-suggest">'+roster.map(function(n){return '<option value="'+esc(n)+'"></option>';}).join('')+'</datalist>':'';
+  $('opp-rows').innerHTML=datalist+lu.map(function(p,i){
     var canUp=i>0,canDn=i<lu.length-1;
     return '<div class="lu-row"><span class="lu-ord">'+(i+1)+'</span>'
-    +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uOLU('+i+',\'jersey\',this.value)" style="width:46px;">'
-    +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uOLU('+i+',\'name\',this.value)" style="flex:1;">'
+    +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uOLU('+i+',\'jersey\',this.value)" inputmode="numeric" style="width:46px;">'
+    +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uOLU('+i+',\'name\',this.value)" '+(roster.length?'list="opp-roster-suggest"':'')+' style="flex:1;">'
     +'<button class="btn btn-xs" onclick="moveOLU('+i+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+' style="padding:2px 6px;">↑</button>'
     +'<button class="btn btn-xs" onclick="moveOLU('+i+',1)" '+(canDn?'':'disabled style="opacity:.3;"')+' style="padding:2px 6px;">↓</button>'
     +'<div class="lu-del" onclick="rmOLU('+i+')">✕</div></div>';
@@ -5411,7 +5472,12 @@ if(!lu.length)html='<div class="empty">No players in lineup</div>';
 $('our-lu-list').innerHTML=html;
 // THEIR TEAM — editable rows (with optional reorder buttons in edit mode)
 var tlu2=tlu();var editThem=_luEdit.them;
-$('their-lu-list').innerHTML=tlu2.map(function(p,i){
+// v122: build datalist of OPP_ROSTERS names so the lineup name input shows a
+// roster picker dropdown (autocomplete) when the opp's roster is known.
+var oppNameForList=isOH()?G.at:G.ht;
+var rosterForList=(typeof OPP_ROSTERS!=='undefined'&&OPP_ROSTERS[oppNameForList])||[];
+var oppDatalist=rosterForList.length?'<datalist id="ingame-opp-roster-suggest">'+rosterForList.map(function(n){return '<option value="'+esc(n)+'"></option>';}).join('')+'</datalist>':'';
+$('their-lu-list').innerHTML=oppDatalist+tlu2.map(function(p,i){
   var canUp=i>0,canDn=i<tlu2.length-1;
   var reorderBtns=editThem
     ? '<button class="btn btn-xs" onclick="moveLuThem('+i+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+'>↑</button>'
@@ -5421,8 +5487,8 @@ $('their-lu-list').innerHTML=tlu2.map(function(p,i){
   var delBtn=editThem?'<div class="lu-del" onclick="rmGLP(\''+themT()+'\','+i+')">✕</div>':'';
   var nameStyle=isPlaceholder(p.name)?'color:#ff8888;font-style:italic;':'';
   return '<div class="lu-row"><span class="lu-ord">'+(i+1)+'</span>'
-  +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'jersey\',this.value);_propagateLineupEdit();" style="width:46px;"'+(editThem?'':' readonly')+'>'
-  +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'name\',this.value);_propagateLineupEdit();" style="flex:1;'+nameStyle+'"'+(editThem?'':' readonly')+'>'
+  +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'jersey\',this.value);_propagateLineupEdit();" inputmode="numeric" style="width:46px;"'+(editThem?'':' readonly')+'>'
+  +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uGLP(\''+themT()+'\','+i+',\'name\',this.value);_propagateLineupEdit();" '+(rosterForList.length?'list="ingame-opp-roster-suggest"':'')+' style="flex:1;'+nameStyle+'"'+(editThem?'':' readonly')+'>'
   +reorderBtns+delBtn+'</div>';
 }).join('')||'<div class="empty">None</div>';
 // B4: Show "Saved roster — not in lineup yet" section for opp team
@@ -6475,7 +6541,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v121';
+var APP_VERSION='v122';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
