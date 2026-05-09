@@ -3390,24 +3390,26 @@ function openStandings(){
   var meta='AA Division · '+teams.length+' teams · updated '+updated;
   if(ourStanding)meta+=' · we are <strong>#'+ourStanding.rank+'</strong> ('+ourStanding.w+'-'+ourStanding.l+(ourStanding.t?'-'+ourStanding.t:'')+')';
   $('standings-meta').innerHTML=meta;
-  // Build table
+  // Build table — tightened for narrow mobile screens. Team col is flex with
+  // nowrap so longer names don't break the row layout.
+  var gridCols='18px 1fr 42px 32px 40px 28px';
   var rows=teams.map(function(r,i){
     var us=_normalizeStandingsTeam(r.team).toLowerCase()==='mighty mussels';
     var bg=us?'background:rgba(200,169,110,.14);':'';
     var sdStr=(r.sd>0?'+':'')+r.sd;
     var sdCol=r.sd>0?'var(--green2)':r.sd<0?'var(--red2)':'var(--text3)';
     var rec=r.w+'-'+r.l+(r.t?'-'+r.t:'');
-    return '<div style="padding:6px 8px;border-bottom:1px solid var(--border);'+bg+'display:grid;grid-template-columns:24px 1fr 60px 56px 56px 50px;gap:6px;align-items:center;font-size:12px;font-family:sans-serif;cursor:pointer;" onclick="cm(\'m-standings\');openScoutCard(\''+esc(_normalizeStandingsTeam(r.team)).replace(/\\/g,'\\\\').replace(/\'/g,'\\\'')+'\')">'
+    return '<div style="padding:7px 6px;border-bottom:1px solid var(--border);'+bg+'display:grid;grid-template-columns:'+gridCols+';gap:4px;align-items:center;font-size:12px;font-family:sans-serif;cursor:pointer;" onclick="cm(\'m-standings\');openScoutCard(\''+esc(_normalizeStandingsTeam(r.team)).replace(/\\/g,'\\\\').replace(/\'/g,'\\\'')+'\')">'
       +'<span style="color:var(--text3);">'+(i+1)+'</span>'
-      +'<span style="'+(us?'color:var(--gold);font-weight:bold;':'color:var(--text);')+'">'+esc(r.team)+'</span>'
-      +'<span style="text-align:center;">'+rec+'</span>'
-      +'<span style="text-align:right;color:var(--text2);">'+r.pct.toFixed(3).replace(/^0/,'')+'</span>'
-      +'<span style="text-align:right;color:var(--text2);font-size:10px;">'+r.rf+'/'+r.ra+'</span>'
-      +'<span style="text-align:right;color:'+sdCol+';font-weight:bold;">'+sdStr+'</span>'
+      +'<span style="'+(us?'color:var(--gold);font-weight:bold;':'color:var(--text);')+'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(r.team)+'</span>'
+      +'<span style="text-align:right;font-size:11px;">'+rec+'</span>'
+      +'<span style="text-align:right;color:var(--text2);font-size:11px;">'+r.pct.toFixed(3).replace(/^0/,'')+'</span>'
+      +'<span style="text-align:right;color:var(--text2);font-size:10px;white-space:nowrap;">'+r.rf+'/'+r.ra+'</span>'
+      +'<span style="text-align:right;color:'+sdCol+';font-weight:bold;font-size:11px;">'+sdStr+'</span>'
       +'</div>';
   }).join('');
-  var header='<div style="padding:5px 8px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:24px 1fr 60px 56px 56px 50px;gap:6px;font-size:9px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;">'
-    +'<span>#</span><span>Team</span><span style="text-align:center;">W-L</span><span style="text-align:right;">Pct</span><span style="text-align:right;">RF/RA</span><span style="text-align:right;">SD</span>'
+  var header='<div style="padding:5px 6px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:'+gridCols+';gap:4px;font-size:9px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;">'
+    +'<span>#</span><span>Team</span><span style="text-align:right;">W-L</span><span style="text-align:right;">Pct</span><span style="text-align:right;">RF/RA</span><span style="text-align:right;">SD</span>'
     +'</div>';
   $('standings-body').innerHTML=header+rows
     +'<div style="padding:6px 8px;font-size:9px;color:var(--text3);font-family:sans-serif;">Tap a team to open their scouting card. SD = run differential (RF − RA).</div>';
@@ -6190,7 +6192,17 @@ async function loadLeagueStandings(){
   try{
     var snap=await db.collection('appdata').doc('leagueStandings').get();
     if(snap.exists&&snap.data()&&snap.data().teams){
-      LEAGUE_STANDINGS={teams:snap.data().teams,updated:snap.data().updated||null};
+      // Firestore Timestamps come back as Timestamp objects, not JS Dates —
+      // convert to ISO string so localStorage round-trips and openStandings'
+      // new Date() call gets a parseable input.
+      var u=snap.data().updated;
+      var updatedIso=null;
+      if(u){
+        if(typeof u==='string')updatedIso=u;
+        else if(u.toDate)updatedIso=u.toDate().toISOString();
+        else if(u.seconds)updatedIso=new Date(u.seconds*1000).toISOString();
+      }
+      LEAGUE_STANDINGS={teams:snap.data().teams,updated:updatedIso};
       try{localStorage.setItem('mm_leagueStandings',JSON.stringify(LEAGUE_STANDINGS));}catch(e){}
       // Refresh home screen if standings affect display
       if(typeof renderHome==='function')renderHome();
@@ -6302,7 +6314,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v112';
+var APP_VERSION='v113';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
