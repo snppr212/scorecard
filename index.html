@@ -4255,6 +4255,37 @@ if(i<0||!l[i])return;
 var p=l[i],c=p.total||0,nm=sn(p.name)||'Pitcher';
 var lastN=p._lastNotif||0;if(c<=lastN)return;// each threshold fires once per pitcher
 var weField=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+// v115: proactive 2-pitches-ahead URGENT modals so coach has time to discuss
+// pull. Fires only for our pitcher, only if not already past the threshold,
+// deduped per-threshold via p._t2Notif. Independent of the if/else chain
+// below — multiple T-2 modals can queue if multiple thresholds approach in
+// one pitch. Also adds a 5-ahead toast for the 40-pitch rule (no advance
+// warning existed before).
+if(weField){
+  if(!p._t2Notif)p._t2Notif={};
+  // Missing 5-ahead toast for 40-pitch rule (other thresholds have it below)
+  if(c>=35&&c<40&&!p._t2Notif.t40_5){
+    p._t2Notif.t40_5=true;
+    toast('⚠️ '+nm+' — 5 pitches to 40-pitch rule',3500);
+  }
+  var T2=[
+    {at:21,label:'1-day rest threshold',cons:'Crossing 21p = 1 calendar day rest required.'},
+    {at:36,label:'2-day rest threshold',cons:'Crossing 36p = 2 calendar days rest required.'},
+    {at:40,label:'40-pitch rule',cons:'Crossing >40 = INELIGIBLE for next game.'},
+    {at:51,label:'3-day rest threshold',cons:'Crossing 51p = 3 calendar days rest required.'},
+    {at:66,label:'4-day rest threshold',cons:'Crossing 66p = 4 calendar days rest required.'},
+    {at:75,label:'75-pitch daily limit',cons:'Crossing 75p = MUST remove pitcher (daily cap).'},
+  ];
+  T2.forEach(function(thr){
+    var k='t'+thr.at;
+    if(c>=thr.at-2&&c<thr.at&&!p._t2Notif[k]){
+      p._t2Notif[k]=true;
+      var diff=thr.at-c;
+      var pitchTxt=diff===1?'1 pitch':diff+' pitches';
+      showPWarn(nm,'🚨 '+pitchTxt+' to '+thr.label,'At '+c+' pitches now.',thr.cons+' Talk to head coach about pulling.');
+    }
+  });
+}
 if(c>=75&&lastN<75){p._lastNotif=75;
   if(weField){G.plb=true;sv();$('plimit-msg').textContent=nm+' has thrown '+c+' pitches (limit: 75). Must be removed before next batter.';om('m-plimit');}
   else showPWarn(nm,'🛑 Opponent at 75+ Pitches','Opponent pitcher must be removed. Notify the umpire.','Rule: pitcher may finish current batter only.');}
@@ -6351,7 +6382,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v114';
+var APP_VERSION='v115';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
