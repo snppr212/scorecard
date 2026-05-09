@@ -309,7 +309,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <body>
 <!-- HOME -->
 <div class="screen active" id="screen-home">
-<div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
+<div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" title="Paste opp data, lineup, fielding plan, etc." onclick="openPasteLineup('opppitchseason')">📋</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
 <div class="scroll pad">
 <div class="season-banner"><div class="banner-team">Mighty Mussels</div><div class="banner-sub" id="home-record">LMLL · Spring 2026</div></div>
 <div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button><button class="btn btn-xs btn-gold" onclick="openStandings()" style="flex:1;">🏆 Standings</button></div>
@@ -657,7 +657,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <h3 id="scout-title">🔍 Scouting Card</h3>
   <div id="scout-meta" style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;"></div>
   <div id="scout-body" style="max-height:60vh;overflow-y:auto;"></div>
-  <div class="mact"><button class="btn btn-sm" style="flex:1;" onclick="copyScoutCard()">📋 Copy as text</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-scout')">Close</button></div>
+  <div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-sm" style="flex:1;" onclick="_scoutImport('opppitch')" title="Paste a single-game pitcher table for this team">📋 +Game</button><button class="btn btn-sm" style="flex:1;" onclick="_scoutImport('opppitchseason')" title="Paste season totals for this team">📋 +Season</button><button class="btn btn-sm" style="flex:1;" onclick="copyScoutCard()">Copy</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-scout')">Close</button></div>
 </div></div>
 <!-- v108: league standings modal -->
 <div class="modal-ov" id="m-standings"><div class="modal" style="max-width:520px;">
@@ -3412,6 +3412,16 @@ function openStandings(){
   $('standings-body').innerHTML=header+rows
     +'<div style="padding:6px 8px;font-size:9px;color:var(--text3);font-family:sans-serif;">Tap a team to open their scouting card. SD = run differential (RF − RA).</div>';
   om('m-standings');
+}
+// v112: from inside the scout card, open the paste modal pre-set to the
+// current opponent so importing their pitcher data is one tap away.
+function _scoutImport(target){
+  var team=_scoutCurrentTeam;
+  cm('m-scout');
+  setTimeout(function(){
+    openPasteLineup(target);
+    if(team){var sel=$('paste-oppteam');if(sel)sel.value=team;_renderPastePreview();}
+  },50);
 }
 function copyScoutCard(){
   if(!_scoutCurrentTeam)return;
@@ -6292,7 +6302,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v111';
+var APP_VERSION='v112';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
