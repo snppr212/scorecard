@@ -5922,6 +5922,26 @@ function endGame(){
   }
   om('m-endgame');
 }
+// v117: clear transient mid-AB state from a game object so finalized games
+// don't render with leftover baserunners / pitch counts / current batter.
+// Preserves all outcome data (innings, scores, ABs, lineups, pitcher totals,
+// fielding assignments, events).
+function _clearTransientGameState(g){
+  if(!g)return;
+  g.outs=0;g.balls=0;g.strikes=0;
+  g.bases=[null,null,null];
+  g.chp=-1;g.cap=-1;g.cbi=-1;
+  g.cpitch=[];if(g.cpitchQuality)g.cpitchQuality=[];
+  g.pp=[];g.pres=null;g.prbi=0;g.pscored=[];
+  g.dpout=null;g.fcout=null;
+  g.plb=false;g.finishBatter=false;
+  // pitcher-level dedup flags from in-game warning system
+  ['hp','ap'].forEach(function(k){
+    (g[k]||[]).forEach(function(p){
+      if(p){delete p._lastNotif;delete p._t2Notif;}
+    });
+  });
+}
 function confirmEndGame(){
   cm('m-endgame');
   // save final result, mark as complete
@@ -5931,6 +5951,9 @@ function confirmEndGame(){
       lineupOrder:(A.gameResults[G.eid].lineupOrder||[])});
   }
   syncP();sa();
+  // v117: strip mid-AB state so the saved game looks final, not paused
+  _clearTransientGameState(G);
+  sg();
   G.eid=null;// clear active game
   sg();
   ss('screen-home');renderHome();
@@ -6370,7 +6393,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v116';
+var APP_VERSION='v117';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
