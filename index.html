@@ -2513,22 +2513,91 @@ var _oppOrder=[];// batting order as indices into the opp player list
 var _oppPicking=-1;
 function getOppLU(){return isOH()?G.alu:G.hlu;}
 function setOppLU(lu){if(isOH())G.alu=lu;else G.hlu=lu;}
+// v123: pre-game opp lineup entry has two modes:
+//   'roster' (default if OPP_ROSTERS has the team) — 12 rows pre-filled with
+//     the opp's known roster, with red ↑/↓ arrows for reordering.
+//   'slots' — 12 numbered blank slots; tap any to open a picker modal of the
+//     opp's roster and assign that name to the slot.
+// User toggles between modes with buttons at top.
+var _oppEntryMode='roster';
+var _oppPickingSlot=-1;
+function setOppEntryMode(mode){_oppEntryMode=mode;renderOppLU();}
+function _oppRoster(){var oppName=isOH()?G.at:G.ht;return(typeof OPP_ROSTERS==='object'&&OPP_ROSTERS[oppName])||[];}
 function renderOppLU(){
-  var lu=getOppLU();while(lu.length<9)lu.push({name:'',jersey:''});
-  // v122: build a datalist of OPP_ROSTERS names so the name input shows a
-  // picker dropdown when this opponent's roster is known.
-  var oppName=isOH()?G.at:G.ht;
-  var roster=(typeof OPP_ROSTERS==='object'&&OPP_ROSTERS[oppName])||[];
+  var lu=getOppLU();while(lu.length<12)lu.push({name:'',jersey:''});
+  var roster=_oppRoster();
+  // First-render auto-prefill: if every slot is blank AND the opp's roster is
+  // known, populate the first 12 slots from the roster (in roster order).
+  // Preserves any data the user has already typed.
+  var allBlank=lu.every(function(p){return!(p&&(p.name||p.jersey));});
+  if(allBlank&&roster.length){
+    for(var ai=0;ai<Math.min(roster.length,12);ai++)lu[ai]={name:roster[ai],jersey:''};
+    sv();
+  }
+  // Mode toggle (only meaningful when we have a roster to pick from)
+  var toggle='';
+  if(roster.length){
+    toggle='<div class="row" style="gap:5px;margin-bottom:10px;">'
+      +'<button class="btn btn-xs'+(_oppEntryMode==='roster'?' btn-gold':'')+'" style="flex:1;" onclick="setOppEntryMode(\'roster\')">📋 Roster + reorder</button>'
+      +'<button class="btn btn-xs'+(_oppEntryMode==='slots'?' btn-gold':'')+'" style="flex:1;" onclick="setOppEntryMode(\'slots\')">🎯 12 slots — pick each</button>'
+      +'</div>';
+  }
+  if(_oppEntryMode==='slots'&&roster.length){
+    // Slot-picker mode: 12 numbered blank slots, tap each to assign from roster
+    var slotsHtml=lu.slice(0,12).map(function(p,i){
+      var filled=p&&(p.name||p.jersey);
+      return '<div class="lu-row" onclick="openOppRosterPicker('+i+')" style="cursor:pointer;">'
+        +'<span class="lu-ord">'+(i+1)+'</span>'
+        +(filled?'<div class="bat-jersey">'+esc(p.jersey||'?')+'</div>':'<div class="bat-jersey" style="color:var(--text3);border-style:dashed;">—</div>')
+        +'<span style="flex:1;font-size:13px;color:'+(filled?'var(--text)':'var(--text3)')+';">'+(filled?esc(p.name||'#'+p.jersey):'Tap to assign')+'</span>'
+        +(filled?'<button class="btn btn-xs btn-red" onclick="event.stopPropagation();clearOppSlot('+i+')" style="padding:2px 6px;">✕</button>':'')
+        +'</div>';
+    }).join('');
+    $('opp-rows').innerHTML=toggle+slotsHtml;
+    return;
+  }
+  // Roster-order mode (default): 12 editable rows with red ↑/↓ arrows
   var datalist=roster.length?'<datalist id="opp-roster-suggest">'+roster.map(function(n){return '<option value="'+esc(n)+'"></option>';}).join('')+'</datalist>':'';
-  $('opp-rows').innerHTML=datalist+lu.map(function(p,i){
+  $('opp-rows').innerHTML=toggle+datalist+lu.map(function(p,i){
     var canUp=i>0,canDn=i<lu.length-1;
+    var arrowStyle='border-color:var(--red2);color:var(--red2);padding:2px 6px;';
     return '<div class="lu-row"><span class="lu-ord">'+(i+1)+'</span>'
     +'<input type="text" placeholder="#" value="'+esc(p.jersey||'')+'" onchange="uOLU('+i+',\'jersey\',this.value)" inputmode="numeric" style="width:46px;">'
     +'<input type="text" placeholder="Name" value="'+esc(p.name||'')+'" onchange="uOLU('+i+',\'name\',this.value)" '+(roster.length?'list="opp-roster-suggest"':'')+' style="flex:1;">'
-    +'<button class="btn btn-xs" onclick="moveOLU('+i+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+' style="padding:2px 6px;">↑</button>'
-    +'<button class="btn btn-xs" onclick="moveOLU('+i+',1)" '+(canDn?'':'disabled style="opacity:.3;"')+' style="padding:2px 6px;">↓</button>'
+    +'<button class="btn btn-xs" onclick="moveOLU('+i+',-1)" '+(canUp?'':'disabled style="opacity:.3;"')+' style="'+arrowStyle+'">↑</button>'
+    +'<button class="btn btn-xs" onclick="moveOLU('+i+',1)" '+(canDn?'':'disabled style="opacity:.3;"')+' style="'+arrowStyle+'">↓</button>'
     +'<div class="lu-del" onclick="rmOLU('+i+')">✕</div></div>';
   }).join('');
+}
+// v123: slot-picker modal — opens m-opppick with the opp's full roster as the
+// pickable list; assigns the chosen name to the selected slot.
+function openOppRosterPicker(slot){
+  _oppPickingSlot=slot;
+  var roster=_oppRoster();
+  if(!roster.length){toast('No saved roster for this opp');return;}
+  var lu=getOppLU();
+  var assignedNames={};lu.forEach(function(p,idx){if(p&&p.name&&idx!==slot)assignedNames[p.name.toLowerCase()]=true;});
+  $('opp-lp-title').textContent='Slot '+(slot+1)+' — Pick player';
+  $('opp-lp-list').innerHTML=roster.map(function(name){
+    var taken=!!assignedNames[name.toLowerCase()];
+    var safeName=name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return '<div class="pos-row" onclick="'+(taken?'':'_assignOppSlot(\''+safeName+'\')')+'" style="cursor:'+(taken?'default':'pointer')+';opacity:'+(taken?.4:1)+';">'
+      +'<div class="bat-jersey">—</div>'
+      +'<span style="flex:1;font-size:13px;">'+esc(name)+'</span>'
+      +(taken?'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">in lineup</span>':'')
+      +'</div>';
+  }).join('');
+  om('m-opppick');
+}
+function _assignOppSlot(name){
+  var lu=getOppLU();
+  if(_oppPickingSlot<0||_oppPickingSlot>=lu.length){cm('m-opppick');return;}
+  lu[_oppPickingSlot]={name:name,jersey:(lu[_oppPickingSlot]&&lu[_oppPickingSlot].jersey)||''};
+  sv();cm('m-opppick');renderOppLU();
+}
+function clearOppSlot(i){
+  var lu=getOppLU();
+  if(lu[i]){lu[i]={name:'',jersey:''};sv();renderOppLU();}
 }
 function uOLU(i,f,v){var lu=getOppLU();if(lu[i])lu[i][f]=v;sv();}
 function moveOLU(i,dir){
@@ -6541,7 +6610,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v122';
+var APP_VERSION='v123';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
