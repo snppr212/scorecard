@@ -992,7 +992,9 @@ function pSeason(name){return(A.pitchLog[name]||[]).slice().sort((a,b)=>new Date
 // Tue/Wed/Thu/Fri (4 days) and is eligible Sat. In code: ds (days between
 // pitch and target) must be > req for eligibility; the current rest-day
 // number = ds when ineligible, 1..req.
-function pStatus(name,gd){var log=pSeason(name);if(!log.length)return{ok:true,rest:0,restDayNum:0,restDaysReq:0,last:0,tot:0,over40:false};var l=log[log.length-1],ld=new Date(l.date),ds=Math.max(0,daysBtwn(ld,gd||new Date())),req=restD(l.pitches),ok=ds>req,restDayNum=ok?0:ds,rest=ok?0:(req-ds+1);return{ok:ok,rest:rest,restDayNum:restDayNum,restDaysReq:req,last:l.pitches,tot:log.reduce((s,e)=>s+e.pitches,0),over40:l.pitches>=40};}
+// v110: per the 2026-final LMLL rules (C.4), the 40-pitch ineligibility kicks
+// in at "more than forty (40)" — i.e. 41+. Was >=40 under the early-2026 draft.
+function pStatus(name,gd){var log=pSeason(name);if(!log.length)return{ok:true,rest:0,restDayNum:0,restDaysReq:0,last:0,tot:0,over40:false};var l=log[log.length-1],ld=new Date(l.date),ds=Math.max(0,daysBtwn(ld,gd||new Date())),req=restD(l.pitches),ok=ds>req,restDayNum=ok?0:ds,rest=ok?0:(req-ds+1);return{ok:ok,rest:rest,restDayNum:restDayNum,restDaysReq:req,last:l.pitches,tot:log.reduce((s,e)=>s+e.pitches,0),over40:l.pitches>40};}
 // Compute the actual calendar date when a pitcher is next eligible to pitch.
 // Uses last outing date + restD(pitches) per the existing rest-days rule.
 // Returns null if the pitcher has never pitched (always eligible).
@@ -3016,14 +3018,22 @@ function _renderPastePreview(){
       $('paste-preview').innerHTML='<span style="color:var(--text3);">No season-totals rows detected. Need a "Pitching" header followed by columns "# Name PT WP L W K ERA ER IP GS GP".</span>';
       btn.disabled=true;return;
     }
-    sp.sort(function(a,b){return b.pt-a.pt;});
-    var rows2=sp.map(function(p,i){
-      var canon=_canonicalizeFromShort(p.name,stTeam);
-      var canonNote=(canon!==p.name)?' <span style="color:var(--text3);">→ '+esc(canon)+'</span>':'';
+    // v110: aggregate duplicates by canonical name so the preview matches what'll be saved
+    var aggregated={};var dupCount=0;
+    sp.forEach(function(p){
+      var canon=_canonicalizeFromShort(p.name,stTeam)||p.name;
+      var existing=aggregated[canon];
+      if(existing){existing.pt+=p.pt;existing.gp+=p.gp;existing.gs+=p.gs;dupCount++;}
+      else aggregated[canon]={pt:p.pt,gp:p.gp,gs:p.gs,raw:p.name};
+    });
+    var aggList=Object.keys(aggregated).map(function(n){return Object.assign({name:n},aggregated[n]);}).sort(function(a,b){return b.pt-a.pt;});
+    var rows2=aggList.map(function(p,i){
+      var canonNote=(p.raw!==p.name)?' <span style="color:var(--text3);">(was "'+esc(p.raw)+'")</span>':'';
       var avg=p.gp>0?(p.pt/p.gp).toFixed(1):'—';
       return '<div>'+(i+1)+'. '+esc(p.name)+canonNote+' — '+p.pt+'p · '+p.gp+' GP ('+avg+'p/g)'+(p.gs>0?' · '+p.gs+' GS':'')+'</div>';
     }).join('');
-    $('paste-preview').innerHTML='<strong>'+sp.length+' pitchers'+(stTeam?' → '+esc(stTeam):'')+':</strong>'+rows2;
+    var hdr='<strong>'+aggList.length+' pitchers'+(stTeam?' → '+esc(stTeam):'')+(dupCount?' (merged '+dupCount+' duplicate row'+(dupCount===1?'':'s')+')':'')+':</strong>';
+    $('paste-preview').innerHTML=hdr+rows2;
     btn.disabled=!stTeam;
     if(!stTeam)$('paste-preview').innerHTML+='<div style="color:var(--amber2);margin-top:4px;">⚠ Pick a team above first.</div>';
     return;
@@ -3091,7 +3101,9 @@ function applyPastedLineup(){
     if(!sp2.length){toast('No season totals detected');return;}
     _saveOppPitcherSeason(team2,sp2).then(function(res){
       cm('m-paste');
-      toast('Saved season totals for '+team2+' ('+res.pitchers+' pitchers)');
+      var msg='Saved season totals for '+team2+' ('+res.pitchers+' pitchers)';
+      if(res.raw>res.pitchers)msg+=' — merged '+(res.raw-res.pitchers)+' duplicate row'+(res.raw-res.pitchers===1?'':'s');
+      toast(msg,3500);
     }).catch(function(e){
       console.log('opp pitcher season save error:',e);
       toast('Save failed — see console');
@@ -4227,7 +4239,7 @@ else if(c>=65&&lastN<65){p._lastNotif=65;showPWarn(nm,'⚠️ 65 Pitches — 10 
 else if(c>=61&&lastN<61){p._lastNotif=61;if(weField)toast('⚠️ '+nm+' — 5 pitches to 4-day rest (66)',3500);}
 else if(c>=51&&lastN<51){p._lastNotif=51;showPWarn(nm,'⚠️ Rest Required — 51+ pitches','Requires 3 calendar days rest.','');}
 else if(c>=46&&lastN<46){p._lastNotif=46;if(weField)toast('⚠️ '+nm+' — 5 pitches to 3-day rest (51)',3500);}
-else if(c>=40&&lastN<40){p._lastNotif=40;showPWarn(nm,'⚠️ 40-Pitch Rule','Ineligible to pitch in the next game.','2 days rest required. Can continue today up to 75 pitches.');}
+else if(c>=41&&lastN<41){p._lastNotif=41;showPWarn(nm,'⚠️ 40-Pitch Rule (LMLL C.4)','Now over 40p — ineligible to pitch in the next game.','At exactly 40 they were still eligible. Can continue today up to 75 pitches.');}
 else if(c>=36&&lastN<36){p._lastNotif=36;showPWarn(nm,'⚠️ Rest Required — 36+ pitches','Requires 2 calendar days rest.','Plan your substitution.');}
 else if(c>=31&&lastN<31){p._lastNotif=31;if(weField)toast('⚠️ '+nm+' — 5 pitches to 2-day rest (36)',3500);}
 else if(c>=21&&lastN<21){p._lastNotif=21;showPWarn(nm,'⚠️ Rest Required — 21+ pitches','Requires 1 calendar day rest.','Can continue pitching today until the inning ends.');}
@@ -4236,8 +4248,8 @@ else if(c>=16&&lastN<16){p._lastNotif=16;if(weField)toast('⚠️ '+nm+' — 5 p
 function chkPitcherLimit(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
   var c=p[i].total||0;
-  // 40-pitch warning (non-blocking)
-  if(c>=40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — ineligible to pitch next game',4000);
+  // 40-pitch warning (non-blocking) — fires at 41+ per final LMLL rules
+  if(c>40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — over 40, ineligible next game',4000);
   // 75-pitch hard block
   if(c>=75){G.plb=true;sv();
     $('plimit-msg').textContent=sn(p[i].name)+' has thrown '+c+' pitches (limit: 75).';
@@ -4245,7 +4257,7 @@ function chkPitcherLimit(){
 }
 function chkFieldingWarnOnly(){
   var p=ourP();var i=ourPI();if(i<0||!p[i])return;
-  var c=p[i].total||0;if(c>=40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — ineligible next game',4000);
+  var c=p[i].total||0;if(c>40)toast('⚠️ '+sn(p[i].name)+' has '+c+'p — over 40, ineligible next game',4000);
 }
 function undoPitch(){if(_voGuard())return;if(!G.cpitch.length){toast('Nothing to undo');return;}var c=G.cpitch.pop();if(G.cpitchQuality)G.cpitchQuality.pop();var t=G.half==='top'?'home':'away',l=t==='home'?G.hp:G.ap,i=t==='home'?G.chp:G.cap;if(i>=0&&l[i]){var p=l[i];p.total=Math.max(0,(p.total||1)-1);
 if(c==='S'){p.sw=Math.max(0,(p.sw||1)-1);p.stk=Math.max(0,(p.stk||1)-1);}
@@ -6114,10 +6126,20 @@ async function _saveOppPitcherSeason(team,pitchers){
   if(!OPP_PITCHER_LOG.teams)OPP_PITCHER_LOG.teams={};
   var t=OPP_PITCHER_LOG.teams[team]||{pitchers:{}};
   if(!t.pitchers)t.pitchers={};
+  // v110: AGGREGATE rather than overwrite. The league site sometimes lists the
+  // same pitcher twice (Grasshoppers' Christopher R appears as 35p/1GP and
+  // 38p/1GP — same kid, separate roster entries). Sum into combined totals.
   var seasonByName={};
   pitchers.forEach(function(p){
     var canonical=_canonicalizeFromShort(p.name,team)||p.name;
-    seasonByName[canonical]={pt:p.pt,gp:p.gp,gs:p.gs};
+    var existing=seasonByName[canonical];
+    if(existing){
+      existing.pt+=p.pt;
+      existing.gp+=p.gp;
+      existing.gs+=p.gs;
+    }else{
+      seasonByName[canonical]={pt:p.pt,gp:p.gp,gs:p.gs};
+    }
   });
   t.seasonTotals={pitchers:seasonByName,updated:new Date().toISOString()};
   OPP_PITCHER_LOG.teams[team]=t;
@@ -6128,7 +6150,7 @@ async function _saveOppPitcherSeason(team,pitchers){
       updated:new Date()
     },{merge:false});
   }
-  return {pitchers:Object.keys(seasonByName).length};
+  return {pitchers:Object.keys(seasonByName).length,raw:pitchers.length};
 }
 // Compute rest/eligibility status for a pitcher's last outing relative to a target date.
 // Returns null if no outings. Mirrors pStatus() but for opp pitchers.
@@ -6269,7 +6291,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v109';
+var APP_VERSION='v110';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
