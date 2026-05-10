@@ -5048,24 +5048,45 @@ if(r==='HR'||r==='LLHR'){
   addR(1+G.bases.filter(x=>x!==null).length);G.bases=[null,null,null];
 }
 else if(_bi){
-  // v137: 1B with baserunner interference. Dead ball — only runners forced
-  // by the batter taking 1B advance. The interfering runner is removed; the
-  // chain breaks naturally at that base so non-forced runners stay put.
-  // Examples (bases [Miles, Ezra, Julian]):
-  //   biBaseIdx=0 (Miles hit) → [Ben, Ezra, Julian]
-  //   biBaseIdx=1 (Ezra hit) → [Ben, Miles, Julian]
-  //   biBaseIdx=2 (Julian hit) → [Ben, Miles, Ezra] (Julian gone, others forced up)
-  G.bases[_bi.biBaseIdx]=null;
-  var scored=0;
-  var br={name:b?b.name:'?',jerseyNum:b?b.jersey:'',bi:G.cbi,team:t};
-  if(G.bases[0]){
-    if(G.bases[1]){
-      if(G.bases[2]){logRun(G.bases[2].bi,G.bases[2].team);scored++;}
-      G.bases[2]=G.bases[1];
-    }
-    G.bases[1]=G.bases[0];
+  // v140: 1B with baserunner interference. Dead ball — forced runners advance
+  // one base each. "Forced" is determined by the bases configuration AT THE
+  // TIME OF THE PLAY (before the runner gets out), not after. The hit runner
+  // is removed but does NOT break the force chain.
+  // Force chain = continuous occupied bases starting from 1B. Bases loaded
+  // forces all three; 1st-and-3rd forces only R1 (R3 not in the chain).
+  // Examples (bases [Clark, Nance, McCallion]):
+  //   hit=R1 (Clark) → [Batter, null, Nance], McCallion scores  (chain length 3)
+  //   hit=R2 (Nance) → [Batter, Clark, null], McCallion scores  (chain length 3)
+  //   hit=R3 (McCallion) → [Batter, Clark, Nance]               (chain length 3)
+  // Examples (bases [R1, null, R3] — 1st and 3rd):
+  //   hit=R1 → [Batter, null, R3]   (chain length 1, R3 not forced)
+  //   hit=R3 → [Batter, R1, null]   (R1 still forced by batter)
+  var hitIdx=_bi.biBaseIdx;
+  // Find force chain: how far up the bases are continuously occupied from 1B
+  var forceUpTo=-1;
+  for(var _fc=0;_fc<3;_fc++){
+    if(G.bases[_fc])forceUpTo=_fc;else break;
   }
-  G.bases[0]=br;
+  var newBases=[null,null,null];
+  // Non-forced runners stay where they were (skip the hit runner — they're out)
+  for(var _nb=forceUpTo+1;_nb<3;_nb++){
+    if(_nb===hitIdx)continue;
+    if(G.bases[_nb])newBases[_nb]=G.bases[_nb];
+  }
+  // Forced runners advance one base. Process highest-down so R3 scores
+  // before R2's slot is overwritten. Skip the hit runner (they're out).
+  var scored=0;
+  for(var _fr=forceUpTo;_fr>=0;_fr--){
+    if(_fr===hitIdx)continue;
+    var _rb=G.bases[_fr];
+    if(!_rb)continue;
+    var _np=_fr+1;
+    if(_np>=3){logRun(_rb.bi,_rb.team);scored++;}
+    else{newBases[_np]=_rb;}
+  }
+  // Batter takes 1B
+  newBases[0]={name:b?b.name:'?',jerseyNum:b?b.jersey:'',bi:G.cbi,team:t};
+  G.bases=newBases;
   addR(scored);
 }
 else if(['1B','2B','3B'].includes(r)){
@@ -7130,7 +7151,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v139';
+var APP_VERSION='v140';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
