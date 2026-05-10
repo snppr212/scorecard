@@ -755,6 +755,13 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
     <input type="checkbox" id="opt2-eval-display" onchange="toggleEvalDisplay(this.checked);if($('opt-eval-display'))$('opt-eval-display').checked=this.checked;" style="width:auto;margin:3px 0 0 0;flex-shrink:0;">
     <span><strong>Show LMLL eval data during games.</strong> Opp batter names show eval tier + score badges in the matchup bar. Danger-stretch toasts fire when 3+ tough hitters are coming up. Turn OFF if you want to score without bias.</span>
   </label>
+  <!-- v152b: experimental Plays log layout chooser. Hidden unless A.experimentalPlaysLayout is set
+       (flip via console: A.experimentalPlaysLayout=true; sa(); openOptionsModal()). -->
+  <div id="opt2-playslayout-row" style="display:none;font-family:sans-serif;font-size:12px;color:var(--text2);margin-bottom:12px;padding-top:10px;border-top:1px dashed var(--border);">
+    <div style="margin-bottom:6px;"><strong>Plays log layout</strong> <span style="color:var(--amber2);font-size:10px;">(experimental)</span></div>
+    <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;"><input type="radio" name="opt2-playslayout" value="cards" onchange="setPlaysLayoutStyle('cards')" style="width:auto;margin:0;"> Cards (default)</label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="opt2-playslayout" value="espn" onchange="setPlaysLayoutStyle('espn')" style="width:auto;margin:0;"> ESPN/Gameday</label>
+  </div>
   <div class="mact"><button class="btn btn-full" onclick="cm('m-options')">Close</button></div>
 </div></div>
 <!-- v108: league standings modal -->
@@ -2051,8 +2058,17 @@ function openOptionsModal(){
   if($('opt2-swing-quality'))$('opt2-swing-quality').checked=!!A.swingQualityEnabled;
   if($('opt2-rbi-review'))$('opt2-rbi-review').checked=!!A.errorRbiReviewEnabled;
   if($('opt2-eval-display'))$('opt2-eval-display').checked=A.evalDisplayEnabled!==false;
+  // v152b: experimental Plays log layout — only show when A.experimentalPlaysLayout is set
+  var plRow=$('opt2-playslayout-row');
+  if(plRow){
+    plRow.style.display=A.experimentalPlaysLayout?'block':'none';
+    var cur=A.playsLayoutStyle||'cards';
+    var radios=document.getElementsByName('opt2-playslayout');
+    for(var i=0;i<radios.length;i++)radios[i].checked=(radios[i].value===cur);
+  }
   om('m-options');
 }
+function setPlaysLayoutStyle(s){A.playsLayoutStyle=(s==='espn')?'espn':'cards';sa();if(typeof renderLog==='function')renderLog();toast('Plays layout: '+(A.playsLayoutStyle==='espn'?'ESPN':'Cards'));}
 function _applyOptimalToCurrentGame(){
   if(!_lastOptimalLineup||!_lastOptimalLineup.length){toast('No optimal lineup loaded — open it first');return;}
   if(!G.eid){toast('Start a game first');return;}
@@ -7027,15 +7043,168 @@ function mkHalf(abs,label,inn,half){
   var summary='<div style="text-align:right;padding:3px 6px 6px;font-size:10px;color:var(--text3);font-family:sans-serif;font-style:italic;">'+halfRuns+' RUN'+(halfRuns===1?'':'S')+' · '+halfHits+' HIT'+(halfHits===1?'':'S')+' · '+halfErrCt+' ERROR'+(halfErrCt===1?'':'S')+' · '+halfPC+' PITCH'+(halfPC===1?'':'ES')+'</div>';
   return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:6px 0 4px;border-top:2px solid var(--border2);margin-top:6px;">'+esc(label)+'</div>'+pieces.join('')+summary;
 }
+// v152b: ESPN/Gameday-style alternative layout — collapsible AB rows with
+// running away/home score columns, plain-English descriptions, and a
+// right-justified RUNS/HITS/ERRORS/PITCHES summary footer per half.
+// Hidden behind A.experimentalPlaysLayout flag; flipped from m-options.
+function mkHalfESPN(abs,inn,half){
+  var halfErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&e.standalone;});
+  if(!abs.length&&!halfErrs.length)return'';
+  var battingTeam=(half==='top')?G.at:G.ht;
+  var pitchTeam=(half==='top')?G.ht:G.at;
+  function _ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+  function _abbr3(name){var letters=((name||'').match(/[A-Za-z]/g)||[]).join('');return(letters.substring(0,3)||'???').toUpperCase();}
+  var halfLabel=(half==='top'?'Top ':'Bottom ')+_ord(inn);
+  var awayAbbr=_abbr3(G.at), homeAbbr=_abbr3(G.ht);
+  // Pre-compute running away/home score after each AB across the full game.
+  // pscored.length captures runs added on each AB; ab.team is the batter's side.
+  var awayRun=0, homeRun=0, runMap={};
+  G.abs.forEach(function(a){
+    var added=(a.pscored||[]).length;
+    if(a.team==='home')homeRun+=added; else awayRun+=added;
+    runMap[a.num]={a:awayRun,h:homeRun};
+  });
+  var _posLabel={1:'pitcher',2:'catcher',3:'first',4:'second',5:'third',6:'shortstop',7:'left',8:'center',9:'right'};
+  function _abDesc(ab){
+    var nm=abBatterDisplay(ab), loc=ab.hitLoc?_posLabel[ab.hitLoc]:'';
+    var r=ab.result;
+    switch(r){
+      case 'BB': return nm+' walked';
+      case 'HBP': return nm+' was hit by pitch';
+      case 'K': return nm+' struck out swinging';
+      case 'KL': return nm+' struck out looking';
+      case '1B': return nm+' singled'+(loc?' to '+loc:'');
+      case '2B': return nm+' doubled'+(loc?' to '+loc:'');
+      case '3B': return nm+' tripled'+(loc?' to '+loc:'');
+      case 'HR': return nm+' homered'+(loc?' to '+loc:'');
+      case 'LLHR': return nm+' hit a Little League home run';
+      case 'FO': return nm+' flied out'+(loc?' to '+loc:'');
+      case 'GO': return nm+' grounded out'+(loc?' to '+loc:'');
+      case 'LO': return nm+' lined out'+(loc?' to '+loc:'');
+      case 'PO': return nm+' popped out'+(loc?' to '+loc:'');
+      case 'SAC': return nm+' sac flied';
+      case 'FC': return nm+" reached on fielder's choice";
+      case 'ROE': return nm+' reached on error';
+      case 'DP': case 'GIDP': return nm+' grounded into double play';
+      case 'TP': return nm+' into triple play';
+      default: return nm+' '+r;
+    }
+  }
+  var lastPitcher=null, pieces=[], halfRuns=0, halfHits=0, halfPC=0;
+  // Header
+  pieces.push('<div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 6px 4px;border-top:2px solid var(--border2);margin-top:8px;">'
+    +'<div style="font-size:13px;font-family:sans-serif;"><span style="color:var(--gold);font-weight:700;">'+esc(battingTeam)+'</span> <span style="color:var(--text2);">— '+halfLabel+'</span></div>'
+    +'<div style="display:flex;gap:10px;font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;">'
+    +'<span style="min-width:28px;text-align:right;">'+esc(awayAbbr)+'</span>'
+    +'<span style="min-width:28px;text-align:right;">'+esc(homeAbbr)+'</span>'
+    +'</div></div>');
+  abs.forEach(function(ab){
+    var _ourTeam=usT();
+    var weFielded=ab.team!==_ourTeam;
+    var thisPitcher=ab.pitcher||(weFielded?((G.fa[ab.inn]||{}).P):null)||null;
+    if(thisPitcher&&thisPitcher!==lastPitcher){
+      pieces.push('<div style="font-size:11px;font-family:sans-serif;color:var(--text2);font-style:italic;padding:4px 6px 6px;">'+esc(sn(thisPitcher))+' pitching for '+esc(pitchTeam)+'</div>');
+      lastPitcher=thisPitcher;
+    }
+    if(['1B','2B','3B','HR','LLHR'].indexOf(ab.result)>=0)halfHits++;
+    halfPC+=(ab.pc||0);
+    if(ab.pscored)halfRuns+=ab.pscored.length;
+    var rs=runMap[ab.num]||{a:0,h:0};
+    var isExpanded=!!(window._espnExpanded&&window._espnExpanded[ab.num]);
+    var chev=isExpanded?'⌃':'⌄';
+    var globalIdx=G.abs.indexOf(ab);
+    var editBtn='<span onclick="event.stopPropagation();openEditAB('+globalIdx+')" style="cursor:pointer;color:var(--text3);padding:0 4px;" title="Edit AB">✎</span>';
+    var rowHtml='<div onclick="_toggleESPNAB('+ab.num+')" style="display:grid;grid-template-columns:18px 1fr 32px 32px 18px;gap:4px;align-items:baseline;padding:5px 6px;border-top:1px solid var(--border);cursor:pointer;font-family:sans-serif;">'
+      +'<span style="color:var(--text3);font-size:12px;">'+chev+'</span>'
+      +'<span style="font-size:13px;color:var(--text);">'+esc(_abDesc(ab))+'</span>'
+      +'<span style="text-align:right;font-size:12px;color:'+(rs.a?'var(--text)':'var(--text3)')+';">'+rs.a+'</span>'
+      +'<span style="text-align:right;font-size:12px;color:'+(rs.h?'var(--text)':'var(--text3)')+';">'+rs.h+'</span>'
+      +editBtn
+      +'</div>';
+    pieces.push(rowHtml);
+    if(isExpanded){
+      var sub=[];
+      var pitches=ab.pitches||[], pq=ab.pitchQualities||[];
+      var seq=pitches.map(function(c,i){return '<span class="ps-'+c+'" style="cursor:pointer;" onclick="event.stopPropagation();_retagABPitch('+ab.num+','+i+')" title="Tap to tag">'+_pitchDisplay(c)+'</span>'+_qualityMark(pq[i]);}).join(' ');
+      var displayCount=Math.max(pitches.length,ab.pc||0);
+      if(seq||displayCount>0){
+        sub.push('<div style="font-family:monospace;font-size:11px;padding:3px 0 3px 28px;color:var(--text2);">'+(seq||'')+(displayCount>0?' <span style="color:var(--text3);">('+displayCount+')</span>':'')+'</div>');
+      }
+      var abNum=ab.num;
+      (G.pinchRuns||[]).filter(function(pr){return pr.during_ab_num===abNum;}).forEach(function(pr){
+        sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:#b88aff;font-family:sans-serif;">↳ '+esc(_shortName(pr.toName))+' pinch ran for '+esc(_shortName(pr.fromName))+'</div>');
+      });
+      (G.steals||[]).filter(function(s){return s.during_ab_num===abNum;}).forEach(function(s){
+        sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:var(--green2);font-family:sans-serif;">↳ SB by '+esc(_shortName(s.name))+' ('+_baseLbl(s.from)+' → '+_baseLbl(s.to)+')</div>');
+      });
+      (G.css||[]).filter(function(c){return c.during_ab_num===abNum;}).forEach(function(c){
+        var fromB=c.from||(c.at==='2'?'1st':'2nd');
+        sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:var(--red2);font-family:sans-serif;">↳ CS by '+esc(_shortName(c.name||'?'))+' ('+fromB+' → '+_baseLbl(c.at)+', OUT)</div>');
+      });
+      (G.errs||[]).filter(function(e){return !e.standalone&&e.ab_num===abNum;}).forEach(function(e){
+        var typeLabel={F:'Field',T:'Throw',M:'Mental',C:'Catch'}[e.type]||e.type;
+        sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:var(--amber2);font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
+      });
+      if(ab.outOnAB&&ab.outOnAB.length){
+        ab.outOnAB.forEach(function(out){
+          var line;
+          if(out.reason==='interference'){line='↳ '+esc(_shortName(out.name||'?'))+' out — hit by batted ball'+(out.fielder?' (PO '+out.fielder+')':'');}
+          else{var atLabel=out.atBase>=4?'home':['','1st','2nd','3rd'][out.atBase]||'?';line='↳ '+esc(_shortName(out.name||'?'))+' out at '+atLabel;}
+          sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:var(--red2);font-family:sans-serif;font-style:italic;">'+line+'</div>');
+        });
+      }
+      if(ab.advancesOnAB&&ab.advancesOnAB.length){
+        ab.advancesOnAB.forEach(function(a){
+          var toLabel=['','1st','2nd','3rd'][a.toBase]||'?';
+          sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:var(--text2);font-family:sans-serif;">↳ '+esc(_shortName(a.name||'?'))+' to '+toLabel+'</div>');
+        });
+      }
+      if(ab.pscored&&ab.pscored.length){
+        var hasManual=false;
+        var parts=ab.pscored.map(function(entry){
+          if(typeof entry==='string')return esc(_shortName(entry));
+          if(entry&&typeof entry==='object'){
+            if(entry.manual){hasManual=true;return'<span style="color:var(--red2);font-weight:bold;">⚠️ unattributed</span>';}
+            var lu=entry.team==='home'?G.hlu:G.alu;
+            var p=lu&&lu[entry.bi];
+            return esc(_shortName((p&&p.name)||entry.name||'?'));
+          }
+          return '?';
+        });
+        var rbiPart=ab.rbi>0?' (+'+ab.rbi+' R)':' ('+ab.pscored.length+' R)';
+        sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:'+(hasManual?'var(--red2)':'var(--amber2)')+';font-family:sans-serif;font-style:italic;">↳ Scored: '+parts.join(', ')+rbiPart+'</div>');
+      }
+      if(sub.length)pieces.push('<div style="background:rgba(255,255,255,0.02);padding:2px 0 4px;">'+sub.join('')+'</div>');
+    }
+  });
+  halfErrs.forEach(function(e){
+    var typeLabel={F:'Fielding',T:'Throwing',M:'Mental',C:'Catching'}[e.type]||e.type;
+    pieces.push('<div style="padding:5px 6px;border-top:1px dashed var(--amber2);font-size:11px;color:var(--amber2);font-family:sans-serif;font-style:italic;">⚠️ E'+_posNum(e.pos)+' ('+typeLabel+') — '+esc(e.player||'?')+(e.play&&e.play!=='(baserunning)'?' — '+esc(e.play):'')+(e.adv?' — runner +'+e.adv:'')+'</div>');
+  });
+  var halfErrCt=halfErrs.length+(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&!e.standalone;}).length;
+  pieces.push('<div style="text-align:right;padding:6px 6px 4px;border-top:1px solid var(--border2);font-size:10px;color:var(--text3);font-family:sans-serif;letter-spacing:.04em;">'+halfRuns+' RUN'+(halfRuns===1?'':'S')+', '+halfHits+' HIT'+(halfHits===1?'':'S')+', '+halfErrCt+' ERROR'+(halfErrCt===1?'':'S')+', '+halfPC+' PITCH'+(halfPC===1?'':'ES')+'</div>');
+  return pieces.join('');
+}
+function _toggleESPNAB(abNum){
+  if(!window._espnExpanded)window._espnExpanded={};
+  window._espnExpanded[abNum]=!window._espnExpanded[abNum];
+  if(typeof renderLog==='function')renderLog();
+}
 // LINEAR — oldest at the top. Top of 1 → Bottom of 1 → Top of 2 → …
+var _useESPN=A.playsLayoutStyle==='espn';
 for(var inn=1;inn<=maxInn;inn++){
   var topABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='top';});
   var botABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='bottom';});
   var topErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half==='top'&&e.standalone;});
   var botErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half==='bottom'&&e.standalone;});
   if(!topABs.length&&!botABs.length&&!topErrs.length&&!botErrs.length)continue;
-  html+=mkHalf(topABs,'▲ TOP '+ord(inn)+' — '+esc(G.at),inn,'top');
-  html+=mkHalf(botABs,'▼ BOT '+ord(inn)+' — '+esc(G.ht),inn,'bottom');
+  if(_useESPN){
+    html+=mkHalfESPN(topABs,inn,'top');
+    html+=mkHalfESPN(botABs,inn,'bottom');
+  }else{
+    html+=mkHalf(topABs,'▲ TOP '+ord(inn)+' — '+esc(G.at),inn,'top');
+    html+=mkHalf(botABs,'▼ BOT '+ord(inn)+' — '+esc(G.ht),inn,'bottom');
+  }
 }
 p.innerHTML=html||'<div class="empty">No at-bats</div>';}
 
@@ -7731,7 +7900,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v158';
+var APP_VERSION='v159';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
