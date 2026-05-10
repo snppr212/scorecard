@@ -75,6 +75,12 @@ select option{background:var(--bg3);}
 label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;margin-bottom:3px;}
 .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:none;align-items:center;justify-content:center;padding:14px;}
 .modal-ov.open{display:flex;}
+/* v142: secondary modals (confirms/prompts/delete-rewind) stack above any
+   primary modal so they're visible when triggered from inside another modal.
+   Without this, a confirm opened from m-editab renders behind it because
+   modal-ov elements share z-index 200 and DOM order tie-breaks to whichever
+   appears later in the source. */
+#m-confirm,#m-prompt,#m-delab{z-index:300;}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:14px;width:100%;max-width:390px;max-height:88dvh;overflow-y:auto;}
 .modal h3{font-size:14px;color:var(--gold);margin-bottom:12px;}
 .mrow{margin-bottom:10px;}
@@ -7282,7 +7288,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v141';
+var APP_VERSION='v142';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
