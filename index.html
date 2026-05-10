@@ -2058,10 +2058,11 @@ function openOptionsModal(){
   if($('opt2-swing-quality'))$('opt2-swing-quality').checked=!!A.swingQualityEnabled;
   if($('opt2-rbi-review'))$('opt2-rbi-review').checked=!!A.errorRbiReviewEnabled;
   if($('opt2-eval-display'))$('opt2-eval-display').checked=A.evalDisplayEnabled!==false;
-  // v152b: experimental Plays log layout — only show when A.experimentalPlaysLayout is set
+  // v160: Plays log layout chooser is now always visible in Settings —
+  // no console flag flip needed. Default stays as Cards.
   var plRow=$('opt2-playslayout-row');
   if(plRow){
-    plRow.style.display=A.experimentalPlaysLayout?'block':'none';
+    plRow.style.display='block';
     var cur=A.playsLayoutStyle||'cards';
     var radios=document.getElementsByName('opt2-playslayout');
     for(var i=0;i<radios.length;i++)radios[i].checked=(radios[i].value===cur);
@@ -6902,13 +6903,13 @@ function mkHalf(abs,label,inn,half){
     // total matches the data.
     var displayCount=Math.max(pcount,ab.pc||0);
     var pitchCell;
-    // v156: AB rows use #N (superscript hash) — same as jersey numbers (see
-    // abBatterHtml). The pitcher half-header below uses an explicit
-    // "(pitches: N)" with parens for clarity.
+    // v160: AB row pitch counts render as (N) parens. Superscript-# is
+    // reserved for JERSEY NUMBERS only (see abBatterHtml). Pitcher header
+    // uses "(pitches: N)" — see the half-header push below.
     if(pcount){
-      pitchCell=seq+' <span style="color:var(--text3);"><sup style="font-size:8px;">#</sup>'+displayCount+'</span>';
+      pitchCell=seq+' <span style="color:var(--text3);">('+displayCount+')</span>';
     }else if(ab.pc>0){
-      pitchCell='<span style="color:var(--text3);"><sup style="font-size:8px;">#</sup>'+ab.pc+'</span>';
+      pitchCell='<span style="color:var(--text3);">('+ab.pc+'p)</span>';
     }else{
       pitchCell='<span style="color:var(--text3);">—</span>';
     }
@@ -7900,7 +7901,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v159';
+var APP_VERSION='v160';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
