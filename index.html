@@ -6887,7 +6887,7 @@ function mkHalf(abs,label,inn,half){
     var headerRow='<div style="display:grid;grid-template-columns:12px minmax(70px,auto) 1fr auto auto;gap:3px;align-items:baseline;">'
       +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+(i+1)+'</span>'
       +'<span style="font-size:13px;">'+abBatterHtml(ab)+'</span>'
-      +'<span style="font-size:10px;font-family:monospace;overflow-wrap:anywhere;line-height:1.4;">'+pitchCell+'</span>'
+      +'<span style="font-size:10px;font-family:monospace;overflow-wrap:anywhere;line-height:1.4;border-left:1px solid var(--border2);padding-left:6px;">'+pitchCell+'</span>'
       +'<span style="display:inline-flex;align-items:center;"><span class="badge '+bc+'" style="font-size:11px;text-align:center;min-width:42px;">'+esc(notation)+errBadgeIndicator+'</span>'+outBadge+'</span>'
       +editBtns
       +'</div>';
@@ -7695,7 +7695,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v153';
+var APP_VERSION='v154';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
