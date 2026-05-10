@@ -761,11 +761,16 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div></div>
 
 <!-- MANUAL RUN MODAL -->
-<div class="modal-ov" id="m-manrun"><div class="modal"><h3>Add Manual Run</h3>
-<div class="mrow"><label>Which team scored?</label>
+<div class="modal-ov" id="m-manrun"><div class="modal"><h3>Adjust score</h3>
+<div class="mrow"><label>Add a run for:</label>
 <div class="g2" style="margin-top:6px;">
-<button class="btn btn-full" id="manrun-us" onclick="doManualRun('us')">—</button>
-<button class="btn btn-full" id="manrun-them" onclick="doManualRun('them')">—</button>
+<button class="btn btn-gold btn-full" id="manrun-us" onclick="doManualRun('us',1)">+ —</button>
+<button class="btn btn-gold btn-full" id="manrun-them" onclick="doManualRun('them',1)">+ —</button>
+</div></div>
+<div class="mrow"><label>Subtract a run from:</label>
+<div class="g2" style="margin-top:6px;">
+<button class="btn btn-red btn-full" id="manrun-us-sub" onclick="doManualRun('us',-1)">− —</button>
+<button class="btn btn-red btn-full" id="manrun-them-sub" onclick="doManualRun('them',-1)">− —</button>
 </div></div>
 <div class="mact"><button class="btn btn-full" onclick="cm('m-manrun')">Cancel</button></div>
 </div></div>
@@ -5292,14 +5297,33 @@ function undoAB(){if(_voGuard())return;if(!_lastGSnap){toast('Nothing to undo');
   },null,{yesLabel:'Undo',danger:true});}
 
 // MANUAL RUN MODAL
-function openManualRun(){if(_voGuard())return;$('manrun-us').textContent=ourName();$('manrun-them').textContent=theirName();om('m-manrun');}
-function doManualRun(who){
+// v144: now supports +1 and -1. Used to be add-only — user couldn't correct
+// over-counted runs from the result panel. Now four buttons: +Us / +Them /
+// −Us / −Them.
+function openManualRun(){
+  if(_voGuard())return;
+  var us=ourName(),them=theirName();
+  $('manrun-us').textContent='+ '+us;
+  $('manrun-them').textContent='+ '+them;
+  if($('manrun-us-sub'))$('manrun-us-sub').textContent='− '+us;
+  if($('manrun-them-sub'))$('manrun-them-sub').textContent='− '+them;
+  om('m-manrun');
+}
+function doManualRun(who,delta){
   cm('m-manrun');
+  delta=parseInt(delta||1,10);
   var isUs=(who==='us');
-  var isHome=isUs===isOH();// true = home team scored
-  if(isHome){G.hs++;if(G.inn<=G.ti)G.inns.h[G.inn-1]=(G.inns.h[G.inn-1]||0)+1;}
-  else{G.as++;if(G.inn<=G.ti)G.inns.a[G.inn-1]=(G.inns.a[G.inn-1]||0)+1;}
-  sv();renderSC();chkMercy();_check6runCap();}
+  var isHome=isUs===isOH();// true = home team
+  if(isHome){
+    G.hs=Math.max(0,(G.hs||0)+delta);
+    if(G.inn<=G.ti)G.inns.h[G.inn-1]=Math.max(0,(G.inns.h[G.inn-1]||0)+delta);
+  }else{
+    G.as=Math.max(0,(G.as||0)+delta);
+    if(G.inn<=G.ti)G.inns.a[G.inn-1]=Math.max(0,(G.inns.a[G.inn-1]||0)+delta);
+  }
+  sv();renderSC();
+  if(delta>0){chkMercy();_check6runCap();}
+}
 // 6-run cap detector. Called after any score update to surface the m-6run
 // modal if the current half hit 6+ runs (LL B.12). Skips the last inning
 // (no run cap there). The modal already exists from earlier work; this just
@@ -6353,7 +6377,11 @@ function confirmDeleteAB(){
     setTimeout(function(){om('m-delab');},80);
     return;
   }
-  confirmModal('Delete AB#'+ab.num+'?',(isLast?'No rewind data available — ':'Older AB — ')+'this only removes the AB record. Bases / score / outs stay as-is. Pitcher stats will be recalculated.',function(){_doDeleteAB(false);},null,{yesLabel:'Remove',danger:true});
+  // v144: any runs scored on this AB will be subtracted; bases and outs stay
+  // (user fixes those via runner-advance UI).
+  var pscoredCt=(ab.pscored&&ab.pscored.length)||0;
+  var runWarn=pscoredCt>0?(' · '+pscoredCt+' run'+(pscoredCt===1?'':'s')+' will be subtracted'):'';
+  confirmModal('Delete AB#'+ab.num+'?',(isLast?'No rewind data available — ':'Older AB — ')+'this removes the AB record + any runs it scored'+runWarn+'. Bases / outs stay as-is — fix manually if needed. Pitcher stats will be recalculated.',function(){_doDeleteAB(false);},null,{yesLabel:'Remove',danger:true});
 }
 function _doDeleteAB(rewind){
   if(_editAbIdx<0)return;
@@ -6376,12 +6404,32 @@ function _doDeleteAB(rewind){
     return;
   }
   // Just-remove-from-log: existing behavior
-  // v139: if we're deleting the latest AB and that batter's slot is now past
-  // the next-batter pointer, reset the pointer so re-batting them doesn't
-  // create a duplicate AB at a different slot. We DON'T touch bases / score —
-  // user has the runner-advance UI to fix those if needed.
+  // v139: lineup-pointer reset so re-batting the deleted batter works.
+  // v144: now also subtracts any runs scored on this AB and removes G.runs
+  // entries tied to the AB's ab_num. Bases stay as-is (user can fix via the
+  // runner-advance UI). Old AB number used because splice/renumber happens
+  // after.
   var wasLast=_editAbIdx===G.abs.length-1;
-  var deletedBi=ab.bi,deletedTeam=ab.team;
+  var deletedBi=ab.bi,deletedTeam=ab.team,deletedAbNum=ab.num,deletedInn=ab.inn;
+  // v144: subtract runs scored on this AB from team + inning totals
+  var runsCleared=0;
+  if(ab.pscored&&ab.pscored.length){
+    ab.pscored.forEach(function(){
+      if(deletedTeam==='home'){
+        G.hs=Math.max(0,(G.hs||0)-1);
+        if(G.inns&&G.inns.h)G.inns.h[deletedInn-1]=Math.max(0,(G.inns.h[deletedInn-1]||0)-1);
+      }else{
+        G.as=Math.max(0,(G.as||0)-1);
+        if(G.inns&&G.inns.a)G.inns.a[deletedInn-1]=Math.max(0,(G.inns.a[deletedInn-1]||0)-1);
+      }
+      runsCleared++;
+    });
+  }
+  // v144: remove any G.runs entries tied to this AB's number (used by box-score
+  // and pitcher-attribution renderers)
+  if(G.runs&&G.runs.length){
+    G.runs=G.runs.filter(function(rn){return rn.ab_num!==deletedAbNum;});
+  }
   G.abs.splice(_editAbIdx,1);
   G.abs.forEach(function(a,i){a.num=i+1;});G.abc=G.abs.length;
   if(wasLast&&deletedBi!=null&&deletedBi>=0){
@@ -6399,7 +6447,10 @@ function _doDeleteAB(rewind){
   if(typeof renderLog==='function')renderLog();
   if(typeof renderStats==='function')try{renderStats();}catch(e){}
   if(typeof renderSC==='function')renderSC();
-  toast(wasLast?(esc(ab.batter||'batter')+' is back up to bat'):'AB removed from log',2500);
+  if(typeof renderSB==='function')try{renderSB();}catch(e){}
+  var msg=wasLast?(esc(ab.batter||'batter')+' is back up to bat'):'AB removed from log';
+  if(runsCleared>0)msg+=' · '+runsCleared+' run'+(runsCleared===1?'':'s')+' subtracted';
+  toast(msg,2500);
 }
 // SWAP-AB: pick another AB in the same half and swap just the batter attribution
 var _swapFromIdx=-1;
@@ -7295,7 +7346,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v143';
+var APP_VERSION='v144';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();

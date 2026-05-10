@@ -1,4 +1,4 @@
-const CACHE = 'mm-v143';
+const CACHE = 'mm-v144';
 const FILES = ['./index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
