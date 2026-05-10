@@ -2517,9 +2517,25 @@ async function resumeConfirm(resume){
     // can't re-hydrate from Firestore on next open. v122: previously the
     // remote doc persisted and the snapshot listener would pull old state
     // back, making "erase" feel like it didn't work.
+    // v148: also purge eid-keyed entries from A.pitchLog and A.gameResults
+    // so a fresh start doesn't trip pitcher rest warnings from the erased
+    // game's pitches.
     if(fbReady&&db&&ev.id){
       try{await db.collection('games').doc(ev.id).delete();}
       catch(e){console.log('startFresh: delete remote failed',e);}
+    }
+    if(ev.id){
+      // Drop pitch-log entries tagged with this eid so chkPitcherRest
+      // doesn't flag pitchers based on stale data
+      if(A.pitchLog){
+        Object.keys(A.pitchLog).forEach(function(n){
+          A.pitchLog[n]=(A.pitchLog[n]||[]).filter(function(e){return e.eventId!==ev.id;});
+          if(!A.pitchLog[n].length)delete A.pitchLog[n];
+        });
+      }
+      // Drop the gameResults record (score, lineupOrder, final flag, etc.)
+      if(A.gameResults)delete A.gameResults[ev.id];
+      sa();// persist the cleanup
     }
     resetG(ev);
     enterLineupFlow(ev);
@@ -7570,7 +7586,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v147';
+var APP_VERSION='v148';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
