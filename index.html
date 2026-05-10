@@ -527,10 +527,12 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </svg>
 <div id="play-diamond-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-top:2px;">Tap where the ball went. Tap a 2nd fielder for the throw target.</div>
 </div>
-<!-- THROW TARGET / UNASSISTED -->
-<div id="play-throw-row" class="mrow" style="display:none;"><label>Throw / out</label><div class="play-toggle-group"><button class="btn btn-xs" onclick="setPlayUnassisted()" id="play-u-btn">u (unassisted)</button><button class="btn btn-xs" onclick="clearPlayPos2()" style="opacity:.7;">clear 2nd fielder</button></div></div>
 <!-- AUTO-DERIVED NOTATION (with manual override fallback) -->
 <div class="mrow"><label>Notation</label><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span id="play-notation-display" style="font-family:monospace;font-size:15px;font-weight:bold;color:var(--gold);min-width:60px;padding:4px 8px;background:rgba(200,169,110,.10);border-radius:3px;">—</span><button class="btn btn-xs" id="play-manual-toggle" onclick="togglePlayManualNot()" style="font-size:10px;">Edit manually</button></div><input type="text" id="mp-not" style="display:none;margin-top:4px;" oninput="onPlayManualNotInput(this.value)" inputmode="numeric"></div>
+<!-- THROW TARGET / UNASSISTED — v143: moved BELOW the notation box so the
+     coach sees the auto-derived notation first, then can decide to mark
+     unassisted (which flips e.g. "G 4-3" to "G 4u"). -->
+<div id="play-throw-row" class="mrow" style="display:none;"><label>Throw / out</label><div class="play-toggle-group"><button class="btn btn-xs" onclick="setPlayUnassisted()" id="play-u-btn">u (unassisted)</button><button class="btn btn-xs" onclick="clearPlayPos2()" style="opacity:.7;">clear 2nd fielder</button></div></div>
 <!-- RBI -->
 <div class="mrow" id="rbi-sec" style="display:none;"><label style="display:inline;">RBIs</label><span id="rbi-btns" style="margin-left:8px;"></span><div id="rbi-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:4px;line-height:1.35;"></div></div>
 <!-- QUALITY OF CONTACT (v82: trajectory + hardness, both optional) -->
@@ -5136,7 +5138,12 @@ else if(r==='FC'){
   }
   addR(scored);
 }
-else if(r==='BB'||r==='HBP'){
+else if(r==='BB'||r==='HBP'||r==='ROE'){
+  // v143: ROE now uses the same force cascade as BB/HBP. Previously ROE
+  // fell through to the default else branch and the batter never got
+  // placed on 1B, so a runner on 1B wouldn't show the forced "to 2nd"
+  // sub-line on the next BB/HBP/1B (because there was no runner there
+  // to force).
   var scored=0;
   if(G.bases[0]){
     if(G.bases[1]){
@@ -7288,7 +7295,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v142';
+var APP_VERSION='v143';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
