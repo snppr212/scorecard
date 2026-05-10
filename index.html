@@ -4995,11 +4995,29 @@ else if(['1B','2B','3B'].includes(r)){
   addR(scored);
 }
 else if(r==='FC'){
-  // Fielder's choice: runner out, batter reaches 1B
+  // v136: cascade forced runners ahead of the batter. After the fcout is
+  // removed the chain breaks naturally at the gap — runners ahead of the gap
+  // stay put (they weren't forced). With bases loaded and fcout=2, [Miles,
+  // Ezra, Julian] becomes [Ben, Miles, Ezra]. With fcout=0, [R1, R2, R3]
+  // becomes [Ben, R2, R3] (R2/R3 not forced).
   if(G.fcout!==null&&G.bases[G.fcout])G.bases[G.fcout]=null;
+  var scored=0;
   var br={name:b?b.name:'?',jerseyNum:b?b.jersey:'',bi:G.cbi,team:t};
+  if(G.bases[0]){
+    if(G.bases[1]){
+      if(G.bases[2]){logRun(G.bases[2].bi,G.bases[2].team);scored++;}
+      G.bases[2]=G.bases[1];
+    }
+    G.bases[1]=G.bases[0];
+  }
   G.bases[0]=br;
-  if(rbi>0)addR(rbi);
+  // If user entered RBI beyond what the cascade scored, score additional
+  // runners from the highest base down (e.g. R3 scoring on FC at 2B).
+  var extra=(rbi||0)-scored;
+  for(var _eb=2;_eb>=0&&extra>0;_eb--){
+    if(G.bases[_eb]&&G.bases[_eb]!==br){logRun(G.bases[_eb].bi,G.bases[_eb].team);G.bases[_eb]=null;scored++;extra--;}
+  }
+  addR(scored);
 }
 else if(r==='BB'||r==='HBP'){
   var scored=0;
@@ -6998,7 +7016,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v135';
+var APP_VERSION='v136';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
