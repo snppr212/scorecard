@@ -6923,6 +6923,11 @@ var _manCands=(typeof _findManualRunCandidates==='function')?_findManualRunCandi
 if(_manCands.length){
   html+='<div onclick="openManualRunReview()" style="cursor:pointer;background:rgba(184,50,40,.15);border-left:3px solid var(--red2);border-radius:var(--rs);padding:8px 10px;margin-bottom:10px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">⚠️</span><div style="flex:1;font-size:12px;font-family:sans-serif;color:var(--text);"><strong>'+_manCands.length+' unattributed run'+(_manCands.length===1?'':'s')+'</strong> · tap to attribute to the right kid</div><span style="color:var(--gold);font-size:11px;font-family:sans-serif;">Fix →</span></div>';
 }
+// v165: oldest-first / newest-first toggle for the inning order.
+// Within a half-inning the AB order stays as-is (first batter at the top);
+// only the inning sequence flips. Persists in A.playsLogReverse.
+var _revOrder=!!A.playsLogReverse;
+html+='<div style="display:flex;justify-content:flex-end;margin-bottom:6px;"><button class="btn btn-xs" onclick="_togglePlaysOrder()" style="font-size:10px;color:var(--text2);">'+(_revOrder?'⇅ Newest first':'⇅ Oldest first')+'</button></div>';
 // Compact base-name helper for sub-lines (e.g. "1st", "2nd", "3rd")
 function _baseLbl(n){return n===1||n==='1'||n==='1st'?'1st':n===2||n==='2'||n==='2nd'?'2nd':n===3||n==='3'||n==='3rd'?'3rd':String(n);}
 // First initial + last name for sub-line names
@@ -7322,20 +7327,34 @@ function mkHalfESPN(abs,inn,half){
 // handlers run in the global scope and couldn't reach them, so the chevrons
 // did nothing. Functions are now hoisted onto window below (after renderLog
 // closes) so all toggle clicks actually fire.
-// LINEAR — oldest at the top. Top of 1 → Bottom of 1 → Top of 2 → …
+// v165: order respects A.playsLogReverse. Within each half-inning the AB
+// rows still go oldest-first (first batter at the top of the section).
 var _useESPN=A.playsLayoutStyle==='espn';
-for(var inn=1;inn<=maxInn;inn++){
+var _innStart=_revOrder?maxInn:1, _innEnd=_revOrder?1:maxInn, _innStep=_revOrder?-1:1;
+for(var inn=_innStart;_revOrder?inn>=_innEnd:inn<=_innEnd;inn+=_innStep){
   var topABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='top';});
   var botABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='bottom';});
   var topErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half==='top'&&e.standalone;});
   var botErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half==='bottom'&&e.standalone;});
   if(!topABs.length&&!botABs.length&&!topErrs.length&&!botErrs.length)continue;
-  if(_useESPN){
-    html+=mkHalfESPN(topABs,inn,'top');
-    html+=mkHalfESPN(botABs,inn,'bottom');
+  // When reversed, render bottom half before top half so the chronological
+  // flow within a single inning still reads correctly (most-recent-first).
+  if(_revOrder){
+    if(_useESPN){
+      html+=mkHalfESPN(botABs,inn,'bottom');
+      html+=mkHalfESPN(topABs,inn,'top');
+    }else{
+      html+=mkHalf(botABs,'▼ BOT '+ord(inn)+' — '+esc(G.ht),inn,'bottom');
+      html+=mkHalf(topABs,'▲ TOP '+ord(inn)+' — '+esc(G.at),inn,'top');
+    }
   }else{
-    html+=mkHalf(topABs,'▲ TOP '+ord(inn)+' — '+esc(G.at),inn,'top');
-    html+=mkHalf(botABs,'▼ BOT '+ord(inn)+' — '+esc(G.ht),inn,'bottom');
+    if(_useESPN){
+      html+=mkHalfESPN(topABs,inn,'top');
+      html+=mkHalfESPN(botABs,inn,'bottom');
+    }else{
+      html+=mkHalf(topABs,'▲ TOP '+ord(inn)+' — '+esc(G.at),inn,'top');
+      html+=mkHalf(botABs,'▼ BOT '+ord(inn)+' — '+esc(G.ht),inn,'bottom');
+    }
   }
 }
 p.innerHTML=html||'<div class="empty">No at-bats</div>';}
@@ -7356,6 +7375,13 @@ function _toggleESPNAB(abNum){
 }
 // Back-compat alias — older calls used _toggleESPNHalf
 function _toggleESPNHalf(key){_toggleHalfCollapse(key);}
+// v165: flip oldest-first vs newest-first for the inning order on the
+// Plays tab. Persists via sa() so the choice survives reloads.
+function _togglePlaysOrder(){
+  A.playsLogReverse=!A.playsLogReverse;
+  sa();
+  if(typeof renderLog==='function')renderLog();
+}
 
 // SUMMARY STATS (without pitcher attribution)
 function renderSummary(){
@@ -8049,7 +8075,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v164';
+var APP_VERSION='v165';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
