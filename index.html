@@ -1074,9 +1074,9 @@ function oppDisplayHtml(p,idx){
   if(!p)return typeof idx==='number'?esc(holeLabel(idx)):'TBD';
   if(p.autoOut)return'⚪ Auto Out';
   if(!p.name&&!p.jersey)return typeof idx==='number'?esc(holeLabel(idx)):'TBD';
-  var jHtml=p.jersey?('<sup style="font-size:8px;color:var(--text3);font-weight:normal;">#</sup>'+esc(p.jersey)+' '):'';
+  var jHtml=p.jersey?('<sup style="font-size:8px;font-weight:normal;">#</sup>'+esc(p.jersey)+' '):'';
   if(isPlaceholder(p.name))return jHtml+esc(p.name);
-  if(!p.name)return'<sup style="font-size:8px;color:var(--text3);font-weight:normal;">#</sup>'+esc(p.jersey);
+  if(!p.name)return'<sup style="font-size:8px;font-weight:normal;">#</sup>'+esc(p.jersey);
   var parts=p.name.trim().split(/\s+/);
   var nm=parts.length>1?parts[0].charAt(0)+'. '+parts[parts.length-1]:p.name;
   return jHtml+esc(nm);
@@ -6790,7 +6790,7 @@ function abBatterHtml(ab){
   }else{
     // Our team — if a jersey number exists, render it as superscript-#
     if(p&&p.jersey&&p.name){
-      html='<sup style="font-size:8px;color:var(--text3);font-weight:normal;">#</sup>'+esc(p.jersey)+' '+esc(sn(p.name));
+      html='<sup style="font-size:8px;font-weight:normal;">#</sup>'+esc(p.jersey)+' '+esc(sn(p.name));
     }else{
       html=esc(p?sn(p.name||'#'+p.jersey):sn(ab.batter));
     }
@@ -7731,7 +7731,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v156';
+var APP_VERSION='v157';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
