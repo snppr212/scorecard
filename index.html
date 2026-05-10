@@ -7092,13 +7092,38 @@ function mkHalfESPN(abs,inn,half){
     }
   }
   var lastPitcher=null, pieces=[], halfRuns=0, halfHits=0, halfPC=0;
-  // Header
-  pieces.push('<div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 6px 4px;border-top:2px solid var(--border2);margin-top:8px;">'
-    +'<div style="font-size:13px;font-family:sans-serif;"><span style="color:var(--gold);font-weight:700;">'+esc(battingTeam)+'</span> <span style="color:var(--text2);">— '+halfLabel+'</span></div>'
+  // v161: half-inning collapse — tap the header to hide / show all the AB
+  // rows. Tracks per-half via window._espnHalfCollapsed keyed by "inn-half".
+  var halfKey=inn+'-'+half;
+  var isHalfCollapsed=!!(window._espnHalfCollapsed&&window._espnHalfCollapsed[halfKey]);
+  var halfChev=isHalfCollapsed?'▸':'▾';
+  // Header (clickable — tap to toggle the whole half)
+  pieces.push('<div onclick="_toggleESPNHalf(\''+halfKey+'\')" style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 6px 4px;border-top:2px solid var(--border2);margin-top:8px;cursor:pointer;">'
+    +'<div style="font-size:13px;font-family:sans-serif;"><span style="color:var(--gold);font-weight:700;font-size:14px;margin-right:4px;">'+halfChev+'</span><span style="color:var(--gold);font-weight:700;">'+esc(battingTeam)+'</span> <span style="color:var(--text2);">— '+halfLabel+'</span></div>'
     +'<div style="display:flex;gap:10px;font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;">'
     +'<span style="min-width:28px;text-align:right;">'+esc(awayAbbr)+'</span>'
     +'<span style="min-width:28px;text-align:right;">'+esc(homeAbbr)+'</span>'
     +'</div></div>');
+  // Pre-pass: compute halfRuns/halfHits/halfPC even when collapsed so the
+  // summary line stays accurate.
+  abs.forEach(function(ab){
+    if(['1B','2B','3B','HR','LLHR'].indexOf(ab.result)>=0)halfHits++;
+    halfPC+=(ab.pc||0);
+    if(ab.pscored)halfRuns+=ab.pscored.length;
+  });
+  if(isHalfCollapsed){
+    // Skip AB rows entirely, jump to errors + summary
+    halfErrs.forEach(function(e){
+      var typeLabel={F:'Fielding',T:'Throwing',M:'Mental',C:'Catching'}[e.type]||e.type;
+      pieces.push('<div style="padding:5px 6px;border-top:1px dashed var(--amber2);font-size:11px;color:var(--amber2);font-family:sans-serif;font-style:italic;">⚠️ E'+_posNum(e.pos)+' ('+typeLabel+') — '+esc(e.player||'?')+(e.play&&e.play!=='(baserunning)'?' — '+esc(e.play):'')+(e.adv?' — runner +'+e.adv:'')+'</div>');
+    });
+    var halfErrCt0=halfErrs.length+(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&!e.standalone;}).length;
+    pieces.push('<div style="text-align:right;padding:6px 6px 4px;border-top:1px solid var(--border2);font-size:10px;color:var(--text3);font-family:sans-serif;letter-spacing:.04em;">'+halfRuns+' RUN'+(halfRuns===1?'':'S')+', '+halfHits+' HIT'+(halfHits===1?'':'S')+', '+halfErrCt0+' ERROR'+(halfErrCt0===1?'':'S')+', '+halfPC+' PITCH'+(halfPC===1?'':'ES')+'</div>');
+    return pieces.join('');
+  }
+  // (Reset counters since the second forEach also recounts — the early-pass
+  // above only matters for the collapsed branch.)
+  halfRuns=0; halfHits=0; halfPC=0;
   abs.forEach(function(ab){
     var _ourTeam=usT();
     var weFielded=ab.team!==_ourTeam;
@@ -7112,11 +7137,12 @@ function mkHalfESPN(abs,inn,half){
     if(ab.pscored)halfRuns+=ab.pscored.length;
     var rs=runMap[ab.num]||{a:0,h:0};
     var isExpanded=!!(window._espnExpanded&&window._espnExpanded[ab.num]);
-    var chev=isExpanded?'⌃':'⌄';
+    // v161: bigger / coloured chevrons so it's obvious the row expands
+    var chev=isExpanded?'▾':'▸';
     var globalIdx=G.abs.indexOf(ab);
     var editBtn='<span onclick="event.stopPropagation();openEditAB('+globalIdx+')" style="cursor:pointer;color:var(--text3);padding:0 4px;" title="Edit AB">✎</span>';
-    var rowHtml='<div onclick="_toggleESPNAB('+ab.num+')" style="display:grid;grid-template-columns:18px 1fr 32px 32px 18px;gap:4px;align-items:baseline;padding:5px 6px;border-top:1px solid var(--border);cursor:pointer;font-family:sans-serif;">'
-      +'<span style="color:var(--text3);font-size:12px;">'+chev+'</span>'
+    var rowHtml='<div onclick="_toggleESPNAB('+ab.num+')" style="display:grid;grid-template-columns:18px 1fr 32px 32px 18px;gap:4px;align-items:baseline;padding:5px 6px;border-top:1px solid var(--border);cursor:pointer;font-family:sans-serif;'+(isExpanded?'background:rgba(200,169,110,.05);':'')+'">'
+      +'<span style="color:var(--gold);font-size:13px;">'+chev+'</span>'
       +'<span style="font-size:13px;color:var(--text);">'+esc(_abDesc(ab))+'</span>'
       +'<span style="text-align:right;font-size:12px;color:'+(rs.a?'var(--text)':'var(--text3)')+';">'+rs.a+'</span>'
       +'<span style="text-align:right;font-size:12px;color:'+(rs.h?'var(--text)':'var(--text3)')+';">'+rs.h+'</span>'
@@ -7189,6 +7215,14 @@ function mkHalfESPN(abs,inn,half){
 function _toggleESPNAB(abNum){
   if(!window._espnExpanded)window._espnExpanded={};
   window._espnExpanded[abNum]=!window._espnExpanded[abNum];
+  if(typeof renderLog==='function')renderLog();
+}
+// v161: toggle whether a whole half-inning shows its AB rows. Tracked by
+// "inn-half" key (e.g., "1-top"). Summary line + half header always render;
+// AB rows + sub-lines collapse together.
+function _toggleESPNHalf(key){
+  if(!window._espnHalfCollapsed)window._espnHalfCollapsed={};
+  window._espnHalfCollapsed[key]=!window._espnHalfCollapsed[key];
   if(typeof renderLog==='function')renderLog();
 }
 // LINEAR — oldest at the top. Top of 1 → Bottom of 1 → Top of 2 → …
@@ -7901,7 +7935,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v160';
+var APP_VERSION='v161';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
