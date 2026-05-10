@@ -5024,7 +5024,7 @@ cm('m-play');finAB(res,not,G.prbi);}
 
 function finAB(r,not,rbi){
 chkPW();// check pitch thresholds for every AB outcome (1B,2B,GO,FO,etc.)
-saveSnap();// v145: pushes snapshot onto stack so chained rewinds work
+var _preSnap=saveSnap();// v145: stack-based undo. v150: also returns the snap
 _setUndoBtnState();
 // v134: snapshot pre-AB base state so we can derive advances after all
 // the BB/HBP/hit/FC mutations below run. Compared at the bottom of finAB.
@@ -5046,7 +5046,7 @@ if(G.cpitchQuality&&G.cpitchQuality.length){
   while(G.cpitchQuality.length<G.cpitch.length)G.cpitchQuality.push(null);
   if(G.cpitchQuality.some(function(q){return q;})){_pq=G.cpitchQuality.slice(0,G.cpitch.length);}
 }
-G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pitchQualities:_pq,pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null,pscored:[],hitLoc:_meta.hitLoc||null,throwTo:_meta.throwTo||null,unassisted:_meta.unassisted||null,trajectory:_meta.trajectory||null,hardness:_meta.hardness||null});
+G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:G.inn,half:G.half,pitches:G.cpitch.slice(),pitchQualities:_pq,pc:G.cpitch.length,result:r,not:not||'',rbi:rbi||0,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null,pscored:[],hitLoc:_meta.hitLoc||null,throwTo:_meta.throwTo||null,unassisted:_meta.unassisted||null,trajectory:_meta.trajectory||null,hardness:_meta.hardness||null,preState:_preSnap});
 // v130: capture additional outs (forced runners on FC/DP/GIDP/TP) BEFORE the
 // bases get nulled below. atBase is where they were thrown out (1 = 2nd,
 // 2 = 3rd, 3 = home, since fcout/dpout indices represent the SOURCE base).
@@ -5320,7 +5320,31 @@ function chkMercy(){
 // rewinds — delete the latest AB, then delete the new latest, etc., each
 // fully restoring bases / score / outs / lineup pointer. Stack capped at 30
 // to limit memory.
+// v150: ALSO attach a slim copy of the snapshot to the AB record itself
+// (ab.preState). The stack is in-memory only, so it's lost on refresh /
+// resume. The per-AB preState persists with the game data and lets us
+// rewind correctly even after a reload — which is what was happening when
+// the user deleted ABs and the bases didn't roll back.
 var _abSnapStack=[];
+// Build a slim G snapshot for AB pre-state. Excludes:
+// - abs (recursive: each AB has a preState which would include abs again)
+// - hp/ap (pitcher stats are rebuilt by recalcPitcherStats from G.abs)
+// - hlu/alu (lineups change rarely; pinch-hits handled separately)
+// - transient buffers (_abScoredBuffer, _lastPlayMeta, _oooBatter, _oooTeam)
+function _slimSnapForAB(){
+  var snap={};
+  // Volatile fields the AB cascade mutates — these are what we need to
+  // restore for a clean rewind. Keep this list aligned with what finAB and
+  // its called helpers (addR, logRun, advanceWithRBI, FC/BI cascades, etc.)
+  // can change.
+  var keys=['bases','outs','balls','strikes','hs','as','inns','cbi','hbi','abi','inn','half','cpitch','cpitchQuality','lastABPitches','runs','errs','steals','css','pinchRuns','pres','prbi','pscored','dpout','fcout','plb','finishBatter','fa','chp','cap','isu'];
+  keys.forEach(function(k){
+    var v=G[k];
+    if(v==null){snap[k]=v;return;}
+    snap[k]=(typeof v==='object')?JSON.parse(JSON.stringify(v)):v;
+  });
+  return snap;
+}
 // Back-compat alias: legacy code reads/writes _lastGSnap. Keep it as a getter
 // pointing at the top of the stack so old references continue to work without
 // breaking. Setting it to null still has the conceptual effect of "no snap"
@@ -5331,8 +5355,12 @@ Object.defineProperty(window,'_lastGSnap',{
   configurable:true
 });
 function saveSnap(){
-  _abSnapStack.push(JSON.parse(JSON.stringify(G)));
+  // v150: in-memory snap is the slim version (same shape as ab.preState).
+  // Keeps the stack bounded and consistent with what we attach to ABs.
+  var snap=_slimSnapForAB();
+  _abSnapStack.push(snap);
   if(_abSnapStack.length>30)_abSnapStack.shift();
+  return snap;
 }
 function _hasUndoSnap(){return _abSnapStack.length>0;}
 function _popUndoSnap(){return _abSnapStack.pop();}
@@ -5344,13 +5372,35 @@ function _setUndoBtnState(){
 }
 function undoAB(){
   if(_voGuard())return;
-  if(!_hasUndoSnap()){toast('Nothing to undo');return;}
+  // v150: prefer the latest AB's preState (survives refresh); fall back to the
+  // in-memory stack if preState isn't there (legacy ABs from before v150).
+  var lastAB=G.abs.length?G.abs[G.abs.length-1]:null;
+  var snap=(lastAB&&lastAB.preState)?lastAB.preState:(_hasUndoSnap()?_abSnapStack[_abSnapStack.length-1]:null);
+  if(!snap){toast('Nothing to undo');return;}
   confirmModal('Undo last AB?','Restores bases, score, and batting order to before that AB.',function(){
-    var snap=_popUndoSnap();
-    Object.keys(snap).forEach(function(k){G[k]=snap[k];});
+    _restoreFromSnap(snap);
+    if(lastAB){
+      var deletedNum=lastAB.num;
+      G.abs.pop();
+      G.abc=G.abs.length;
+      if(G.runs)G.runs=G.runs.filter(function(r){return r.ab_num!==deletedNum;});
+    }
+    if(_hasUndoSnap())_popUndoSnap();
     _setUndoBtnState();
-    sv();renderSC();toast('Last AB undone');
+    if(typeof recalcPitcherStats==='function')recalcPitcherStats();
+    sv();renderSC();
+    if(typeof renderLog==='function')try{renderLog();}catch(e){}
+    if(typeof renderSB==='function')try{renderSB();}catch(e){}
+    toast('Last AB undone');
   },null,{yesLabel:'Undo',danger:true});
+}
+// v150: shared restore — copies snap fields onto G and clears mid-AB pitch
+// state so the rewound batter starts a fresh count.
+function _restoreFromSnap(snap){
+  Object.keys(snap).forEach(function(k){G[k]=snap[k];});
+  // Mid-AB pitch state from before the AB was logged should NOT include the
+  // X / K / BB / HBP that ENDED the AB. Clear so the re-bat starts clean.
+  G.cpitch=[];G.cpitchQuality=[];G.balls=0;G.strikes=0;G.lastABPitches=[];
 }
 
 // MANUAL RUN MODAL
@@ -6548,12 +6598,15 @@ function confirmDeleteAB(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
   var isLast=_editAbIdx===G.abs.length-1;
-  if(isLast&&_hasUndoSnap()){
-    // Latest AB → always full rewind (the user-friendly path)
+  // v150: rewind path is available if we have either a per-AB preState
+  // (persists across refresh) OR an in-memory snapshot. preState is the
+  // primary path now.
+  var canRewind=isLast&&(!!ab.preState||_hasUndoSnap());
+  if(canRewind){
     confirmModal('Rewind AB#'+ab.num+'?','Restores bases, score, outs, and lineup pointer to before '+(ab.batter||'this batter')+'\'s AB. They\'ll be back up to bat.',function(){_doDeleteAB(true);},null,{yesLabel:'Rewind',danger:false});
     return;
   }
-  // Older AB OR latest with no snapshot → just remove from log
+  // Older AB OR latest with no rewind data → just remove from log
   var pscoredCt=(ab.pscored&&ab.pscored.length)||0;
   var runWarn=pscoredCt>0?(' · '+pscoredCt+' run'+(pscoredCt===1?'':'s')+' will be subtracted'):'';
   var lead=isLast?'No rewind data available — ':'Older AB — ';
@@ -6562,23 +6615,29 @@ function confirmDeleteAB(){
 function _doDeleteAB(rewind){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
-  if(rewind&&_hasUndoSnap()){
-    // v145: pop the top snapshot — that's the state from before this AB was
-    // logged. Snapshot includes G.abs[] without this AB, so the record
-    // disappears as a side-effect of the restore. Stack-based, so chained
-    // rewinds work: pop again next time deletes the new latest.
-    var snap=_popUndoSnap();
-    Object.keys(snap).forEach(function(k){G[k]=snap[k];});
-    _setUndoBtnState();
-    if(typeof recalcPitcherStats==='function')recalcPitcherStats();
-    cm('m-editab');cm('m-delab');
-    sv();
-    if(typeof renderLog==='function')renderLog();
-    if(typeof renderStats==='function')try{renderStats();}catch(e){}
-    if(typeof renderSC==='function')renderSC();
-    if(typeof renderSB==='function')try{renderSB();}catch(e){}
-    toast('Rewound — '+(ab.batter||'batter')+' is up again',3000);
-    return;
+  if(rewind){
+    // v150: prefer per-AB preState (persists across refresh / Firestore sync);
+    // fall back to in-memory stack only if preState is missing (legacy ABs).
+    var snap=ab.preState||(_hasUndoSnap()?_abSnapStack[_abSnapStack.length-1]:null);
+    if(snap){
+      var deletedNum=ab.num;
+      _restoreFromSnap(snap);
+      G.abs.splice(_editAbIdx,1);
+      G.abs.forEach(function(a,i){a.num=i+1;});G.abc=G.abs.length;
+      if(G.runs)G.runs=G.runs.filter(function(r){return r.ab_num!==deletedNum;});
+      // Sync the in-memory stack — pop if the top matches what we used
+      if(_hasUndoSnap()&&_abSnapStack[_abSnapStack.length-1]===snap)_popUndoSnap();
+      _setUndoBtnState();
+      if(typeof recalcPitcherStats==='function')recalcPitcherStats();
+      cm('m-editab');cm('m-delab');
+      sv();
+      if(typeof renderLog==='function')renderLog();
+      if(typeof renderStats==='function')try{renderStats();}catch(e){}
+      if(typeof renderSC==='function')renderSC();
+      if(typeof renderSB==='function')try{renderSB();}catch(e){}
+      toast('Rewound — '+(ab.batter||'batter')+' is up again',3000);
+      return;
+    }
   }
   // Just-remove-from-log: existing behavior
   // v139: lineup-pointer reset so re-batting the deleted batter works.
@@ -7587,7 +7646,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v149';
+var APP_VERSION='v150';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
