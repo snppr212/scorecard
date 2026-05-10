@@ -7034,8 +7034,8 @@ for(var inn=1;inn<=maxInn;inn++){
   var topErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half==='top'&&e.standalone;});
   var botErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half==='bottom'&&e.standalone;});
   if(!topABs.length&&!botABs.length&&!topErrs.length&&!botErrs.length)continue;
-  html+=mkHalf(topABs,'Inning '+inn+' ▲ — '+esc(G.at),inn,'top');
-  html+=mkHalf(botABs,'Inning '+inn+' ▼ — '+esc(G.ht),inn,'bottom');
+  html+=mkHalf(topABs,'▲ TOP '+ord(inn)+' — '+esc(G.at),inn,'top');
+  html+=mkHalf(botABs,'▼ BOT '+ord(inn)+' — '+esc(G.ht),inn,'bottom');
 }
 p.innerHTML=html||'<div class="empty">No at-bats</div>';}
 
@@ -7731,7 +7731,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v157';
+var APP_VERSION='v158';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
