@@ -549,6 +549,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- DP / FC sub-pickers (existing, unchanged) -->
 <div id="fc-sec" style="display:none;"><div class="mrow"><label>FC — who is out?</label><div id="fc-btns"></div></div></div>
 <div id="dp-sec" style="display:none;"><div class="mrow"><label>Who else is out?</label><div id="dp-btns"></div></div><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="gidp-chk" style="width:auto;margin:0;"> GIDP — batter grounded into DP</label></div></div>
+<!-- v137: BASERUNNER INTERFERENCE — runner hit by fair batted ball before it
+     passes an infielder. Dead ball, batter credited with 1B, runner out,
+     putout to nearest fielder. Only other runners forced by the batter at 1B
+     advance. -->
+<div id="bi-sec" style="display:none;"><div class="mrow" style="margin-top:6px;"><label style="display:flex;align-items:center;gap:8px;font-family:sans-serif;font-size:13px;"><input type="checkbox" id="bi-chk" style="width:auto;margin:0;" onchange="_toggleBI()"> Runner hit by ball (interference) — runner out, batter gets 1B</label></div><div id="bi-detail" style="display:none;margin-top:6px;"><div class="mrow"><label>Which runner was hit?</label><div id="bi-btns"></div></div><div class="mrow" style="margin-top:6px;"><label>Putout to (nearest fielder)</label><select id="bi-fielder" style="font-family:sans-serif;"><option value="1">1 — P</option><option value="2">2 — C</option><option value="3">3 — 1B</option><option value="4" selected>4 — 2B</option><option value="5">5 — 3B</option><option value="6">6 — SS</option><option value="7">7 — LF</option><option value="8">8 — CF</option><option value="9">9 — RF</option></select></div></div></div>
 <!-- OPTIONAL: FIELDING ERROR (collapsible) -->
 <details id="play-err-details" style="margin-top:8px;background:var(--bg3);border-radius:var(--rs);padding:0 8px;"><summary style="font-size:12px;color:var(--text2);font-family:sans-serif;cursor:pointer;padding:8px 0;">+ Fielding error (optional)</summary>
 <div style="padding:0 0 8px;">
@@ -4734,6 +4739,10 @@ if($('gidp-chk'))$('gidp-chk').checked=false;
 if(dp){var db='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';db+='<button class="btn btn-sm" style="margin:3px;" onclick="G.dpout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('dp-btns').innerHTML=db||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
 var fc=r==='FC';$('fc-sec').style.display=fc?'block':'none';
 if(fc){var fb='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?';fb+='<button class="btn btn-sm" style="margin:3px;" onclick="G.fcout='+b+';this.parentNode.querySelectorAll(\'.btn\').forEach(b2=>{if(b2!==this)b2.style.borderColor=\'\';});this.style.borderColor=\'var(--gold)\';">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';}}$('fc-btns').innerHTML=fb||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners</span>';}
+// v137: show baserunner-interference toggle on 1B with runners on. Hidden
+// otherwise — no UI clutter for plain 1Bs with empty bases or non-1B results.
+var biShow=(r==='1B'&&G.bases.some(function(rb){return rb!==null;}));
+if($('bi-sec'))$('bi-sec').style.display=biShow?'block':'none';
 om('m-play');}
 function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePOS().map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
 // ============================================================================
@@ -4743,7 +4752,35 @@ function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePO
 // the modal.
 // ============================================================================
 var _playPos1=null,_playPos2=null,_playTrajectory=null,_playHardness=null,_playErrType=null,_playManualNot=false;
+// v137: baserunner-interference state. _biBaseIdx is 0/1/2 (the base of the
+// runner who was hit by the batted ball). _biFielder is 1-9 (putout credit).
+// Set when the user toggles "Runner hit by ball" in the play modal on a 1B.
+var _biBaseIdx=null,_biFielder=null;
 function _posToLabel(n){return({1:'P',2:'C',3:'1B',4:'2B',5:'3B',6:'SS',7:'LF',8:'CF',9:'RF'})[n]||'';}
+// v137: toggle the BI detail section. Auto-pre-select the leading runner as a
+// sensible default (most common interference is R1 hit going to 2B).
+function _toggleBI(){
+  var on=$('bi-chk')&&$('bi-chk').checked;
+  if($('bi-detail'))$('bi-detail').style.display=on?'block':'none';
+  if(!on){_biBaseIdx=null;return;}
+  // Render runner buttons; auto-select the leading runner if any
+  var bb='';var firstIdx=null;
+  for(var b=0;b<3;b++){
+    if(G.bases[b]){
+      var rn=G.bases[b].name||'?';
+      if(firstIdx===null)firstIdx=b;
+      bb+='<button class="btn btn-sm" style="margin:3px;" data-bi="'+b+'" onclick="_pickBI('+b+')">'+['1st','2nd','3rd'][b]+' ('+rn+')</button>';
+    }
+  }
+  if($('bi-btns'))$('bi-btns').innerHTML=bb||'<span style="font-size:11px;color:var(--text3);font-family:sans-serif;">No runners on base — interference can\'t apply.</span>';
+  if(firstIdx!==null)_pickBI(firstIdx);
+}
+function _pickBI(b){
+  _biBaseIdx=b;
+  document.querySelectorAll('#bi-btns .btn[data-bi]').forEach(function(el){
+    el.style.borderColor=parseInt(el.getAttribute('data-bi'),10)===b?'var(--gold)':'';
+  });
+}
 // LL 9.04 force-out RBI hint. Returns a short contextual line for the play
 // modal — runs scoring on force / fly / sac plays DO credit the batter; only
 // force-double-plays exclude RBI. Errors-only-cause-the-run is also no RBI
@@ -4759,6 +4796,9 @@ function _rbiHintFor(result,hasRunners){
 }
 function _resetPlayState(){
   _playPos1=null;_playPos2=null;_playTrajectory=null;_playHardness=null;_playErrType=null;_playManualNot=false;
+  _biBaseIdx=null;_biFielder=null;
+  if($('bi-chk'))$('bi-chk').checked=false;
+  if($('bi-detail'))$('bi-detail').style.display='none';
   document.querySelectorAll('.play-diamond .fielder').forEach(function(el){el.classList.remove('pos1','pos2');});
   document.querySelectorAll('#trajectory-btns .btn[data-t]').forEach(function(el){el.classList.remove('selected');});
   document.querySelectorAll('#hardness-btns .btn[data-h]').forEach(function(el){el.classList.remove('selected');});
@@ -4917,8 +4957,20 @@ var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 // link it to the specific AB. The next AB that finAB pushes will get num=G.abc+1.
 if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,half:G.half,type:et,play:not||G.pres,standalone:false,ab_num:G.abc+1});}
 if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
+// v137: capture baserunner-interference toggle. Only honored when result is
+// 1B with at least one runner on AND the user picked a base. Fielder defaults
+// to the dropdown value (4 = 2B if untouched).
+var _biActive=res==='1B'&&$('bi-chk')&&$('bi-chk').checked&&_biBaseIdx!=null&&G.bases[_biBaseIdx];
+if(_biActive){
+  _biFielder=parseInt(($('bi-fielder')&&$('bi-fielder').value)||'4',10);
+  // Auto-append "(RI/x)" to notation if user hasn't manually edited it
+  if(!_playManualNot){
+    not=(not||'1B')+' (RI/'+_biFielder+')';
+  }
+}
 // Stash play-detail metadata for finAB to pick up on the AB record
-G._lastPlayMeta={hitLoc:_playPos1||null,throwTo:(_playPos2&&_playPos2!=='u')?_playPos2:null,unassisted:_playPos2==='u'||null,trajectory:_playTrajectory||null,hardness:_playHardness||null};
+G._lastPlayMeta={hitLoc:_playPos1||null,throwTo:(_playPos2&&_playPos2!=='u')?_playPos2:null,unassisted:_playPos2==='u'||null,trajectory:_playTrajectory||null,hardness:_playHardness||null,
+  biBaseIdx:_biActive?_biBaseIdx:null,biFielder:_biActive?_biFielder:null};
 cm('m-play');finAB(res,not,G.prbi);}
 
 function finAB(r,not,rbi){
@@ -4962,12 +5014,22 @@ G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:
   if(r==='TP'){
     G.bases.forEach(function(rb,i){if(rb)_outs.push({name:rb.name||'?',fromBase:i+1,atBase:i+2});});
   }
+  // v137: baserunner interference — runner is out at their own base (atBase
+  // = fromBase). Putout fielder is captured separately on the AB record.
+  if(r==='1B'&&_meta.biBaseIdx!=null&&G.bases[_meta.biBaseIdx]){
+    _outs.push({name:G.bases[_meta.biBaseIdx].name||'?',fromBase:_meta.biBaseIdx+1,atBase:_meta.biBaseIdx+1,reason:'interference',fielder:_meta.biFielder});
+    _newAb.interference={baseIdx:_meta.biBaseIdx,fielder:_meta.biFielder};
+  }
   if(_outs.length)_newAb.outOnAB=_outs;
 })();
 var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
+// v137: baserunner interference on a 1B counts an out (the runner) AND a hit
+// for the batter — handled separately from the isOut hit-credit branches.
+var _bi=(r==='1B'&&_meta.biBaseIdx!=null&&G.bases[_meta.biBaseIdx])?_meta:null;
 // attribute result to fielding pitcher (already computed above)
 if(_fp){
   if(isOut)_fp.ip_outs=(_fp.ip_outs||0)+1;
+  if(_bi)_fp.ip_outs=(_fp.ip_outs||0)+1;// runner out on interference
   if(r==='DP'||r==='GIDP')_fp.ip_outs=(_fp.ip_outs||0)+1;// second out
   if(['1B','2B','3B','HR','LLHR'].includes(r))_fp.hits=(_fp.hits||0)+1;
   if(r==='BB')_fp.bb_allowed=(_fp.bb_allowed||0)+1;
@@ -4975,12 +5037,34 @@ if(_fp){
   if(r==='HBP')_fp.hbp_allowed=(_fp.hbp_allowed||0)+1;
 }
 if(isOut)G.outs++;
+if(_bi)G.outs=Math.min(3,G.outs+1);
 if(r==='DP'||r==='GIDP'){if(G.dpout!==null&&G.bases[G.dpout])G.bases[G.dpout]=null;G.outs=Math.min(3,G.outs+1);}
 if(r==='TP'){G.bases=[null,null,null];G.outs=Math.min(3,G.outs+2);}// triple play: clear bases, +2 more outs (batter already counted)
 if(r==='HR'||r==='LLHR'){
   for(var i=0;i<3;i++){if(G.bases[i])logRun(G.bases[i].bi,G.bases[i].team);}
   logRun(G.cbi,t);
   addR(1+G.bases.filter(x=>x!==null).length);G.bases=[null,null,null];
+}
+else if(_bi){
+  // v137: 1B with baserunner interference. Dead ball — only runners forced
+  // by the batter taking 1B advance. The interfering runner is removed; the
+  // chain breaks naturally at that base so non-forced runners stay put.
+  // Examples (bases [Miles, Ezra, Julian]):
+  //   biBaseIdx=0 (Miles hit) → [Ben, Ezra, Julian]
+  //   biBaseIdx=1 (Ezra hit) → [Ben, Miles, Julian]
+  //   biBaseIdx=2 (Julian hit) → [Ben, Miles, Ezra] (Julian gone, others forced up)
+  G.bases[_bi.biBaseIdx]=null;
+  var scored=0;
+  var br={name:b?b.name:'?',jerseyNum:b?b.jersey:'',bi:G.cbi,team:t};
+  if(G.bases[0]){
+    if(G.bases[1]){
+      if(G.bases[2]){logRun(G.bases[2].bi,G.bases[2].team);scored++;}
+      G.bases[2]=G.bases[1];
+    }
+    G.bases[1]=G.bases[0];
+  }
+  G.bases[0]=br;
+  addR(scored);
 }
 else if(['1B','2B','3B'].includes(r)){
   var scored=advanceWithRBI(r,t,rbi);
@@ -5933,7 +6017,7 @@ function _renderEditAbOuts(){
   var ab=G.abs[_editAbIdx];if(!ab)return;
   var outs=ab.outOnAB||[];
   var html=outs.length
-    ? outs.map(function(o,i){var atLabel=o.atBase>=4?'home':['','1st','2nd','3rd'][o.atBase]||'?';return '<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(184,50,40,.12);border-radius:3px;margin-bottom:4px;"><span style="flex:1;color:var(--red2);">'+esc(o.name||'?')+' out at '+atLabel+'</span><button class="btn btn-xs btn-red" onclick="_removeOutFromAB('+i+')" style="padding:2px 6px;">✕</button></div>';}).join('')
+    ? outs.map(function(o,i){var label;if(o.reason==='interference'){label=esc(o.name||'?')+' — hit by ball'+(o.fielder?' (PO '+o.fielder+')':'');}else{var atLabel=o.atBase>=4?'home':['','1st','2nd','3rd'][o.atBase]||'?';label=esc(o.name||'?')+' out at '+atLabel;}return '<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(184,50,40,.12);border-radius:3px;margin-bottom:4px;"><span style="flex:1;color:var(--red2);">'+label+'</span><button class="btn btn-xs btn-red" onclick="_removeOutFromAB('+i+')" style="padding:2px 6px;">✕</button></div>';}).join('')
     : '<div style="color:var(--text3);font-style:italic;font-size:11px;">No forced outs logged on this AB</div>';
   $('editab-outs').innerHTML=html;
 }
@@ -6317,10 +6401,17 @@ function mkHalf(abs,label,inn,half){
       subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--amber2);font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
     });
     // v130: outs on bases recorded during this AB (FC, DP, GIDP, TP)
+    // v137: interference outs render as "hit by ball (PO N)" instead of "out at <base>"
     if(ab.outOnAB&&ab.outOnAB.length){
       ab.outOnAB.forEach(function(out){
-        var atLabel=out.atBase>=4?'home':['','1st','2nd','3rd'][out.atBase]||'?';
-        subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--red2);font-family:sans-serif;font-style:italic;">↳ '+esc(_shortName(out.name||'?'))+' out at '+atLabel+'</div>');
+        var line;
+        if(out.reason==='interference'){
+          line='↳ '+esc(_shortName(out.name||'?'))+' out — hit by batted ball'+(out.fielder?' (PO '+out.fielder+')':'');
+        }else{
+          var atLabel=out.atBase>=4?'home':['','1st','2nd','3rd'][out.atBase]||'?';
+          line='↳ '+esc(_shortName(out.name||'?'))+' out at '+atLabel;
+        }
+        subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--red2);font-family:sans-serif;font-style:italic;">'+line+'</div>');
       });
     }
     // v134: non-out advances on this AB (forced advances on walks/HBP/FCs,
@@ -7016,7 +7107,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v136';
+var APP_VERSION='v137';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
