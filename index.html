@@ -1066,6 +1066,21 @@ function oppDisplay(p,idx){
   var nm=parts.length>1?parts[0].charAt(0)+'. '+parts[parts.length-1]:p.name;
   return j+nm;
 }
+// v156: HTML version of oppDisplay — renders the jersey as a small
+// superscript "#N" instead of "(N)" parens. Used by the Plays tab AB rows
+// (any place that puts the result into innerHTML). Toasts and other
+// textContent contexts keep using the plain-text oppDisplay above.
+function oppDisplayHtml(p,idx){
+  if(!p)return typeof idx==='number'?esc(holeLabel(idx)):'TBD';
+  if(p.autoOut)return'⚪ Auto Out';
+  if(!p.name&&!p.jersey)return typeof idx==='number'?esc(holeLabel(idx)):'TBD';
+  var jHtml=p.jersey?('<sup style="font-size:8px;color:var(--text3);font-weight:normal;">#</sup>'+esc(p.jersey)+' '):'';
+  if(isPlaceholder(p.name))return jHtml+esc(p.name);
+  if(!p.name)return'<sup style="font-size:8px;color:var(--text3);font-weight:normal;">#</sup>'+esc(p.jersey);
+  var parts=p.name.trim().split(/\s+/);
+  var nm=parts.length>1?parts[0].charAt(0)+'. '+parts[parts.length-1]:p.name;
+  return jHtml+esc(nm);
+}
 function theyBat(){return isOH()!==isHB();}// true when opponent is currently batting
 function isPast(ev){try{return new Date(ev.date+' '+ev.time)<new Date();}catch(e){return false;}}
 function fmt3(n){return n.toFixed(3).replace(/^0/,'');}
@@ -6759,11 +6774,29 @@ function abBatterIsPlaceholder(ab){
   var p=(typeof ab.bi==='number'&&lu&&lu[ab.bi])?lu[ab.bi]:null;
   return p?isPlaceholder(p.name):isPlaceholder(ab.batter);
 }
-// Return HTML with light-red styling if the batter is a placeholder, else plain escaped text
+// Return HTML with light-red styling if the batter is a placeholder, else
+// formatted with a small superscript # in front of the jersey number.
+// v156: jerseys now render as "<sup>#</sup>24 C. Speller" instead of
+// "(24) C. Speller". Calls oppDisplayHtml for opp batters; for our team,
+// formats jersey + sn(name) inline.
 function abBatterHtml(ab){
-  var t=abBatterDisplay(ab);
-  if(abBatterIsPlaceholder(ab))return'<span style="color:#ff8888;font-style:italic;">'+esc(t)+'</span>';
-  return esc(t);
+  var opp=ab.team===themT();
+  var lu=ab.team==='home'?G.hlu:G.alu;
+  var p=(typeof ab.bi==='number'&&lu&&lu[ab.bi])?lu[ab.bi]:null;
+  if(!p&&lu)p=lu.find(function(x){return(x.name||'')===ab.batter;});
+  var html;
+  if(opp){
+    html=p?oppDisplayHtml(p,ab.bi):esc(ab.batter);
+  }else{
+    // Our team — if a jersey number exists, render it as superscript-#
+    if(p&&p.jersey&&p.name){
+      html='<sup style="font-size:8px;color:var(--text3);font-weight:normal;">#</sup>'+esc(p.jersey)+' '+esc(sn(p.name));
+    }else{
+      html=esc(p?sn(p.name||'#'+p.jersey):sn(ab.batter));
+    }
+  }
+  if(abBatterIsPlaceholder(ab))return'<span style="color:#ff8888;font-style:italic;">'+html+'</span>';
+  return html;
 }
 // 4.1: derive display notation — prefer user-entered not, fall back to standard codes
 // v130/v132/v133: combine result code + scorer's notation so the chip shows
@@ -6827,7 +6860,7 @@ function mkHalf(abs,label,inn,half){
         var ap=a.pitcher||(aFielded?((G.fa[a.inn]||{}).P):null)||null;
         return ap===thisPitcher&&a.inn===ab.inn&&a.half===ab.half;
       }).reduce(function(sum,a){return sum+(a.pc||0);},0);
-      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 22px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+(inningPC>0?' <span style="color:var(--text3);"><sup style="font-size:8px;">#</sup>'+inningPC+'</span>':'')+'</div>');
+      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 22px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+(inningPC>0?' <span style="color:var(--text3);font-style:normal;">(pitches: '+inningPC+')</span>':'')+'</div>');
       lastPitcher=thisPitcher;
     }
     var pitches=ab.pitches||[];
@@ -6853,7 +6886,9 @@ function mkHalf(abs,label,inn,half){
     // total matches the data.
     var displayCount=Math.max(pcount,ab.pc||0);
     var pitchCell;
-    // v155: pitch counts render as #N with a small superscript # rather than (N).
+    // v156: AB rows use #N (superscript hash) — same as jersey numbers (see
+    // abBatterHtml). The pitcher half-header below uses an explicit
+    // "(pitches: N)" with parens for clarity.
     if(pcount){
       pitchCell=seq+' <span style="color:var(--text3);"><sup style="font-size:8px;">#</sup>'+displayCount+'</span>';
     }else if(ab.pc>0){
@@ -7696,7 +7731,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v155';
+var APP_VERSION='v156';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
