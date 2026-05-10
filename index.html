@@ -540,6 +540,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <label style="margin-bottom:4px;">Hardness (optional)</label>
 <div class="play-toggle-group" id="hardness-btns">
 <button class="btn btn-xs" data-h="hard" onclick="setPlayHardness('hard')">⚡ Hard</button>
+<button class="btn btn-xs" data-h="avg" onclick="setPlayHardness('avg')">🟰 Avg</button>
 <button class="btn btn-xs" data-h="soft" onclick="setPlayHardness('soft')">🍃 Soft</button>
 <button class="btn btn-xs" onclick="setPlayHardness(null)" style="opacity:.7;">clear</button>
 </div>
@@ -7107,7 +7108,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v137';
+var APP_VERSION='v138';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
