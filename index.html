@@ -433,7 +433,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tag last swing/foul/BIP as <strong>good pitch</strong> or <strong>bad pitch</strong>:</div>
   <div class="row" style="gap:6px;"><button id="swq-good" class="btn btn-sm" disabled onclick="tagLastPitchQuality('good')" style="flex:1;border-color:var(--green2);color:var(--green2);opacity:.4;font-weight:bold;">˚ · Good pitch</button><button id="swq-bad" class="btn btn-sm" disabled onclick="tagLastPitchQuality('bad')" style="flex:1;border-color:var(--red2);color:var(--red2);opacity:.4;font-weight:bold;">¸ · Bad pitch</button></div>
 </div></div>
-<div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('PO')">Pop out</button><button class="rbtn" onclick="endAB('FF')">Foul fly</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="endAB('CI')" style="border-color:var(--amber2);color:var(--amber2);font-size:10px;">CI</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
+<div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('PO')">Pop out</button><button class="rbtn" onclick="endAB('FF')">Foul fly</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="openCI()" style="border-color:var(--amber2);color:var(--amber2);font-size:10px;">CI</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
 <div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
@@ -790,6 +790,20 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div></div>
 
 <!-- MANUAL RUN MODAL -->
+<!-- v164: Catcher's Interference modal — gives the user 4 options because
+     the rule's "election" + LL umpire variability means there's no single
+     right answer in the moment. Default is Award 1B (the official rule). -->
+<div class="modal-ov" id="m-ci"><div class="modal" style="max-width:380px;">
+<h3>Catcher's Interference</h3>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.45;">Bat hit the catcher's mitt during the swing. Per LL rules the batter is awarded 1B (E2 to the catcher), with forced runners advancing. Manager can elect the play result if it favors the offense. Pick what the umpire ruled:</div>
+<div class="mact">
+<button class="btn btn-gold btn-full" onclick="cm('m-ci');_ciAward()">→ Award batter 1B (E2 to C)</button>
+<button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-ci');lp('B')">🅑 Count as a Ball — AB continues</button>
+<button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-ci');lp('S')">🅢 Count as a Strike — AB continues</button>
+<button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-ci')">↻ Do-over — no count change</button>
+<button class="btn btn-full" style="margin-top:10px;" onclick="cm('m-ci')">Cancel</button>
+</div>
+</div></div>
 <div class="modal-ov" id="m-manrun"><div class="modal"><h3>Adjust score</h3>
 <div class="mrow"><label>Add a run for:</label>
 <div class="g2" style="margin-top:6px;">
@@ -4768,6 +4782,30 @@ G.balls=0;G.strikes=0;G.cpitch.forEach(function(c){if(c==='S'||c==='L')G.strikes
 
 // END AB
 // [ATBAT] ===================================================================
+// v164: Catcher's Interference flow. Opens m-ci so the user picks how the
+// umpire ruled. The "Award 1B" branch ends the AB; the others (Ball / Strike
+// / Do-over) keep the AB alive.
+function openCI(){
+  if(_voGuard())return;
+  if(G.cbi<0){
+    if(theyBat()){openOppBatterPicker('CI');return;}
+    toast('Select batter');return;
+  }
+  ensurePitcher();
+  if(G.plb){om('m-plimit');return;}
+  om('m-ci');
+}
+function _ciAward(){
+  // Standard CI penalty — batter to 1B with E2 to the catcher and force
+  // cascade. With bases loaded, R3 is forced home for an RBI.
+  if(G.cbi<0)return;
+  ensurePitcher();
+  var fa=G.fa[G.inn]||{};var catcherName=fa.C||'(catcher)';
+  if(!G.errs)G.errs=[];
+  G.errs.push({player:catcherName,pos:'C',inn:G.inn,half:G.half,type:'C',play:'CI',standalone:false,ab_num:G.abc+1});
+  var rbi=(G.bases[0]&&G.bases[1]&&G.bases[2])?1:0;
+  finAB('CI','CI',rbi);
+}
 function endAB(r){if(_voGuard())return;if(G.cbi<0){
 if(theyBat()){openOppBatterPicker(r);return;}
 toast('Select batter');return;}
@@ -4792,12 +4830,11 @@ G.pres=r;G.prbi=0;G.dpout=null;G.fcout=null;
 if((r==='BB'||r==='HBP'||r==='CI')&&G.bases[0]&&G.bases[1]&&G.bases[2]){
   var not=r==='BB'?'BB':r==='HBP'?'HBP':'CI';finAB(r,not,1);return;
 }
-// v163: CI (Catcher's Interference) — bat hits catcher's mitt during swing.
-// Batter awarded 1B + force cascade (like BB/HBP); catcher gets E2 auto-logged.
-// No pitch sequence required (the play happens on the swing, not on a thrown pitch).
+// v163/v164: CI handling moved into _ciAward (called from the m-ci modal).
+// The result-picker CI button calls openCI() instead of endAB('CI'); but if
+// some other path passes 'CI' to endAB (e.g., Edit AB result change), keep
+// the cascade fallback below.
 if(r==='CI'){
-  // Auto-log E2 (catching error charged to current catcher)
-  var _cTeam=isHB()?G.hp:G.ap;// our pitchers when we're at home/batting? — actually use fielding plan
   var fa=G.fa[G.inn]||{};var catcherName=fa.C||'(catcher)';
   G.errs.push({player:catcherName,pos:'C',inn:G.inn,half:G.half,type:'C',play:'CI',standalone:false,ab_num:G.abc+1});
   finAB('CI','CI',0);return;
@@ -8012,7 +8049,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v163';
+var APP_VERSION='v164';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
