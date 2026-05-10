@@ -4914,6 +4914,9 @@ chkPW();// check pitch thresholds for every AB outcome (1B,2B,GO,FO,etc.)
 saveSnap();// save state before any mutation so we can undo
 // v126: button is always visible; we toggle disabled state instead
 if($('undo-ab-btn')){$('undo-ab-btn').disabled=false;$('undo-ab-btn').style.opacity='1';}
+// v134: snapshot pre-AB base state so we can derive advances after all
+// the BB/HBP/hit/FC mutations below run. Compared at the bottom of finAB.
+var _preBases=G.bases.map(function(rb){return rb?{name:rb.name||'',bi:rb.bi,team:rb.team}:null;});
 var lu=clu(),b=lu[G.cbi],t=isHB()?'home':'away';
 // Stamp the pitcher who faced this AB — captures mid-inning changes accurately
 var _fp=curPitcher();
@@ -5021,6 +5024,30 @@ if(G.outs>=3)G.outs=3;
 // Flush who-scored buffer onto the just-pushed AB record
 if(G._abScoredBuffer&&G._abScoredBuffer.length){var _justAb=G.abs[G.abs.length-1];if(_justAb)_justAb.pscored=G._abScoredBuffer.slice();}
 G._abScoredBuffer=null;
+// v134: derive non-out advances by diffing pre-AB base state vs current state.
+// A runner who was on base before the AB and is on a HIGHER base after (and
+// not in pscored or outOnAB) advanced. Stored on the AB record for the
+// Plays-tab sub-line renderer.
+(function(){
+  var advances=[];
+  _preBases.forEach(function(pre,preIdx){
+    if(!pre)return;
+    for(var postIdx=0;postIdx<3;postIdx++){
+      var post=G.bases[postIdx];
+      if(post&&post.bi===pre.bi&&(post.bi>=0||(post.name||'')===(pre.name||''))){
+        if(postIdx>preIdx){
+          advances.push({name:pre.name||'?',bi:pre.bi,fromBase:preIdx+1,toBase:postIdx+1});
+        }
+        return;// matched, done with this pre runner
+      }
+    }
+    // Not in postBases — they scored or were out; handled by pscored / outOnAB.
+  });
+  if(advances.length){
+    var _ab=G.abs[G.abs.length-1];
+    if(_ab)_ab.advancesOnAB=advances;
+  }
+})();
 G.lastABPitches=G.cpitch.slice();G.cbi=-1;G.cpitch=[];G.cpitchQuality=[];G.balls=0;G.strikes=0;
 if(G.eid)A.gameResults[G.eid]={hs:G.hs,as:G.as};syncP();sv();
 if(G.finishBatter){G.finishBatter=false;G.plb=true;sv();
@@ -6236,6 +6263,15 @@ function mkHalf(abs,label,inn,half){
         subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--red2);font-family:sans-serif;font-style:italic;">↳ '+esc(_shortName(out.name||'?'))+' out at '+atLabel+'</div>');
       });
     }
+    // v134: non-out advances on this AB (forced advances on walks/HBP/FCs,
+    // hustled-up advances on hits, etc.). Derived from base-state diff at
+    // finAB time. Skips runners who scored (in pscored) or got out (outOnAB).
+    if(ab.advancesOnAB&&ab.advancesOnAB.length){
+      ab.advancesOnAB.forEach(function(a){
+        var toLabel=['','1st','2nd','3rd'][a.toBase]||'?';
+        subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--text2);font-family:sans-serif;">↳ '+esc(_shortName(a.name||'?'))+' to '+toLabel+'</div>');
+      });
+    }
     // Runs scored on this AB
     if(ab.pscored&&ab.pscored.length){
       // v96: pscored entries can be either strings (legacy) or {bi, team, name}
@@ -6920,7 +6956,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v133';
+var APP_VERSION='v134';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
