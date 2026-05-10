@@ -669,6 +669,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:6px;line-height:1.4;"><span id="eg-rbi-count">0</span> plays had errors with runs scored. Per LL 9.04, RBIs aren't credited when a run scores solely due to a fielding error. Want to review?</div>
   <button class="btn btn-sm btn-gold btn-full" onclick="openErrorRbiReview()">🔍 Review error-attributed RBIs</button>
 </div>
+<!-- v147: unattributed-runs review prompt (manual +Run / runner-picker entries) -->
+<div id="eg-manrun-review" style="display:none;margin-bottom:12px;padding:10px;background:rgba(184,50,40,.12);border-left:3px solid var(--red2);border-radius:var(--rs);text-align:left;">
+  <div style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:6px;line-height:1.4;"><span id="eg-manrun-count">0</span> run(s) scored without a runner attached. Likely from + Run or scoring a runner via the diamond picker. Take a minute to attribute them to the correct kid.</div>
+  <button class="btn btn-sm btn-red btn-full" onclick="openManualRunReview()">🔧 Review unattributed runs</button>
+</div>
 <div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEndGame()">Save & return home</button><button class="btn btn-full" onclick="cm('m-endgame')">Keep scoring</button></div>
 </div></div>
 <!-- v96: error-attributed RBI review modal -->
@@ -677,6 +682,14 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;line-height:1.45;">Each row is an AB where a fielding error and a run-scoring event happened on the same play. Per LL 9.04, runs that scored <em>solely because of</em> the error don't credit the batter. Adjust RBI down for any plays where the error caused the run.</div>
   <div id="rbi-review-list" style="max-height:55vh;overflow-y:auto;"></div>
   <div class="mact"><button class="btn btn-full" onclick="cm('m-rbi-review')">Done</button></div>
+</div></div>
+<!-- v147: unattributed manual run review modal — lists every (manual) pscored
+     entry with inning context and a Fix button that jumps to Edit AB. -->
+<div class="modal-ov" id="m-manrun-review"><div class="modal" style="max-width:420px;">
+  <h3>🔧 Unattributed runs</h3>
+  <div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;line-height:1.45;">These runs were added via the + Run button or by scoring a runner from the diamond picker. They count toward the team total but don't credit a specific kid. Tap Fix to attribute each one — the runner will get the run on their stat line.</div>
+  <div id="manrun-review-list" style="max-height:55vh;overflow-y:auto;"></div>
+  <div class="mact"><button class="btn btn-full" onclick="cm('m-manrun-review')">Done</button></div>
 </div></div>
 <!-- v105: paste-from-Claude modal — for importing pasted lineup/fielding/pitcher data -->
 <div class="modal-ov" id="m-paste"><div class="modal" style="max-width:440px;">
@@ -6283,17 +6296,67 @@ function _removeAdvanceFromAB(idx){
   },null,{yesLabel:'Remove',danger:true});
 }
 // v141: render existing runs scored on the AB being edited (ab.pscored)
+// v147: manual entries get a 🔧 button to attribute them to a real runner
 function _renderEditAbRuns(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
   var runs=ab.pscored||[];
   var html=runs.length
     ? runs.map(function(r,i){
+        var isManual=r&&typeof r==='object'&&r.manual;
         var name=typeof r==='string'?r:(r.name||'?');
-        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(255,179,0,.12);border-radius:3px;margin-bottom:4px;"><span style="flex:1;color:var(--amber2);">'+esc(name)+' scored</span><button class="btn btn-xs btn-red" onclick="_removeRunFromAB('+i+')" style="padding:2px 6px;">✕</button></div>';
+        var bg=isManual?'rgba(184,50,40,.15)':'rgba(255,179,0,.12)';
+        var color=isManual?'var(--red2)':'var(--amber2)';
+        var label=isManual?('⚠️ '+esc(name)+' scored — attribute to a runner'):(esc(name)+' scored');
+        var fixBtn=isManual?'<button class="btn btn-xs btn-gold" onclick="_attributeManualRun('+i+')" style="padding:2px 6px;" title="Attribute to a runner">🔧</button>':'';
+        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:'+bg+';border-radius:3px;margin-bottom:4px;"><span style="flex:1;color:'+color+';">'+label+'</span>'+fixBtn+'<button class="btn btn-xs btn-red" onclick="_removeRunFromAB('+i+')" style="padding:2px 6px;">✕</button></div>';
       }).join('')
     : '<div style="color:var(--text3);font-style:italic;font-size:11px;">No runs scored logged on this AB</div>';
   $('editab-runs').innerHTML=html;
+}
+// v147: attribute a manual pscored entry to a real runner. Replaces the
+// (manual) placeholder with proper {bi, team, name} attribution and updates
+// the corresponding G.runs entry. Reuses the same picker as openAddRunToAB
+// but stashes the index of the entry being replaced.
+var _attributeIdx=-1;
+function _attributeManualRun(idx){
+  if(_editAbIdx<0)return;
+  var ab=G.abs[_editAbIdx];if(!ab||!ab.pscored||!ab.pscored[idx])return;
+  _attributeIdx=idx;
+  var lu=ab.team==='home'?G.hlu:G.alu;
+  var opts=lu.map(function(p,i){var nm=p.name||'(slot '+(i+1)+')';return '<option value="'+i+'">'+(i+1)+'. '+esc(nm)+(p.jersey?' #'+p.jersey:'')+'</option>';}).join('');
+  $('abrun-runner').innerHTML=opts;
+  $('abrun-runner').value=Math.max(0,(ab.bi||0)-3);
+  // Swap the modal's submit handler to the attribute version. Simplest
+  // approach: temporarily change the button onclick.
+  var btn=document.querySelector('#m-abrun .mact button.btn-gold');
+  if(btn){btn._origClick=btn.getAttribute('onclick');btn.setAttribute('onclick','_confirmAttributeManualRun()');btn.textContent='Attribute run';}
+  om('m-abrun');
+}
+function _confirmAttributeManualRun(){
+  if(_editAbIdx<0||_attributeIdx<0){cm('m-abrun');return;}
+  var ab=G.abs[_editAbIdx];if(!ab||!ab.pscored||!ab.pscored[_attributeIdx]){cm('m-abrun');return;}
+  var bi=parseInt($('abrun-runner').value);
+  var lu=ab.team==='home'?G.hlu:G.alu;
+  var runner=lu[bi];if(!runner){toast('Pick a runner');return;}
+  // Replace the manual entry with proper attribution
+  ab.pscored[_attributeIdx]={bi:bi,team:ab.team,name:runner.name||'?'};
+  // Update matching G.runs entry (manual + same ab_num) with bi
+  if(G.runs)for(var ri=0;ri<G.runs.length;ri++){
+    if(G.runs[ri].manual&&G.runs[ri].ab_num===ab.num&&G.runs[ri].team===ab.team&&G.runs[ri].bi==null){
+      G.runs[ri].bi=bi;G.runs[ri].manual=false;break;
+    }
+  }
+  // Restore the button's original handler/label
+  var btn=document.querySelector('#m-abrun .mact button.btn-gold');
+  if(btn&&btn._origClick){btn.setAttribute('onclick',btn._origClick);btn.textContent='Log run';btn._origClick=null;}
+  _attributeIdx=-1;
+  sv();
+  cm('m-abrun');
+  _renderEditAbRuns();
+  if(typeof renderSC==='function')renderSC();
+  if(typeof renderLog==='function')try{renderLog();}catch(e){}
+  toast('Attributed to '+sn(runner.name||'?'));
 }
 function openAddRunToAB(){
   if(_editAbIdx<0)return;
@@ -6643,6 +6706,14 @@ function abNotation(ab){
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
 var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
 var html='';
+// v147: in-game banner — if there are unattributed manual runs anywhere in
+// the log, show a tap-to-fix banner at the top of the Plays panel. Click
+// opens the same review modal used at end-of-game so the user can attribute
+// runs while the inning is fresh in their head.
+var _manCands=(typeof _findManualRunCandidates==='function')?_findManualRunCandidates():[];
+if(_manCands.length){
+  html+='<div onclick="openManualRunReview()" style="cursor:pointer;background:rgba(184,50,40,.15);border-left:3px solid var(--red2);border-radius:var(--rs);padding:8px 10px;margin-bottom:10px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">⚠️</span><div style="flex:1;font-size:12px;font-family:sans-serif;color:var(--text);"><strong>'+_manCands.length+' unattributed run'+(_manCands.length===1?'':'s')+'</strong> · tap to attribute to the right kid</div><span style="color:var(--gold);font-size:11px;font-family:sans-serif;">Fix →</span></div>';
+}
 // Compact base-name helper for sub-lines (e.g. "1st", "2nd", "3rd")
 function _baseLbl(n){return n===1||n==='1'||n==='1st'?'1st':n===2||n==='2'||n==='2nd'?'2nd':n===3||n==='3'||n==='3rd'?'3rd':String(n);}
 // First initial + last name for sub-line names
@@ -6769,18 +6840,25 @@ function mkHalf(abs,label,inn,half){
       // v96: pscored entries can be either strings (legacy) or {bi, team, name}
       // objects. For objects, resolve to the current lineup name so renames
       // propagate; fall back to the stored name if lineup lookup fails.
-      var names=ab.pscored.map(function(entry){
-        if(typeof entry==='string')return _shortName(entry);
+      // v147: manual entries (added via +Run / runner-picker without proper
+      // attribution) render in red with a "tap to fix" cue so the scorer is
+      // nudged to go back and assign the right runner.
+      var hasManual=false;
+      var parts=ab.pscored.map(function(entry){
+        if(typeof entry==='string')return esc(_shortName(entry));
         if(entry&&typeof entry==='object'){
+          if(entry.manual){hasManual=true;return '<span style="color:var(--red2);font-weight:bold;" title="Unattributed — tap pencil ✏️ to fix">⚠️ unattributed</span>';}
           var lu=entry.team==='home'?G.hlu:G.alu;
           var p=lu&&lu[entry.bi];
           var current=(p&&p.name)?p.name:entry.name;
-          return _shortName(current||'?');
+          return esc(_shortName(current||'?'));
         }
         return '?';
-      }).join(', ');
+      });
+      var names=parts.join(', ');
       var rbiPart=ab.rbi>0?' (+'+ab.rbi+' R)':' ('+ab.pscored.length+' R)';
-      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--amber2);font-family:sans-serif;font-style:italic;">↳ Scored: '+esc(names)+rbiPart+'</div>');
+      var color=hasManual?'var(--red2)':'var(--amber2)';
+      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:'+color+';font-family:sans-serif;font-style:italic;">↳ Scored: '+names+rbiPart+'</div>');
     }
     pieces.push.apply(pieces,subPieces);
   });
@@ -6975,7 +7053,51 @@ function endGame(){
       rbiReviewBlock.style.display='none';
     }
   }
+  // v147: surface any unattributed manual runs so the scorer can go back and
+  // pin them to the correct kid before finalizing the game.
+  var manrunBlock=$('eg-manrun-review');
+  if(manrunBlock){
+    var manCands=_findManualRunCandidates();
+    if(manCands.length>0){
+      $('eg-manrun-count').textContent=manCands.length;
+      manrunBlock.style.display='block';
+    }else{
+      manrunBlock.style.display='none';
+    }
+  }
   om('m-endgame');
+}
+// v147: scan the AB log for pscored entries marked manual:true. Returns a
+// list of {abIdx, ab, runIdx, run} for the review modal.
+function _findManualRunCandidates(){
+  var out=[];
+  (G.abs||[]).forEach(function(ab,abIdx){
+    if(!ab.pscored)return;
+    ab.pscored.forEach(function(r,runIdx){
+      if(r&&typeof r==='object'&&r.manual)out.push({abIdx:abIdx,ab:ab,runIdx:runIdx,run:r});
+    });
+  });
+  return out;
+}
+function openManualRunReview(){
+  var cands=_findManualRunCandidates();
+  if(!cands.length){toast('No unattributed runs');cm('m-manrun-review');return;}
+  var html=cands.map(function(c){
+    var halfStr=c.ab.half==='top'?'▲ Top':'▼ Bot';
+    var teamStr=c.ab.team==='home'?G.ht:G.at;
+    var ctx='Inn '+c.ab.inn+' '+halfStr+' · '+esc(teamStr)+' · AB#'+c.ab.num+' ('+esc(c.ab.batter||'?')+')';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);"><div style="flex:1;"><div style="font-size:12px;font-family:sans-serif;color:var(--text);">⚠️ '+ctx+'</div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:2px;">Run scored — no runner attributed</div></div><button class="btn btn-xs btn-gold" onclick="cm(\'m-manrun-review\');_jumpToFixManual('+c.abIdx+')" style="padding:5px 10px;">Fix →</button></div>';
+  }).join('');
+  $('manrun-review-list').innerHTML=html;
+  // Open above the m-endgame modal — z-index 300 already set on m-confirm/m-prompt/m-delab,
+  // but m-manrun-review is a regular modal-ov. We rely on DOM order — it's after m-endgame
+  // so it stacks correctly.
+  om('m-manrun-review');
+}
+function _jumpToFixManual(abIdx){
+  // Close end-game modal so Edit AB is visible
+  cm('m-endgame');
+  setTimeout(function(){openEditAB(abIdx);},100);
 }
 // v117: clear transient mid-AB state from a game object so finalized games
 // don't render with leftover baserunners / pitch counts / current batter.
@@ -7448,7 +7570,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v146';
+var APP_VERSION='v147';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
