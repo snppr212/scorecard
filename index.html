@@ -67,7 +67,7 @@ body{display:flex;flex-direction:column;height:100dvh;}
 .bBB,.bHBP{background:rgba(42,125,82,.25);color:#80c8a0;}
 .b1B,.b2B,.b3B{background:rgba(31,95,160,.25);color:#80b8e8;}
 .bHR,.bLLHR{background:rgba(184,112,32,.35);color:var(--amber2);}
-.bFO,.bGO,.bLO,.bSAC,.bFC,.bDP,.bGIDP{background:rgba(255,255,255,.06);color:var(--text2);}
+.bFO,.bGO,.bLO,.bPO,.bSAC,.bFC,.bDP,.bGIDP{background:rgba(255,255,255,.06);color:var(--text2);}
 .bROE{background:rgba(200,140,80,.20);color:#e6a878;}
 input[type=text],input[type=number],select,textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:sans-serif;font-size:13px;padding:7px 9px;width:100%;}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);}
@@ -428,7 +428,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tag last swing/foul/BIP as <strong>good pitch</strong> or <strong>bad pitch</strong>:</div>
   <div class="row" style="gap:6px;"><button id="swq-good" class="btn btn-sm" disabled onclick="tagLastPitchQuality('good')" style="flex:1;border-color:var(--green2);color:var(--green2);opacity:.4;font-weight:bold;">˚ · Good pitch</button><button id="swq-bad" class="btn btn-sm" disabled onclick="tagLastPitchQuality('bad')" style="flex:1;border-color:var(--red2);color:var(--red2);opacity:.4;font-weight:bold;">¸ · Bad pitch</button></div>
 </div></div>
-<div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
+<div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('PO')">Pop out</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
 <div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
@@ -597,7 +597,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- B1: Generic prompt modal — replaces native prompt() across the app -->
 <div class="modal-ov" id="m-prompt"><div class="modal"><h3 id="m-prompt-title">Enter</h3><div class="mrow"><label id="m-prompt-label"></label><input type="text" id="m-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();_promptSubmit();}"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="_promptSubmit()">OK</button><button class="btn btn-full" onclick="_promptCancel()">Cancel</button></div></div></div>
 <!-- EDIT-AB MODAL: fix a logged at-bat (wrong batter, wrong result, wrong RBI) -->
-<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Forced outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add forced out</button></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="PO">PO</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Forced outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add forced out</button></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
 <!-- v127: add-steal-to-AB picker modal -->
 <div class="modal-ov" id="m-absb"><div class="modal" style="max-width:340px;"><h3>Add steal during this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">LMLL: no steal of home permitted.</div><div class="mrow"><label>Runner</label><select id="absb-runner"></select></div><div class="mrow"><label>Steal</label><select id="absb-bases"><option value="1-2">1st → 2nd</option><option value="2-3">2nd → 3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddSBToAB()">Log steal</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-absb')">Cancel</button></div></div></div>
 <!-- v135: AB delete with state-rewind option. Shown when deleting the LATEST
@@ -1200,7 +1200,7 @@ function _scDiamondSVG(ab,scored){
 }
 // Result label for the cell center (short)
 function _scResultLabel(r){
-  var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',FO:'F',GO:'G',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',AO:'AO'};
+  var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',FO:'F',GO:'G',LO:'L',PO:'P',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',AO:'AO'};
   return map[r]||r;
 }
 // Long result codes get a smaller font so they don't overflow the diamond
@@ -1231,7 +1231,7 @@ function _scComputeOuts(g){
     if(!counter[key])counter[key]=0;
     var r=ab.result;
     var addOuts=0;
-    if(['K','KL','FO','GO','LO','SAC','FC','AO'].indexOf(r)>=0)addOuts=1;
+    if(['K','KL','FO','GO','LO','PO','SAC','FC','AO'].indexOf(r)>=0)addOuts=1;
     else if(r==='DP'||r==='GIDP')addOuts=2;
     else if(r==='TP')addOuts=3;
     if(addOuts>0){
@@ -1262,7 +1262,7 @@ function _scResultDisp(ab){
   }
   // For outs, prefer the typed notation (e.g., "F8" or "4-3"); fall back to compact label
   if(n)return n;
-  return ({FO:'F',GO:'G',LO:'L',SAC:'SF',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',AO:'AO'})[r]||r;
+  return ({FO:'F',GO:'G',LO:'L',PO:'P',SAC:'SF',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',AO:'AO'})[r]||r;
 }
 // Long label heuristic — if the notation is 3+ chars (e.g., HBP, LLHR, GIDP) shrink the font
 function _scResultIsLongStr(s){return s&&s.length>=3;}
@@ -1571,7 +1571,7 @@ function renderSeasonBat(games){
         if(r==='SAC')s.sf++;
         if(r==='ROE')s.roe++;
         // BIP = balls in play: any hit + any out that isn't K/KL/DP/GIDP/TP/AO (per LL convention)
-        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','SAC','FC','ROE'].includes(r))s.bip++;
+        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','SAC','FC','ROE'].includes(r))s.bip++;
         s.rbi+=(ab.rbi||0);
         if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;
       });
@@ -1810,7 +1810,7 @@ function buildOptimalMusselsLineup(games,coachDocs){
         if(r==='HBP')s.hbp++;
         if(r==='K'||r==='KL')s.k++;
         if(r==='SAC')s.sf++;
-        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','SAC','FC','ROE'].includes(r))s.bip++;
+        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','SAC','FC','ROE'].includes(r))s.bip++;
         if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;
       });
       (g.steals||[]).forEach(function(e){if(e.bi==i)s.sb++;});
@@ -4555,7 +4555,7 @@ function recalcPitcherStats(){
     }
     // Outcome stats
     var r=ab.result;
-    var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
+    var isOut=['K','KL','FO','GO','LO','PO','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
     if(isOut)p.ip_outs++;
     if(r==='DP'||r==='GIDP')p.ip_outs++;// second out from DP
     if(r==='TP')p.ip_outs+=2;// triple play: 2 more outs beyond batter
@@ -4732,7 +4732,7 @@ if(theyBat()){openOppBatterPicker(r);return;}
 toast('Select batter');return;}
 ensurePitcher();
 if(G.plb){om('m-plimit');return;}
-var _bipResults=['1B','2B','3B','HR','LLHR','FO','GO','LO','SAC','FC','DP','GIDP','TP','ROE'];
+var _bipResults=['1B','2B','3B','HR','LLHR','FO','GO','LO','PO','SAC','FC','DP','GIDP','TP','ROE'];
 var _isBIP=_bipResults.indexOf(r)>=0;
 // Auto-fill a basic pitch sequence when none was logged (coach hit the result button without
 // tapping individual pitches first).
@@ -4764,7 +4764,7 @@ var isHit=['1B','2B','3B'].includes(r);
 var hasRunners=G.bases.some(b=>b!==null);
 // "Who scored?" picker — kept hidden in current build (reserved for future explicit-pick flow)
 $('scored-sec').style.display='none';
-$('rbi-sec').style.display=['1B','2B','3B','HR','LLHR','FC','GO','FO','LO','SAC','DP','GIDP','ROE'].includes(r)?'block':'none';
+$('rbi-sec').style.display=['1B','2B','3B','HR','LLHR','FC','GO','FO','LO','PO','SAC','DP','GIDP','ROE'].includes(r)?'block':'none';
 // v98: For ROE, auto-expand the error details since an error is by definition required
 if(r==='ROE'&&$('play-err-details'))$('play-err-details').open=true;
 $('quality-sec').style.display='block';// Quality of contact is always optional for any play-modal-opening result
@@ -4836,7 +4836,7 @@ function _rbiHintFor(result,hasRunners){
   if(!hasRunners)return'';
   if(result==='DP'||result==='GIDP')return'<span style="color:var(--red2);">✗ No RBI on double plays (LL 9.04 exception)</span>';
   if(['GO','FC'].includes(result))return'<span style="color:var(--text2);">✓ Force-out scoring counts as RBI (LL 9.04). Toggle GIDP if it was a double play.</span>';
-  if(['FO','LO','SAC'].includes(result))return'<span style="color:var(--text2);">✓ Sac fly / sac bunt — RBI counts on the run scored (LL 9.04)</span>';
+  if(['FO','LO','PO','SAC'].includes(result))return'<span style="color:var(--text2);">✓ Sac fly / sac bunt — RBI counts on the run scored (LL 9.04)</span>';
   if(['1B','2B','3B'].includes(result))return'<span style="color:var(--text2);">✓ One RBI per runner who scored on the hit</span>';
   if(['HR','LLHR'].includes(result))return'<span style="color:var(--text2);">✓ HR drives in every runner on base + the batter</span>';
   return'';
@@ -4882,7 +4882,7 @@ function _refreshPlayDiamond(){
     el.classList.toggle('pos2',pos===_playPos2);
   });
   var r=G.pres;
-  var needsThrow=['GO','FC','DP','GIDP','SAC','LO','FO'].indexOf(r)>=0;
+  var needsThrow=['GO','FC','DP','GIDP','SAC','LO','FO','PO'].indexOf(r)>=0;
   if($('play-throw-row'))$('play-throw-row').style.display=(needsThrow&&_playPos1)?'block':'none';
   // Auto-derive error position from pos1 (sticky if user hasn't manually picked)
   if(_playPos1&&$('err-p')){
@@ -4900,6 +4900,7 @@ function _autoPlayNotation(){
   }
   if(r==='FO')return'F'+_playPos1;
   if(r==='LO')return'L'+_playPos1;
+  if(r==='PO')return'P'+_playPos1;
   if(r==='GO'){
     if(_playPos2==='u')return _playPos1+'u';
     if(_playPos2)return _playPos1+'-'+_playPos2;
@@ -4998,7 +4999,7 @@ if((res==='DP'||res==='GIDP'||($('gidp-chk')&&$('gidp-chk').checked))&&!hasRunne
 // Validation: SAC requires runners on base
 if(res==='SAC'&&!hasRunners){toast('Sacrifice requires runner(s) on base');return;}
 // Validation: RBI on lineout (LO) requires runners on base
-if(res==='LO'&&G.prbi>0&&!hasRunners){toast('RBI requires runner(s) on base');return;}
+if((res==='LO'||res==='PO')&&G.prbi>0&&!hasRunners){toast('RBI requires runner(s) on base');return;}
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 // v98: stamp ab_num on the error so the plays-log renderer + v96 review can
 // link it to the specific AB. The next AB that finAB pushes will get num=G.abc+1.
@@ -5069,7 +5070,7 @@ G.abs.push({num:++G.abc,bi:G.cbi,batter:b?(b.name||'#'+b.jersey):'?',team:t,inn:
   }
   if(_outs.length)_newAb.outOnAB=_outs;
 })();
-var isOut=['K','KL','FO','GO','LO','SAC','FC','DP','GIDP','TP'].includes(r);
+var isOut=['K','KL','FO','GO','LO','PO','SAC','FC','DP','GIDP','TP'].includes(r);
 // v137: baserunner interference on a 1B counts an out (the runner) AND a hit
 // for the batter — handled separately from the isOut hit-credit branches.
 var _bi=(r==='1B'&&_meta.biBaseIdx!=null&&G.bases[_meta.biBaseIdx])?_meta:null;
@@ -5455,7 +5456,7 @@ function showNB(r){
 // auto-advance — no modal, just set batter and render
 var lu=clu();
 var ni=isHB()?G.hbi:G.abi;
-var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','HR':'HR','LLHR':'LLHR','FO':'F out','GO':'Grd out','LO':'L out','SAC':'SAC','FC':'FC','DP':'DP','GIDP':'GIDP','TP':'TP'};
+var rm={'K':'K','KL':'Ⓚ','BB':'BB','HBP':'HBP','1B':'1B','2B':'2B','3B':'3B','HR':'HR','LLHR':'LLHR','FO':'F out','GO':'Grd out','LO':'L out','PO':'Pop out','SAC':'SAC','FC':'FC','DP':'DP','GIDP':'GIDP','TP':'TP'};
 // Opponent open lineup: if advancing past the end, auto-open the batter picker
 if(theyBat()&&!G.oppLuDone&&ni>=lu.length){
   G.cbi=-1;sv();renderSC();
@@ -6705,10 +6706,10 @@ function abBatterHtml(ab){
 // writes "F8" / "L6" / "P4". Display-only; stored ab.not unchanged.
 function abNotation(ab){
   var r=ab.result,n=(ab.not||'').trim();
-  var isAirOut=r==='FO'||r==='LO';
+  var isAirOut=r==='FO'||r==='LO'||r==='PO';
   if(/^[1-9]$/.test(n)&&!isAirOut)n=n+'u';
   var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',
-    FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',ROE:'ROE'};
+    FO:'F',GO:'GO',LO:'L',PO:'P',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',ROE:'ROE'};
   var rLabel=map[r]||r;
   // v139: strip a duplicate leading rLabel from n so "1B (RI/4)" stored as
   // notation doesn't render as "1B 1B (RI/4)". Handles legacy ABs from v137
@@ -6911,7 +6912,7 @@ function renderSummary(){
   if(shs.length)h+='<div style="font-size:11px;margin:4px 0;"><strong>SAC:</strong> '+shs.join(', ')+'</div>';
 
   var lob=0;
-  G.abs.forEach(ab=>{if(['K','KL','FO','GO','LO','DP','GIDP'].includes(ab.result)){
+  G.abs.forEach(ab=>{if(['K','KL','FO','GO','LO','PO','DP','GIDP'].includes(ab.result)){
     if(ab.half===G.half){var r=G.bases.filter(b=>b).length;lob+=r;}}});
   h+='<div style="font-size:11px;margin:4px 0;color:var(--text3);">Team LOB: '+lob+'</div>';
 
@@ -7586,7 +7587,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v148';
+var APP_VERSION='v149';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
