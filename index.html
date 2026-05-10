@@ -27,6 +27,10 @@ body{display:flex;flex-direction:column;height:100dvh;}
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .pad{padding:10px;}
 .panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:8px;}
+/* v152: Plays log container — minimal padding, no border, transparent bg.
+   Each AB renders in its own card (see mkHalf), so the outer container
+   doesn't need its own framing. Lets cards sit closer to the screen edges. */
+#log-panel{padding:4px 2px;border:none;background:transparent;}
 .ptitle{font-size:10px;color:var(--text2);font-family:sans-serif;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
 .btn{display:inline-flex;align-items:center;justify-content:center;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:7px 11px;font-size:12px;font-family:sans-serif;color:var(--text);cursor:pointer;white-space:nowrap;}
 .btn:active{opacity:.7;}
@@ -508,22 +512,26 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-play"><div class="modal" style="max-width:380px;"><h3 id="mp-t" style="margin-bottom:8px;">Log play</h3><div class="play-body">
 <!-- DIAMOND PICKER — tap fielder = where ball went; second tap = throw target / out location -->
 <div id="play-diamond-wrap" style="background:rgba(13,27,42,.5);border:1px solid var(--border);border-radius:var(--rs);padding:6px 4px;margin-bottom:8px;">
-<svg class="play-diamond" viewBox="0 0 240 180">
-<rect width="240" height="180" fill="#1e6838" rx="3"/>
-<path d="M 120,140 L 175,95 L 120,50 L 65,95 Z" fill="#a87a45" stroke="#7a5a30" stroke-width="0.6"/>
-<polygon points="116,144 124,144 124,140 120,136 116,140" fill="white" opacity="0.9"/>
-<rect x="171" y="91" width="8" height="8" transform="rotate(45 175 95)" fill="white" opacity="0.7"/>
-<rect x="116" y="46" width="8" height="8" transform="rotate(45 120 50)" fill="white" opacity="0.7"/>
-<rect x="61" y="91" width="8" height="8" transform="rotate(45 65 95)" fill="white" opacity="0.7"/>
-<g class="fielder" data-pos="1" onclick="setPlayPos(1)"><circle cx="120" cy="105" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="109" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">P</text></g>
-<g class="fielder" data-pos="2" onclick="setPlayPos(2)"><circle cx="120" cy="160" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="164" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">C</text></g>
-<g class="fielder" data-pos="3" onclick="setPlayPos(3)"><circle cx="170" cy="115" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="170" y="119" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">1B</text></g>
-<g class="fielder" data-pos="4" onclick="setPlayPos(4)"><circle cx="155" cy="75" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="155" y="79" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">2B</text></g>
-<g class="fielder" data-pos="5" onclick="setPlayPos(5)"><circle cx="70" cy="115" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="70" y="119" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">3B</text></g>
-<g class="fielder" data-pos="6" onclick="setPlayPos(6)"><circle cx="85" cy="75" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="85" y="79" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">SS</text></g>
-<g class="fielder" data-pos="7" onclick="setPlayPos(7)"><circle cx="40" cy="35" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="40" y="39" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">LF</text></g>
-<g class="fielder" data-pos="8" onclick="setPlayPos(8)"><circle cx="120" cy="20" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="24" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">CF</text></g>
-<g class="fielder" data-pos="9" onclick="setPlayPos(9)"><circle cx="200" cy="35" r="14" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="200" y="39" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">RF</text></g>
+<!-- v152: viewBox compressed from 180h to 140h (22% shorter). All y coords
+     scaled by ~0.78 to match. Saves vertical real estate so the good
+     pitch / bad pitch buttons sit above the fold without needing to scroll.
+     LC/RC fielder split is a separate task (parallel work). -->
+<svg class="play-diamond" viewBox="0 0 240 140">
+<rect width="240" height="140" fill="#1e6838" rx="3"/>
+<path d="M 120,109 L 175,74 L 120,39 L 65,74 Z" fill="#a87a45" stroke="#7a5a30" stroke-width="0.6"/>
+<polygon points="116,113 124,113 124,109 120,105 116,109" fill="white" opacity="0.9"/>
+<rect x="171" y="70" width="8" height="8" transform="rotate(45 175 74)" fill="white" opacity="0.7"/>
+<rect x="116" y="35" width="8" height="8" transform="rotate(45 120 39)" fill="white" opacity="0.7"/>
+<rect x="61" y="70" width="8" height="8" transform="rotate(45 65 74)" fill="white" opacity="0.7"/>
+<g class="fielder" data-pos="1" onclick="setPlayPos(1)"><circle cx="120" cy="82" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="86" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">P</text></g>
+<g class="fielder" data-pos="2" onclick="setPlayPos(2)"><circle cx="120" cy="125" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="129" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">C</text></g>
+<g class="fielder" data-pos="3" onclick="setPlayPos(3)"><circle cx="170" cy="90" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="170" y="94" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">1B</text></g>
+<g class="fielder" data-pos="4" onclick="setPlayPos(4)"><circle cx="155" cy="59" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="155" y="63" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">2B</text></g>
+<g class="fielder" data-pos="5" onclick="setPlayPos(5)"><circle cx="70" cy="90" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="70" y="94" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">3B</text></g>
+<g class="fielder" data-pos="6" onclick="setPlayPos(6)"><circle cx="85" cy="59" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="85" y="63" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">SS</text></g>
+<g class="fielder" data-pos="7" onclick="setPlayPos(7)"><circle cx="40" cy="27" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="40" y="31" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">LF</text></g>
+<g class="fielder" data-pos="8" onclick="setPlayPos(8)"><circle cx="120" cy="16" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="20" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">CF</text></g>
+<g class="fielder" data-pos="9" onclick="setPlayPos(9)"><circle cx="200" cy="27" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="200" y="31" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">RF</text></g>
 </svg>
 <div id="play-diamond-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-top:2px;">Tap where the ball went. Tap a 2nd fielder for the throw target.</div>
 </div>
@@ -6851,28 +6859,34 @@ function mkHalf(abs,label,inn,half){
     // v130: swap (⇄) moved into the Edit modal — it was eating row width and
     // is rare enough to not warrant its own column. Edit (✎) stays here.
     var globalIdx=G.abs.indexOf(ab);
-    var editBtns='<span onclick="event.stopPropagation();openEditAB('+globalIdx+')" style="cursor:pointer;font-size:13px;color:var(--text3);padding:2px 6px;" title="Edit AB">✎</span>';
-    pieces.push('<div style="display:grid;grid-template-columns:22px minmax(80px,auto) 1fr 50px auto;gap:6px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);'+runStyle+'">'
-    +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+(i+1)+'</span>'
-    +'<span style="font-size:13px;">'+abBatterHtml(ab)+'</span>'
-    +'<span style="font-size:10px;font-family:monospace;overflow-wrap:anywhere;line-height:1.4;">'+pitchCell+'</span>'
-    +'<span class="badge '+bc+'" style="font-size:11px;text-align:center;">'+esc(notation)+errBadgeIndicator+'</span>'
-    +editBtns
-    +'</div>');
+    var editBtns='<span onclick="event.stopPropagation();openEditAB('+globalIdx+')" style="cursor:pointer;font-size:13px;color:var(--text3);padding:0 2px 0 4px;" title="Edit AB">✎</span>';
+    // v152: per-batter card. Each AB in its own subtle bordered box. Header
+    // row tight (small gaps between number / batter / pitches / badge / edit).
+    // Sub-lines (advances, scored, outs) sit inside the same card so it's
+    // visually clear which AB they belong to.
+    var cardOpen='<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:5px 6px;margin-bottom:4px;'+runStyle+'">';
+    var headerRow='<div style="display:grid;grid-template-columns:14px minmax(70px,auto) 1fr auto auto;gap:4px;align-items:baseline;">'
+      +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:right;">'+(i+1)+'</span>'
+      +'<span style="font-size:13px;">'+abBatterHtml(ab)+'</span>'
+      +'<span style="font-size:10px;font-family:monospace;overflow-wrap:anywhere;line-height:1.4;">'+pitchCell+'</span>'
+      +'<span class="badge '+bc+'" style="font-size:11px;text-align:center;min-width:42px;">'+esc(notation)+errBadgeIndicator+'</span>'
+      +editBtns
+      +'</div>';
+    pieces.push(cardOpen+headerRow);
     // Sub-lines for this AB (pinch-run + steals + CS + scored)
     var subPieces=[];
     var abNum=ab.num;
     // Pinch-run events during this AB (purple, no emoji per scorebook style)
     var prDuring=(G.pinchRuns||[]).filter(function(pr){return pr.during_ab_num===abNum;});
     prDuring.forEach(function(pr){
-      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:#b88aff;font-family:sans-serif;">↳ '+esc(_shortName(pr.toName))+' pinch ran for '+esc(_shortName(pr.fromName))+'</div>');
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:#b88aff;font-family:sans-serif;">↳ '+esc(_shortName(pr.toName))+' pinch ran for '+esc(_shortName(pr.fromName))+'</div>');
     });
     // Steals during this AB (before the AB ended)
     var sbDuring=(G.steals||[]).filter(function(s){return s.during_ab_num===abNum;});
     sbDuring.forEach(function(s){
       var fromB=_baseLbl(s.from);
       var toB=_baseLbl(s.to);
-      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--green2);font-family:sans-serif;">↳ SB by '+esc(_shortName(s.name))+' ('+fromB+' → '+toB+')</div>');
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--green2);font-family:sans-serif;">↳ SB by '+esc(_shortName(s.name))+' ('+fromB+' → '+toB+')</div>');
     });
     // Caught stealing during this AB
     var csDuring=(G.css||[]).filter(function(c){return c.during_ab_num===abNum;});
@@ -6880,13 +6894,13 @@ function mkHalf(abs,label,inn,half){
       var fromB=c.from||(c.at==='2'?'1st':'2nd');
       var toB=_baseLbl(c.at);
       var nm=c.name||'?';
-      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--red2);font-family:sans-serif;">↳ CS by '+esc(_shortName(nm))+' ('+fromB+' → '+toB+', OUT)</div>');
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--red2);font-family:sans-serif;">↳ CS by '+esc(_shortName(nm))+' ('+fromB+' → '+toB+', OUT)</div>');
     });
     // v98: in-AB errors logged on this play (matched via ab_num link)
     var errsOnAb=(G.errs||[]).filter(function(e){return !e.standalone&&e.ab_num===abNum;});
     errsOnAb.forEach(function(e){
       var typeLabel={F:'Field',T:'Throw',M:'Mental',C:'Catch'}[e.type]||e.type;
-      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--amber2);font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--amber2);font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
     });
     // v130: outs on bases recorded during this AB (FC, DP, GIDP, TP)
     // v137: interference outs render as "hit by ball (PO N)" instead of "out at <base>"
@@ -6899,7 +6913,7 @@ function mkHalf(abs,label,inn,half){
           var atLabel=out.atBase>=4?'home':['','1st','2nd','3rd'][out.atBase]||'?';
           line='↳ '+esc(_shortName(out.name||'?'))+' out at '+atLabel;
         }
-        subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--red2);font-family:sans-serif;font-style:italic;">'+line+'</div>');
+        subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--red2);font-family:sans-serif;font-style:italic;">'+line+'</div>');
       });
     }
     // v134: non-out advances on this AB (forced advances on walks/HBP/FCs,
@@ -6908,7 +6922,7 @@ function mkHalf(abs,label,inn,half){
     if(ab.advancesOnAB&&ab.advancesOnAB.length){
       ab.advancesOnAB.forEach(function(a){
         var toLabel=['','1st','2nd','3rd'][a.toBase]||'?';
-        subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:var(--text2);font-family:sans-serif;">↳ '+esc(_shortName(a.name||'?'))+' to '+toLabel+'</div>');
+        subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--text2);font-family:sans-serif;">↳ '+esc(_shortName(a.name||'?'))+' to '+toLabel+'</div>');
       });
     }
     // Runs scored on this AB
@@ -6934,16 +6948,29 @@ function mkHalf(abs,label,inn,half){
       var names=parts.join(', ');
       var rbiPart=ab.rbi>0?' (+'+ab.rbi+' R)':' ('+ab.pscored.length+' R)';
       var color=hasManual?'var(--red2)':'var(--amber2)';
-      subPieces.push('<div style="padding:3px 0 3px 22px;font-size:11px;color:'+color+';font-family:sans-serif;font-style:italic;">↳ Scored: '+names+rbiPart+'</div>');
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:'+color+';font-family:sans-serif;font-style:italic;">↳ Scored: '+names+rbiPart+'</div>');
     }
     pieces.push.apply(pieces,subPieces);
+    pieces.push('</div>');// v152: close per-AB card
   });
   // Append standalone errors for this half (shown after ABs)
   halfErrs.forEach(function(e){
     var typeLabel={F:'Fielding',T:'Throwing',M:'Mental',C:'Catching'}[e.type]||e.type;
-    pieces.push('<div style="padding:5px 0;border-bottom:1px dashed var(--amber2);font-size:11px;color:var(--amber2);font-family:sans-serif;font-style:italic;">⚠️ E'+_posNum(e.pos)+' ('+typeLabel+') — '+esc(e.player||'?')+(e.play&&e.play!=='(baserunning)'?' — '+esc(e.play):'')+(e.adv?' — runner +'+e.adv:'')+'</div>');
+    pieces.push('<div style="padding:5px 6px;border:1px dashed var(--amber2);border-radius:var(--rs);margin-bottom:4px;font-size:11px;color:var(--amber2);font-family:sans-serif;font-style:italic;">⚠️ E'+_posNum(e.pos)+' ('+typeLabel+') — '+esc(e.player||'?')+(e.play&&e.play!=='(baserunning)'?' — '+esc(e.play):'')+(e.adv?' — runner +'+e.adv:'')+'</div>');
   });
-  return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:5px 0 3px;border-top:2px solid var(--border2);margin-top:4px;">'+esc(label)+'</div>'+pieces.join('');
+  // v152: half-inning summary (R/H/E/PC), right-justified. Hits = ABs with
+  // 1B/2B/3B/HR/LLHR result. Errors = standalone + on-AB errors filed in
+  // this half. Pitches = sum of ab.pc. Runs = sum of pscored entries (not
+  // inns array — pscored is what the AB rows show, so totals match).
+  var halfRuns=0, halfHits=0, halfPC=0;
+  abs.forEach(function(ab){
+    if(['1B','2B','3B','HR','LLHR'].indexOf(ab.result)>=0)halfHits++;
+    halfPC+=(ab.pc||0);
+    if(ab.pscored)halfRuns+=ab.pscored.length;
+  });
+  var halfErrCt=halfErrs.length+(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&!e.standalone;}).length;
+  var summary='<div style="text-align:right;padding:3px 6px 6px;font-size:10px;color:var(--text3);font-family:sans-serif;font-style:italic;">'+halfRuns+' RUN'+(halfRuns===1?'':'S')+' · '+halfHits+' HIT'+(halfHits===1?'':'S')+' · '+halfErrCt+' ERROR'+(halfErrCt===1?'':'S')+' · '+halfPC+' PITCH'+(halfPC===1?'':'ES')+'</div>';
+  return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:6px 0 4px;border-top:2px solid var(--border2);margin-top:6px;">'+esc(label)+'</div>'+pieces.join('')+summary;
 }
 // LINEAR — oldest at the top. Top of 1 → Bottom of 1 → Top of 2 → …
 for(var inn=1;inn<=maxInn;inn++){
@@ -7649,7 +7676,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v151';
+var APP_VERSION='v152';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
