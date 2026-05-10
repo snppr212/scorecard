@@ -7031,7 +7031,10 @@ function _findErrorRbiCandidates(){
   return candidates;
 }
 function openErrorRbiReview(){
-  cm('m-endgame');
+  // v151: don't close m-endgame — let m-rbi-review stack on top via DOM order.
+  // When the user taps Done, m-rbi-review closes and m-endgame is revealed,
+  // so they can tap Save & return home to finalize. Previously this closed
+  // m-endgame first, leaving the user stranded after the review.
   var cands=_findErrorRbiCandidates();
   var html='';
   if(!cands.length){html='<div style="font-size:12px;font-family:sans-serif;color:var(--text3);padding:14px;text-align:center;">No candidates found.</div>';}
@@ -7646,7 +7649,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v150';
+var APP_VERSION='v151';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
