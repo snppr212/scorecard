@@ -5341,6 +5341,7 @@ function doManualRun(who,delta){
   delta=parseInt(delta||1,10);
   var isUs=(who==='us');
   var isHome=isUs===isOH();// true = home team
+  var team=isHome?'home':'away';
   if(isHome){
     G.hs=Math.max(0,(G.hs||0)+delta);
     if(G.inn<=G.ti)G.inns.h[G.inn-1]=Math.max(0,(G.inns.h[G.inn-1]||0)+delta);
@@ -5348,7 +5349,49 @@ function doManualRun(who,delta){
     G.as=Math.max(0,(G.as||0)+delta);
     if(G.inn<=G.ti)G.inns.a[G.inn-1]=Math.max(0,(G.inns.a[G.inn-1]||0)+delta);
   }
+  // v146: attach the run to the most recent AB on this team in this half so
+  // the plays log shows it. Without this, manual runs orphan: the score
+  // increments but no "↳ Scored" sub-line appears anywhere — score and plays
+  // page disagree. -Run undoes by removing a manual pscored entry first.
+  if(delta>0){
+    var lastAB=null;
+    for(var i=G.abs.length-1;i>=0;i--){
+      if(G.abs[i].inn===G.inn&&G.abs[i].half===G.half&&G.abs[i].team===team){lastAB=G.abs[i];break;}
+    }
+    if(lastAB){
+      lastAB.pscored=lastAB.pscored||[];
+      lastAB.pscored.push({bi:null,team:team,name:'(manual)',manual:true});
+      if(!G.runs)G.runs=[];
+      G.runs.push({bi:null,team:team,inn:G.inn,half:G.half,pitcher:lastAB.pitcher||null,ab_num:lastAB.num,unearned:false,manual:true});
+    }
+    // No AB yet in this half? Run is orphan — user can add it later via Edit AB
+    // when they have an AB to attach it to.
+  }else if(delta<0){
+    // Remove the most recent manual pscored entry on this team in this half
+    for(var i2=G.abs.length-1;i2>=0;i2--){
+      var ab=G.abs[i2];
+      if(ab.team!==team||ab.inn!==G.inn||ab.half!==G.half)continue;
+      if(!ab.pscored)continue;
+      for(var pi=ab.pscored.length-1;pi>=0;pi--){
+        if(ab.pscored[pi]&&ab.pscored[pi].manual){
+          ab.pscored.splice(pi,1);
+          if(!ab.pscored.length)delete ab.pscored;
+          // Also remove the matching G.runs entry
+          if(G.runs)for(var ri=G.runs.length-1;ri>=0;ri--){
+            if(G.runs[ri].manual&&G.runs[ri].ab_num===ab.num&&G.runs[ri].team===team){G.runs.splice(ri,1);break;}
+          }
+          sv();renderSC();
+          if(typeof renderLog==='function')try{renderLog();}catch(e){}
+          if(typeof renderSB==='function')try{renderSB();}catch(e){}
+          return;
+        }
+      }
+    }
+    // No manual entry found — the subtraction stands as a pure score adjustment
+  }
   sv();renderSC();
+  if(typeof renderLog==='function')try{renderLog();}catch(e){}
+  if(typeof renderSB==='function')try{renderSB();}catch(e){}
   if(delta>0){chkMercy();_check6runCap();}
 }
 // 6-run cap detector. Called after any score update to surface the m-6run
@@ -5531,7 +5574,34 @@ opts.push({l:'Remove runner',f:'rmRun('+b+')'});
 $('mr-btns').innerHTML=opts.map(o=>'<button class="btn btn-full" style="margin-bottom:5px;" onclick="'+o.f+';cm(\'m-runner\')">'+o.l+'</button>').join('');om('m-runner');}
 function advRun(f,t){if(G.bases[t-1]){toast('Base '+t+' is occupied!');return;}G.bases[t-1]=G.bases[f-1];G.bases[f-1]=null;sv();renderSC();}
 function backRun(f,t){if(G.bases[t-1]){toast('Base '+t+' is occupied!');return;}G.bases[t-1]=G.bases[f-1];G.bases[f-1]=null;sv();renderSC();}
-function scoreRun(b){var r=G.bases[b-1];if(r)logRun(r.bi,r.team);G.bases[b-1]=null;addR(1);sv();renderSC();}
+function scoreRun(b){
+  var r=G.bases[b-1];
+  if(r){
+    logRun(r.bi,r.team);// adds to G.runs (with current AB's num if mid-AB, else null)
+    // v146: attribute the run to the most recent AB on this team in the half
+    // so the plays log shows "↳ Scored: X" under it. Without this, scoring a
+    // runner via the diamond runner picker bumps the score but never appears
+    // on the plays page.
+    var team=r.team;
+    var lastAB=null;
+    for(var i=G.abs.length-1;i>=0;i--){
+      if(G.abs[i].inn===G.inn&&G.abs[i].half===G.half&&G.abs[i].team===team){lastAB=G.abs[i];break;}
+    }
+    if(lastAB){
+      lastAB.pscored=lastAB.pscored||[];
+      lastAB.pscored.push({bi:r.bi,team:team,name:r.name||'?'});
+      // Update the most recent G.runs entry (just pushed by logRun) with ab_num
+      if(G.runs&&G.runs.length){
+        var last=G.runs[G.runs.length-1];
+        if(last&&last.ab_num==null)last.ab_num=lastAB.num;
+      }
+    }
+  }
+  G.bases[b-1]=null;
+  addR(1);
+  sv();renderSC();
+  if(typeof renderLog==='function')try{renderLog();}catch(e){}
+}
 function outRun(b){G.bases[b-1]=null;G.outs=Math.min(3,G.outs+1);sv();if(G.outs>=3)showIE();else renderSC();}
 function rmRun(b){G.bases[b-1]=null;sv();renderSC();}
 // v128: lineup-based add-runner picker. Replaces the old text-prompt fallback
@@ -7378,7 +7448,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v145';
+var APP_VERSION='v146';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
