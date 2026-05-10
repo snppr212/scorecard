@@ -586,6 +586,18 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Forced outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add forced out</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
 <!-- v127: add-steal-to-AB picker modal -->
 <div class="modal-ov" id="m-absb"><div class="modal" style="max-width:340px;"><h3>Add steal during this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">LMLL: no steal of home permitted.</div><div class="mrow"><label>Runner</label><select id="absb-runner"></select></div><div class="mrow"><label>Steal</label><select id="absb-bases"><option value="1-2">1st → 2nd</option><option value="2-3">2nd → 3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddSBToAB()">Log steal</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-absb')">Cancel</button></div></div></div>
+<!-- v135: AB delete with state-rewind option. Shown when deleting the LATEST
+     AB (where _lastGSnap is meaningful). Earlier ABs only get the simple
+     "remove from log" path through confirmModal directly. -->
+<div class="modal-ov" id="m-delab"><div class="modal" style="text-align:center;max-width:340px;">
+  <h3 id="delab-title" style="color:var(--red2);">Delete AB</h3>
+  <div style="font-size:12px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;line-height:1.45;">Pick how to handle the game state:</div>
+  <button class="btn btn-gold btn-full" style="margin-bottom:4px;font-weight:bold;" onclick="_doDeleteAB(true)">↶ Rewind & re-bat</button>
+  <div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:12px;">Restores bases / score / outs to before this AB so you can score it again</div>
+  <button class="btn btn-red btn-full" style="margin-bottom:4px;" onclick="_doDeleteAB(false)">🗑 Just remove from log</button>
+  <div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:12px;">Bases / score stay as-is, just deletes the AB record</div>
+  <button class="btn btn-full" onclick="cm('m-delab')">Cancel</button>
+</div></div>
 <!-- v131: add-forced-out-to-AB picker modal — backfill an out on a past play (FC/DP/GIDP/TP) -->
 <div class="modal-ov" id="m-about"><div class="modal" style="max-width:340px;"><h3>Add forced out on this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Pick the runner who was forced out and where they were thrown out.</div><div class="mrow"><label>Runner</label><select id="about-runner"></select></div><div class="mrow"><label>Out at</label><select id="about-at"><option value="2">2nd</option><option value="3">3rd</option><option value="4">home</option><option value="1">1st</option></select></div><div class="mact"><button class="btn btn-red btn-full" onclick="confirmAddOutToAB()">Log out</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-about')">Cancel</button></div></div></div>
 <!-- SWAP-AB MODAL: swap two ABs in the same half-inning (out-of-order fix) -->
@@ -6056,24 +6068,54 @@ function confirmEditAB(){
   if(typeof renderLS==='function')try{renderLS();}catch(e){}
   toast('AB #'+ab.num+' updated'+(rbiDelta!==0?' · score '+(rbiDelta>0?'+':'')+rbiDelta:''));
 }
+// v135: delete-AB now offers a rewind option when deleting the latest AB.
+// _lastGSnap (set in finAB before each AB) holds the state from before the
+// most recent AB, so we can fully restore: bases, score, outs, batter index,
+// abs[], pscored, etc. Older ABs only get the simple "remove from log" path
+// since intermediate state is no longer recoverable from a single snapshot.
 function confirmDeleteAB(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
-  confirmModal('Delete AB #'+ab.num+'?','This cannot be undone. Pitcher stats will be recalculated.',function(){_doDeleteAB();},null,{yesLabel:'Delete',danger:true});
+  var isLast=_editAbIdx===G.abs.length-1;
+  var canRewind=isLast&&!!_lastGSnap;
+  if(canRewind){
+    $('delab-title').textContent='Delete AB#'+ab.num+' — '+(ab.batter||'?');
+    cm('m-editab');
+    setTimeout(function(){om('m-delab');},80);
+    return;
+  }
+  confirmModal('Delete AB#'+ab.num+'?',(isLast?'No rewind data available — ':'Older AB — ')+'this only removes the AB record. Bases / score / outs stay as-is. Pitcher stats will be recalculated.',function(){_doDeleteAB(false);},null,{yesLabel:'Remove',danger:true});
 }
-function _doDeleteAB(){
+function _doDeleteAB(rewind){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
+  if(rewind&&_lastGSnap){
+    // Restore G to the snapshot taken at the top of this AB's finAB. _lastGSnap
+    // includes G.abs[] BEFORE this AB was pushed, so the deleted AB
+    // disappears as a side-effect of the restore.
+    var snap=_lastGSnap;
+    Object.keys(snap).forEach(function(k){G[k]=snap[k];});
+    _lastGSnap=null;
+    if($('undo-ab-btn')){$('undo-ab-btn').disabled=true;$('undo-ab-btn').style.opacity='.4';}
+    if(typeof recalcPitcherStats==='function')recalcPitcherStats();
+    cm('m-editab');cm('m-delab');
+    sv();
+    if(typeof renderLog==='function')renderLog();
+    if(typeof renderStats==='function')try{renderStats();}catch(e){}
+    if(typeof renderSC==='function')renderSC();
+    toast('Rewound — '+(ab.batter||'batter')+' is up again',3000);
+    return;
+  }
+  // Just-remove-from-log: existing behavior
   G.abs.splice(_editAbIdx,1);
-  // Renumber subsequent ABs in the same half-inning so the # stays sequential
-  // (we just renumber globally to keep simple)
   G.abs.forEach(function(a,i){a.num=i+1;});G.abc=G.abs.length;
   if(typeof recalcPitcherStats==='function')recalcPitcherStats();
-  cm('m-editab');sv();
+  cm('m-editab');cm('m-delab');
+  sv();
   if(typeof renderLog==='function')renderLog();
   if(typeof renderStats==='function')try{renderStats();}catch(e){}
   if(typeof renderSC==='function')renderSC();
-  toast('AB deleted; stats recalculated');
+  toast('AB removed from log');
 }
 // SWAP-AB: pick another AB in the same half and swap just the batter attribution
 var _swapFromIdx=-1;
@@ -6956,7 +6998,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v134';
+var APP_VERSION='v135';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
