@@ -6827,7 +6827,7 @@ function mkHalf(abs,label,inn,half){
         var ap=a.pitcher||(aFielded?((G.fa[a.inn]||{}).P):null)||null;
         return ap===thisPitcher&&a.inn===ab.inn&&a.half===ab.half;
       }).reduce(function(sum,a){return sum+(a.pc||0);},0);
-      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 22px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+(inningPC>0?' <span style="color:var(--text3);">('+inningPC+')</span>':'')+'</div>');
+      pieces.push('<div style="font-size:10px;color:var(--gold);font-family:sans-serif;padding:4px 0 2px 22px;font-style:italic;">⚾ Pitching: '+esc(sn(thisPitcher))+(inningPC>0?' <span style="color:var(--text3);"><sup style="font-size:8px;">#</sup>'+inningPC+'</span>':'')+'</div>');
       lastPitcher=thisPitcher;
     }
     var pitches=ab.pitches||[];
@@ -6853,10 +6853,11 @@ function mkHalf(abs,label,inn,half){
     // total matches the data.
     var displayCount=Math.max(pcount,ab.pc||0);
     var pitchCell;
+    // v155: pitch counts render as #N with a small superscript # rather than (N).
     if(pcount){
-      pitchCell=seq+' <span style="color:var(--text3);">('+displayCount+')</span>';
+      pitchCell=seq+' <span style="color:var(--text3);"><sup style="font-size:8px;">#</sup>'+displayCount+'</span>';
     }else if(ab.pc>0){
-      pitchCell='<span style="color:var(--text3);">('+ab.pc+'p)</span>';
+      pitchCell='<span style="color:var(--text3);"><sup style="font-size:8px;">#</sup>'+ab.pc+'</span>';
     }else{
       pitchCell='<span style="color:var(--text3);">—</span>';
     }
@@ -7695,7 +7696,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v154';
+var APP_VERSION='v155';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
