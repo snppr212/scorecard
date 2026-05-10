@@ -7042,7 +7042,19 @@ function mkHalf(abs,label,inn,half){
   });
   var halfErrCt=halfErrs.length+(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&!e.standalone;}).length;
   var summary='<div style="text-align:right;padding:3px 6px 6px;font-size:10px;color:var(--text3);font-family:sans-serif;font-style:italic;">'+halfRuns+' RUN'+(halfRuns===1?'':'S')+' · '+halfHits+' HIT'+(halfHits===1?'':'S')+' · '+halfErrCt+' ERROR'+(halfErrCt===1?'':'S')+' · '+halfPC+' PITCH'+(halfPC===1?'':'ES')+'</div>';
-  return '<div style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:6px 0 4px;border-top:2px solid var(--border2);margin-top:6px;">'+esc(label)+'</div>'+pieces.join('')+summary;
+  // v162: half-inning collapse for the Cards layout. Header is now a clickable
+  // chevron-bearing strip — tap to hide all the AB cards in this half (only
+  // the header + summary stay visible). State stored in window._halfCollapsed
+  // (shared with the ESPN layout so the choice persists when you swap).
+  var halfKey=inn+'-'+half;
+  var isHalfCollapsed=!!(window._halfCollapsed&&window._halfCollapsed[halfKey]);
+  var halfChev=isHalfCollapsed?'▸':'▾';
+  var header='<div onclick="_toggleHalfCollapse(\''+halfKey+'\')" style="font-size:11px;font-family:sans-serif;font-weight:bold;color:var(--text2);padding:6px 0 4px;border-top:2px solid var(--border2);margin-top:6px;cursor:pointer;display:flex;align-items:center;gap:5px;"><span style="color:var(--gold);font-size:13px;">'+halfChev+'</span><span>'+esc(label)+'</span></div>';
+  if(isHalfCollapsed){
+    // Skip AB cards — only show header + summary
+    return header+summary;
+  }
+  return header+pieces.join('')+summary;
 }
 // v152b: ESPN/Gameday-style alternative layout — collapsible AB rows with
 // running away/home score columns, plain-English descriptions, and a
@@ -7093,12 +7105,13 @@ function mkHalfESPN(abs,inn,half){
   }
   var lastPitcher=null, pieces=[], halfRuns=0, halfHits=0, halfPC=0;
   // v161: half-inning collapse — tap the header to hide / show all the AB
-  // rows. Tracks per-half via window._espnHalfCollapsed keyed by "inn-half".
+  // rows. v162: state moved to window._halfCollapsed (shared with Cards
+  // layout). Key format: "inn-half" (e.g., "1-top").
   var halfKey=inn+'-'+half;
-  var isHalfCollapsed=!!(window._espnHalfCollapsed&&window._espnHalfCollapsed[halfKey]);
+  var isHalfCollapsed=!!(window._halfCollapsed&&window._halfCollapsed[halfKey]);
   var halfChev=isHalfCollapsed?'▸':'▾';
   // Header (clickable — tap to toggle the whole half)
-  pieces.push('<div onclick="_toggleESPNHalf(\''+halfKey+'\')" style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 6px 4px;border-top:2px solid var(--border2);margin-top:8px;cursor:pointer;">'
+  pieces.push('<div onclick="_toggleHalfCollapse(\''+halfKey+'\')" style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 6px 4px;border-top:2px solid var(--border2);margin-top:8px;cursor:pointer;">'
     +'<div style="font-size:13px;font-family:sans-serif;"><span style="color:var(--gold);font-weight:700;font-size:14px;margin-right:4px;">'+halfChev+'</span><span style="color:var(--gold);font-weight:700;">'+esc(battingTeam)+'</span> <span style="color:var(--text2);">— '+halfLabel+'</span></div>'
     +'<div style="display:flex;gap:10px;font-size:10px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;">'
     +'<span style="min-width:28px;text-align:right;">'+esc(awayAbbr)+'</span>'
@@ -7212,19 +7225,10 @@ function mkHalfESPN(abs,inn,half){
   pieces.push('<div style="text-align:right;padding:6px 6px 4px;border-top:1px solid var(--border2);font-size:10px;color:var(--text3);font-family:sans-serif;letter-spacing:.04em;">'+halfRuns+' RUN'+(halfRuns===1?'':'S')+', '+halfHits+' HIT'+(halfHits===1?'':'S')+', '+halfErrCt+' ERROR'+(halfErrCt===1?'':'S')+', '+halfPC+' PITCH'+(halfPC===1?'':'ES')+'</div>');
   return pieces.join('');
 }
-function _toggleESPNAB(abNum){
-  if(!window._espnExpanded)window._espnExpanded={};
-  window._espnExpanded[abNum]=!window._espnExpanded[abNum];
-  if(typeof renderLog==='function')renderLog();
-}
-// v161: toggle whether a whole half-inning shows its AB rows. Tracked by
-// "inn-half" key (e.g., "1-top"). Summary line + half header always render;
-// AB rows + sub-lines collapse together.
-function _toggleESPNHalf(key){
-  if(!window._espnHalfCollapsed)window._espnHalfCollapsed={};
-  window._espnHalfCollapsed[key]=!window._espnHalfCollapsed[key];
-  if(typeof renderLog==='function')renderLog();
-}
+// v162: helper toggles defined inside renderLog were locally-scoped — onclick
+// handlers run in the global scope and couldn't reach them, so the chevrons
+// did nothing. Functions are now hoisted onto window below (after renderLog
+// closes) so all toggle clicks actually fire.
 // LINEAR — oldest at the top. Top of 1 → Bottom of 1 → Top of 2 → …
 var _useESPN=A.playsLayoutStyle==='espn';
 for(var inn=1;inn<=maxInn;inn++){
@@ -7242,6 +7246,23 @@ for(var inn=1;inn<=maxInn;inn++){
   }
 }
 p.innerHTML=html||'<div class="empty">No at-bats</div>';}
+
+// v162: GLOBAL toggle helpers for the Plays log. These MUST sit outside
+// renderLog so the onclick="_toggleHalfCollapse(...)" attributes (which
+// run in global scope) can find them. They were previously nested inside
+// renderLog, which is why nothing happened when you tapped.
+function _toggleHalfCollapse(key){
+  if(!window._halfCollapsed)window._halfCollapsed={};
+  window._halfCollapsed[key]=!window._halfCollapsed[key];
+  if(typeof renderLog==='function')renderLog();
+}
+function _toggleESPNAB(abNum){
+  if(!window._espnExpanded)window._espnExpanded={};
+  window._espnExpanded[abNum]=!window._espnExpanded[abNum];
+  if(typeof renderLog==='function')renderLog();
+}
+// Back-compat alias — older calls used _toggleESPNHalf
+function _toggleESPNHalf(key){_toggleHalfCollapse(key);}
 
 // SUMMARY STATS (without pitcher attribution)
 function renderSummary(){
@@ -7935,7 +7956,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v161';
+var APP_VERSION='v162';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
