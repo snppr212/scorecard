@@ -4964,9 +4964,10 @@ if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
 var _biActive=res==='1B'&&$('bi-chk')&&$('bi-chk').checked&&_biBaseIdx!=null&&G.bases[_biBaseIdx];
 if(_biActive){
   _biFielder=parseInt(($('bi-fielder')&&$('bi-fielder').value)||'4',10);
-  // Auto-append "(RI/x)" to notation if user hasn't manually edited it
+  // v139: notation stores ONLY "(RI/N)" — the result label "1B" is prepended
+  // by abNotation at render time. Storing "1B (RI/4)" caused doubled display.
   if(!_playManualNot){
-    not=(not||'1B')+' (RI/'+_biFielder+')';
+    not='(RI/'+_biFielder+')';
   }
 }
 // Stash play-detail metadata for finAB to pick up on the AB record
@@ -6210,15 +6211,30 @@ function _doDeleteAB(rewind){
     return;
   }
   // Just-remove-from-log: existing behavior
+  // v139: if we're deleting the latest AB and that batter's slot is now past
+  // the next-batter pointer, reset the pointer so re-batting them doesn't
+  // create a duplicate AB at a different slot. We DON'T touch bases / score —
+  // user has the runner-advance UI to fix those if needed.
+  var wasLast=_editAbIdx===G.abs.length-1;
+  var deletedBi=ab.bi,deletedTeam=ab.team;
   G.abs.splice(_editAbIdx,1);
   G.abs.forEach(function(a,i){a.num=i+1;});G.abc=G.abs.length;
+  if(wasLast&&deletedBi!=null&&deletedBi>=0){
+    // Find which lineup pointer corresponds to the deleted AB's team
+    var ourTeam=isHB()?'home':'away';
+    var sameTeamUp=ourTeam===deletedTeam;
+    if(sameTeamUp){
+      if(deletedTeam==='home')G.hbi=deletedBi;else G.abi=deletedBi;
+      if(G.cbi<0)G.cbi=deletedBi;// no active batter? bring deleted back up
+    }
+  }
   if(typeof recalcPitcherStats==='function')recalcPitcherStats();
   cm('m-editab');cm('m-delab');
   sv();
   if(typeof renderLog==='function')renderLog();
   if(typeof renderStats==='function')try{renderStats();}catch(e){}
   if(typeof renderSC==='function')renderSC();
-  toast('AB removed from log');
+  toast(wasLast?(esc(ab.batter||'batter')+' is back up to bat'):'AB removed from log',2500);
 }
 // SWAP-AB: pick another AB in the same half and swap just the batter attribution
 var _swapFromIdx=-1;
@@ -6297,6 +6313,12 @@ function abNotation(ab){
   var map={K:'K',KL:'Ⓚ',BB:'BB',HBP:'HBP',HR:'HR',LLHR:'LLHR','1B':'1B','2B':'2B','3B':'3B',
     FO:'F',GO:'GO',LO:'L',SAC:'SAC',FC:'FC',DP:'DP',GIDP:'GIDP',TP:'TP',ROE:'ROE'};
   var rLabel=map[r]||r;
+  // v139: strip a duplicate leading rLabel from n so "1B (RI/4)" stored as
+  // notation doesn't render as "1B 1B (RI/4)". Handles legacy ABs from v137
+  // that wrote the doubled string.
+  if(n&&(n===rLabel+' '+rLabel||n.indexOf(rLabel+' ')===0)){
+    n=n.slice(rLabel.length).replace(/^\s+/,'');
+  }
   if(n&&n!==r&&n!==rLabel)return rLabel+' '+n;
   return rLabel;
 }
@@ -7108,7 +7130,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v138';
+var APP_VERSION='v139';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
