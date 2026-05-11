@@ -1617,16 +1617,62 @@ function _ourPitchers(g){return g.ht==='Mighty Mussels'?g.hp:g.ap;}
 function _oppTeamName(g){return g.ht==='Mighty Mussels'?g.at:g.ht;}
 function _oppLineup(g){return g.ht==='Mighty Mussels'?g.alu:g.hlu;}
 function _oppPitchers(g){return g.ht==='Mighty Mussels'?g.ap:g.hp;}
+// v170: smart name → LEAGUE_POOL lookup with three strategies:
+// 1) exact case-insensitive match (Brandon Ma → Brandon Ma)
+// 2) first-initial + last-name pattern (B.Ma / B. Ma / B Ma → Brandon Ma)
+// 3) unique last-name on team (Ma → Brandon Ma if only one Ma on the team)
+// Returns the canonical pool key or null. Cached per (name, team) to avoid
+// re-doing the work for every AB in season aggregation.
+var _leagueLookupCache={};
+function _lookupLeaguePlayer(playerName,teamName){
+  if(!playerName||!LEAGUE_POOL||!LEAGUE_POOL_BY_LOWER)return null;
+  var ck=String(playerName)+'||'+(teamName||'');
+  if(_leagueLookupCache.hasOwnProperty(ck))return _leagueLookupCache[ck];
+  var clean=String(playerName).toLowerCase().trim();
+  var teamLower=String(teamName||'').toLowerCase().trim();
+  function _onTeam(key){
+    var p=LEAGUE_POOL[key];
+    if(!p)return false;
+    if(!teamLower)return true;
+    return String(p.team||'').toLowerCase().trim()===teamLower;
+  }
+  // 1) exact
+  var k=LEAGUE_POOL_BY_LOWER[clean];
+  if(k&&_onTeam(k)){_leagueLookupCache[ck]=k;return k;}
+  // 2) first-initial + last-name (B.Ma / B. Ma / B Ma — allow hyphens / apostrophes in lastname)
+  var m=clean.match(/^([a-z])[\.\s]+([a-z][a-z\-']*)$/);
+  if(m){
+    var initial=m[1],last=m[2];
+    var cands=Object.keys(LEAGUE_POOL).filter(function(key){
+      if(!_onTeam(key))return false;
+      var parts=key.toLowerCase().split(/\s+/);
+      if(parts.length<2)return false;
+      return parts[0].charAt(0)===initial&&parts[parts.length-1]===last;
+    });
+    if(cands.length>=1){_leagueLookupCache[ck]=cands[0];return cands[0];}
+  }
+  // 3) last-name only (unique on team)
+  var parts=clean.split(/[\s\.]+/).filter(Boolean);
+  if(parts.length>0){
+    var last2=parts[parts.length-1];
+    var lnMatches=Object.keys(LEAGUE_POOL).filter(function(key){
+      if(!_onTeam(key))return false;
+      var kp=key.toLowerCase().split(/\s+/);
+      return kp[kp.length-1]===last2;
+    });
+    if(lnMatches.length===1){_leagueLookupCache[ck]=lnMatches[0];return lnMatches[0];}
+  }
+  _leagueLookupCache[ck]=null;
+  return null;
+}
 // v169: draft round band for an opp player. Reads player.round directly from
-// LEAGUE_POOL (coach-assigned, accurate, includes players without eval scores).
-// Bands: 1-3, 4-6, 7-9, 10-12. Returns 'unknown' if player isn't in the pool
-// or has no round value.
+// LEAGUE_POOL. Uses _lookupLeaguePlayer (v170) for smart name matching so
+// abbreviated names ("B.Ma") resolve to the canonical pool entry.
 function _getOppRoundBand(playerName,teamName){
-  if(!playerName||!teamName||!LEAGUE_POOL||!LEAGUE_POOL_BY_LOWER)return 'unknown';
-  var key=LEAGUE_POOL_BY_LOWER[String(playerName).toLowerCase().trim()];
+  var key=_lookupLeaguePlayer(playerName,teamName);
   if(!key)return 'unknown';
   var player=LEAGUE_POOL[key];
-  if(!player||player.team!==teamName)return 'unknown';
+  if(!player)return 'unknown';
   var r=player.round;
   if(r==null||isNaN(r))return 'unknown';
   if(r<=3)return '1-3';
@@ -8432,7 +8478,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v169';
+var APP_VERSION='v170';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
