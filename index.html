@@ -1814,8 +1814,13 @@ function _getOppRoundBand(playerName,teamName){
 // Returns {total: {...}, bands: {'1-3':..., '4-6':..., '7-9':..., '10-12':...,
 // 'unknown':...}}. Each entry has pa, ab, h, r, rbi, bb, k, hbp, hr, xbh, tb,
 // bip, roe, sf, sb, plus derived ba/obp/slg added after.
+// v170: pitch-quality convention — ab.pitchQualities[i] tags the PITCH
+// PLACEMENT, not the swing decision. 'good' = in zone, 'bad' = out of zone.
+// Same flag describes the pitch regardless of which team is at bat; metrics
+// just interpret it from the relevant perspective (batter discipline vs
+// pitcher chase). On opp ABs the placement comes from our pitcher.
 function _aggregateOppBat(games){
-  function empty(){return {pa:0,ab:0,h:0,r:0,rbi:0,bb:0,k:0,hbp:0,hr:0,xbh:0,tb:0,bip:0,roe:0,sf:0,sb:0,cs:0};}
+  function empty(){return {pa:0,ab:0,h:0,r:0,rbi:0,bb:0,k:0,hbp:0,hr:0,xbh:0,tb:0,bip:0,roe:0,sf:0,sb:0,cs:0,pitchesSeen:0,gSw:0,bSw:0,uSw:0,gTk:0,bTk:0,whiffs:0};}
   var bands={'1-3':empty(),'4-6':empty(),'7-9':empty(),'10-12':empty(),'unknown':empty()};
   games.forEach(function(g){
     var ourSide=_ourTeamSide(g);
@@ -1839,6 +1844,17 @@ function _aggregateOppBat(games){
       if(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','ROE'].includes(r))s.bip++;
       s.rbi+=(ab.rbi||0);
       if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;
+      // v170: walk pitches for opp-batter advanced (swing-quality) metrics
+      var _p=ab.pitches||[],_q=ab.pitchQualities||[];
+      for(var _i=0;_i<_p.length;_i++){
+        var _c=_p[_i],_qc=_q[_i]||null;
+        s.pitchesSeen++;
+        if(_c==='B'){s.gTk++;}
+        else if(_c==='L'){s.bTk++;}
+        else if(_c==='S'){s.whiffs++;if(_qc==='good')s.gSw++;else if(_qc==='bad')s.bSw++;else s.uSw++;}
+        else if(_c==='F'||_c==='FT'){if(_qc==='good')s.gSw++;else if(_qc==='bad')s.bSw++;else s.uSw++;}
+        else if(_c==='X'){if(_qc==='good')s.gSw++;else if(_qc==='bad')s.bSw++;else s.uSw++;}
+      }
     });
     // Opp steals / cs / runs
     (g.steals||[]).forEach(function(e){
@@ -1872,17 +1888,23 @@ function _aggregateOppBat(games){
     s.obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;
     s.slg=s.ab>0?s.tb/s.ab:0;
     s.ba=s.ab>0?s.h/s.ab:0;
+    // v170: advanced (swing-quality) derived rates
+    s.totalSw=s.gSw+s.bSw+s.uSw;
+    var _tagged=s.gSw+s.bSw+s.gTk+s.bTk;
+    s.swDec=_tagged>0?(s.gSw+s.gTk)/_tagged:0;
+    s.whiffPct=s.totalSw>0?s.whiffs/s.totalSw:0;
   }
   derive(total);Object.keys(bands).forEach(function(b){derive(bands[b]);});
   return {total:total,bands:bands};
 }
 // v169: aggregate opp pitching across all final games, bucketed by round band.
 // v174: reads from saved pitcher records (g.hp[].hits, etc.) — the canonical
-// source of truth. If these are stale or wrong (older games, incomplete
-// attribution), run the Rebuild Pitcher Stats tool (Settings → 🔄 Rebuild
-// pitcher stats) to walk each game's ABs and rewrite the saved records.
+// source of truth. If stale, run the Rebuild Pitcher Stats tool (Settings →
+// 🔄 Rebuild pitcher stats) to walk each game's ABs and rewrite the records.
+// v176: also walks ab.pitches/pitchQualities on opp-pitcher ABs so we can
+// compute Strike% / Whiff% / Chase% advanced metrics for opp pitchers.
 function _aggregateOppPit(games){
-  function empty(){return {games:0,ip_outs:0,pc:0,ba:0,stk:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,tbf:0};}
+  function empty(){return {games:0,ip_outs:0,pc:0,ba:0,stk:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,tbf:0,pitches:0,strikes:0,balls:0,swings:0,whiffs:0,chases:0,zoneSwings:0,lookStrikes:0};}
   var bands={'1-3':empty(),'4-6':empty(),'7-9':empty(),'10-12':empty(),'unknown':empty()};
   games.forEach(function(g){
     var ourSide=_ourTeamSide(g);
@@ -1900,11 +1922,23 @@ function _aggregateOppPit(games){
       s.r+=(p.runs_allowed||0);s.er+=(p.er||0);
       s.bb+=(p.bb_allowed||0);s.k+=(p.k_pitched||0);s.hbp+=(p.hbp_allowed||0);
     });
-    // TBF from opp ABs (only field that's been ab-derived since v169)
+    // TBF from opp ABs + v176 swing-quality from opp-pitcher ABs
     (g.abs||[]).forEach(function(ab){
       if(!ab.pitcher||ab.pitcherTeam!==oppSide)return;
       var band=_getOppRoundBand(ab.pitcher,oppTeam)||'unknown';
-      bands[band].tbf++;
+      var s=bands[band];
+      s.tbf++;
+      var _p=ab.pitches||[],_q=ab.pitchQualities||[];
+      for(var _i=0;_i<_p.length;_i++){
+        var _c=_p[_i],_qc=_q[_i]||null;
+        s.pitches++;
+        if(_c==='B')s.balls++;
+        else if(_c==='L'){s.strikes++;s.lookStrikes++;}
+        else if(_c==='S'){s.strikes++;s.whiffs++;s.swings++;if(_qc==='bad')s.chases++;else if(_qc==='good')s.zoneSwings++;}
+        else if(_c==='F'||_c==='FT'){s.strikes++;s.swings++;if(_qc==='bad')s.chases++;else if(_qc==='good')s.zoneSwings++;}
+        else if(_c==='X'){s.strikes++;s.swings++;if(_qc==='bad')s.chases++;else if(_qc==='good')s.zoneSwings++;}
+        else if(_c==='H')s.balls++;
+      }
     });
   });
   var total=empty();
@@ -1921,6 +1955,10 @@ function _aggregateOppPit(games){
     s.stkEst=Math.max(s.stk,3*s.k);
     s.baa=s.abAgainst>0?s.hits/s.abAgainst:0;
     s.era=s.ip_outs>0?(s.er/(s.ip_outs/3)*6):null;
+    // v170: advanced (swing-quality) derived rates
+    s.strikePct=s.pitches>0?s.strikes/s.pitches:0;
+    s.whiffPct=s.swings>0?s.whiffs/s.swings:0;
+    s.chasePct=s.swings>0?s.chases/s.swings:0;
   }
   derive(total);Object.keys(bands).forEach(function(b){derive(bands[b]);});
   return {total:total,bands:bands};
@@ -2320,6 +2358,34 @@ function renderSeasonBatAdvanced(games){
     h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pa+'</td><td>'+s.pitchesSeen+'</td><td>'+s.gSw+'</td><td>'+s.bSw+'</td><td>'+s.uSw+'</td><td>'+s.gTk+'</td><td>'+s.bTk+'</td><td class="hi">'+whP+'</td><td class="hi">'+dcP+'</td></tr>';
   });
   h+='</tbody>';
+  // v170: OPP TOTAL + round-band breakdown (advanced). Mirrors the v169 footer
+  // in renderSeasonBat. Click the total row to expand/collapse bands.
+  var opp=_aggregateOppBat(games);
+  var oT=opp.total;
+  var expanded=!!A.statsOppExpanded;
+  var chev=expanded?'▾':'▸';
+  function _oppBatAdvRow(label,s,cls){
+    var indent=cls==='band'?'padding-left:24px;':'';
+    var totalSw=s.gSw+s.bSw+s.uSw;
+    var tagged=s.gSw+s.bSw+s.gTk+s.bTk;
+    var whP=totalSw>0?Math.round((s.whiffs/totalSw)*100)+'%':'—';
+    var dcP=tagged>0?Math.round(((s.gSw+s.gTk)/tagged)*100)+'%':'—';
+    return '<tr style="'+(cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);')+'"'+(cls==='total'?' onclick="_toggleOppExpand()"':'')+'>'
+      +'<td style="'+indent+'">'+label+'</td><td>'+(cls==='total'?games.length:'—')+'</td><td>'+s.pa+'</td><td>'+s.pitchesSeen+'</td><td>'+s.gSw+'</td><td>'+s.bSw+'</td><td>'+s.uSw+'</td><td>'+s.gTk+'</td><td>'+s.bTk+'</td><td class="hi">'+whP+'</td><td class="hi">'+dcP+'</td></tr>';
+  }
+  if(oT.pitchesSeen>0||oT.pa>0){
+    h+='<tfoot>';
+    h+=_oppBatAdvRow(chev+' OPP TOTAL',oT,'total');
+    if(expanded){
+      ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
+        var s=opp.bands[b];
+        if(s.pa===0&&s.pitchesSeen===0)return;
+        var lbl=b==='unknown'?'└─ Unmatched':('└─ Round '+b);
+        h+=_oppBatAdvRow(lbl,s,'band');
+      });
+    }
+    h+='</tfoot>';
+  }
   $('season-bat').innerHTML=h;
 }
 // Per-pitcher advanced aggregator: walks ABs they pitched, counts pitch-type
@@ -2365,6 +2431,35 @@ function renderSeasonPitAdvanced(games){
     h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+Math.round(s.strikePct*100)+'%</td><td class="hi">'+(s.swings>0?Math.round(s.whiffPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.chasePct*100)+'%':'—')+'</td><td>'+s.zoneSwings+'</td></tr>';
   });
   h+='</tbody>';
+  // v170: OPP TOTAL + round-band breakdown (advanced). St%/Whf%/Ch% are computed
+  // from ab.pitchQualities on opp-pitcher ABs — same logic as our pitchers, just
+  // from the perspective of opp pitcher vs our batter. Untagged opp pitches still
+  // contribute to St%/P/St/Ba but not Whf%/Ch%/Z·Sw.
+  var oppP=_aggregateOppPit(games);
+  var oP=oppP.total;
+  var expanded=!!A.statsOppExpanded;
+  var chev=expanded?'▾':'▸';
+  function _oppPitAdvRow(label,s,cls){
+    var indent=cls==='band'?'padding-left:24px;':'';
+    var stP=s.pitches>0?Math.round((s.strikes/s.pitches)*100)+'%':'—';
+    var whP=s.swings>0?Math.round((s.whiffs/s.swings)*100)+'%':'—';
+    var chP=s.swings>0?Math.round((s.chases/s.swings)*100)+'%':'—';
+    return '<tr style="'+(cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);')+'"'+(cls==='total'?' onclick="_toggleOppExpand()"':'')+'>'
+      +'<td style="'+indent+'">'+label+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+stP+'</td><td class="hi">'+whP+'</td><td class="hi">'+chP+'</td><td>'+s.zoneSwings+'</td></tr>';
+  }
+  if(oP.pitches>0||oP.games>0){
+    h+='<tfoot>';
+    h+=_oppPitAdvRow(chev+' OPP TOTAL',oP,'total');
+    if(expanded){
+      ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
+        var s=oppP.bands[b];
+        if(s.pitches===0&&s.games===0)return;
+        var lbl=b==='unknown'?'└─ Unmatched':('└─ Round '+b);
+        h+=_oppPitAdvRow(lbl,s,'band');
+      });
+    }
+    h+='</tfoot>';
+  }
   $('season-pit').innerHTML=h;
 }
 // ============================================================================
@@ -8810,7 +8905,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v175';
+var APP_VERSION='v176';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
