@@ -4993,6 +4993,8 @@ function oppbatRemoveSlot(rowIdx){
     }
     _shiftTeamBis(team,row.aluIdx+1,-1);
     lu.splice(row.aluIdx,1);
+    // v177: pitcher stats become stale after deleting ABs — rebuild before save
+    if(typeof recalcPitcherStats==='function')recalcPitcherStats();
     sv();
     var pending=_pendOppR;
     cm('m-oppbat');
@@ -7861,15 +7863,13 @@ function mkHalfESPN(abs,inn,half){
   function _abbr3(name){var letters=((name||'').match(/[A-Za-z]/g)||[]).join('');return(letters.substring(0,3)||'???').toUpperCase();}
   var halfLabel=(half==='top'?'Top ':'Bottom ')+_ord(inn);
   var awayAbbr=_abbr3(G.at), homeAbbr=_abbr3(G.ht);
-  // Pre-compute running away/home score after each AB across the full game.
-  // pscored.length captures runs added on each AB; ab.team is the batter's side.
-  var awayRun=0, homeRun=0, runMap={};
-  G.abs.forEach(function(a){
-    var added=(a.pscored||[]).length;
-    if(a.team==='home')homeRun+=added; else awayRun+=added;
-    runMap[a.num]={a:awayRun,h:homeRun};
-  });
-  var _posLabel={1:'pitcher',2:'catcher',3:'first',4:'second',5:'third',6:'shortstop',7:'left',8:'center',9:'right'};
+  // v177: runMap hoisted to renderLog (cached on window._espnRunMap) so each
+  // half-inning render doesn't re-walk all of G.abs. Was O(halves × ABs).
+  var runMap=window._espnRunMap||{};
+  // v177: add 8a / 8b for LC / RC from v175 split. Old data stores hitLoc
+  // as the integer 8; new data uses strings "8a" / "8b" when LC / RC is
+  // explicitly picked on the diamond.
+  var _posLabel={1:'pitcher',2:'catcher',3:'first',4:'second',5:'third',6:'shortstop',7:'left',8:'center','8a':'left-center','8b':'right-center',9:'right'};
   function _abDesc(ab){
     var nm=abBatterDisplay(ab), loc=ab.hitLoc?_posLabel[ab.hitLoc]:'';
     var r=ab.result;
@@ -8047,6 +8047,15 @@ function mkHalfESPN(abs,inn,half){
 // v165: order respects A.playsLogReverse. Within each half-inning the AB
 // rows still go oldest-first (first batter at the top of the section).
 var _useESPN=A.playsLayoutStyle==='espn';
+// v177: build runMap once per renderLog instead of per-half (was O(halves×ABs))
+if(_useESPN){
+  var _aR=0,_hR=0;window._espnRunMap={};
+  G.abs.forEach(function(a){
+    var added=(a.pscored||[]).length;
+    if(a.team==='home')_hR+=added;else _aR+=added;
+    window._espnRunMap[a.num]={a:_aR,h:_hR};
+  });
+}
 var _innStart=_revOrder?maxInn:1, _innEnd=_revOrder?1:maxInn, _innStep=_revOrder?-1:1;
 for(var inn=_innStart;_revOrder?inn>=_innEnd:inn<=_innEnd;inn+=_innStep){
   var topABs=G.abs.filter(function(a){return a.inn===inn&&a.half==='top';});
@@ -8905,7 +8914,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v176';
+var APP_VERSION='v177';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();

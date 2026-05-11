@@ -1,6 +1,77 @@
 # Mighty Mussels Scorecard — Changelog
 
-## v89 (2026-05-03) — _this commit_
+## v177 (2026-05-11) — _this commit_
+**Audit-driven housekeeping**
+
+Code audit flagged several issues across the v89→v176 jump. Fixed the
+highest-priority items:
+
+- **v175 LC/RC bug (HIGH):** ESPN plays-log `_posLabel` was a numeric-key
+  map, so `ab.hitLoc='8a'` and `'8b'` returned undefined and the "to LC /
+  to RC" suffix was silently dropped on every hit description. Added
+  `'8a':'left-center', '8b':'right-center'` to the map.
+- **Stale stats on opp lineup edit:** `oppbatRemoveSlot` deleted ABs and
+  saved without calling `recalcPitcherStats`, leaving inflated pitcher
+  hits/bb/k/hbp_allowed/ip_outs until the rebuild tool ran. Now recalcs
+  before save.
+- **mkHalfESPN O(halves×ABs):** runMap was rebuilt by walking all of G.abs
+  on each half-inning render. Hoisted to renderLog so it builds once per
+  log render and the half function reads from `window._espnRunMap`.
+- **sw.js stale comment:** "delete all old caches that aren't mm-v5"
+  predates the dynamic version. Updated.
+- **CHANGELOG out of date by 87 versions** — see condensed v90-v176
+  summary below.
+
+Audit findings deferred (need design discussion):
+- 587 KB single-file inline script — needs split / bundling for prod
+- `fbSaveGame` last-writer-wins race — needs Firestore `runTransaction`
+- Snapshot listener `Object.assign(G, remoteG)` — leaks deleted keys
+- 29 `console.log` calls in production — would gate behind `_DEBUG`
+
+## v90-v176 (2026-04 → 2026-05) — _session summary_
+Forty-one ships over the course of building / scoring two live games.
+Grouped by theme; see `git log` for per-version detail.
+
+**Scoring correctness**
+- v136, v140: FC and BI cascade rules (forced-runner chain semantics)
+- v143: ROE finally places batter on 1B (had been silently no-op)
+- v144, v145, v150: delete-AB undoes runs; snapshot stack for chained
+  rewinds; per-AB `preState` so rewind works post-refresh
+- v146, v147: manual runs attribute to ABs; end-of-game unattributed
+  review modal
+- v148: "Start fresh" purges `A.pitchLog` for the eid
+- v173, v174: pitcher-stats rebuild tool (Settings → 🔄 Rebuild)
+
+**Scoring coverage**
+- v137-140: Baserunner Interference (INT) with proper force cascade
+- v149: Pop out (PO) as its own result type
+- v163-164: Catcher's Interference (CI), Foul Fly (FF), TH and OBS
+  runner-advance tags
+- v175: 10-fielder LC/RC outfield split (8a/8b notation, with single-CF
+  fallback for legacy 9-fielder games)
+
+**UX overhaul (Plays tab)**
+- v152, v153, v154: card layout, tighter padding, vertical separator,
+  per-half R/H/E/Pitches summary, running outs indicator
+- v158: shorter half-inning headers ("▲ TOP 1st — Team")
+- v159, v160, v161, v162: ESPN/Gameday alternative layout, Settings
+  toggle, collapsible halves + AB rows, scoping bug fix
+- v165: oldest-first / newest-first inning order toggle
+- v166: fix-it notes (standalone + per-AB)
+- v167, v168: team logo upload + display
+
+**Stats screen**
+- v169-172: opp totals + draft-round bands + smart name matching +
+  diagnostic modal + hardcoded DRAFT_ROUNDS fallback
+- v176: opp pitch tagging unlocked advanced stats for both sides
+
+**Quality-of-life fixes**
+- v138: "Avg" hardness option alongside Hard / Soft
+- v141: retro `+ Add advance` / `+ Add run scored` on Edit AB
+- v142, v151, v162, v168: modal z-index / scoping / load-order bugs
+- v155-157: pitch count and jersey number formatting iterations
+
+## v89 (2026-05-03)
 **Housekeeping — TOC, section banners, dead-code removal, doc refresh**
 
 - Top-of-script table of contents documents the 12 logical sections, A/G state model, and modal/screen helpers

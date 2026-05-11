@@ -1,4 +1,4 @@
-const CACHE = 'mm-v176';
+const CACHE = 'mm-v177';
 const FILES = ['./index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -7,7 +7,7 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  // delete all old caches that aren't mm-v5
+  // delete all old caches that aren't the current CACHE name (mm-vN)
   e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
