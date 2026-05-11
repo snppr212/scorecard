@@ -1614,6 +1614,140 @@ function setSeasonView(v){A.seasonStatsView=v;sa();_renderSeasonView();}
 function _ourTeamSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
 function _ourLineup(g){return g.ht==='Mighty Mussels'?g.hlu:g.alu;}
 function _ourPitchers(g){return g.ht==='Mighty Mussels'?g.hp:g.ap;}
+function _oppTeamName(g){return g.ht==='Mighty Mussels'?g.at:g.ht;}
+function _oppLineup(g){return g.ht==='Mighty Mussels'?g.alu:g.hlu;}
+function _oppPitchers(g){return g.ht==='Mighty Mussels'?g.ap:g.hp;}
+// v169: draft round band for an opp player. Reads player.round directly from
+// LEAGUE_POOL (coach-assigned, accurate, includes players without eval scores).
+// Bands: 1-3, 4-6, 7-9, 10-12. Returns 'unknown' if player isn't in the pool
+// or has no round value.
+function _getOppRoundBand(playerName,teamName){
+  if(!playerName||!teamName||!LEAGUE_POOL||!LEAGUE_POOL_BY_LOWER)return 'unknown';
+  var key=LEAGUE_POOL_BY_LOWER[String(playerName).toLowerCase().trim()];
+  if(!key)return 'unknown';
+  var player=LEAGUE_POOL[key];
+  if(!player||player.team!==teamName)return 'unknown';
+  var r=player.round;
+  if(r==null||isNaN(r))return 'unknown';
+  if(r<=3)return '1-3';
+  if(r<=6)return '4-6';
+  if(r<=9)return '7-9';
+  return '10-12';
+}
+// v169: aggregate opp batting across all final games, bucketed by round band.
+// Returns {total: {...}, bands: {'1-3':..., '4-6':..., '7-9':..., '10-12':...,
+// 'unknown':...}}. Each entry has pa, ab, h, r, rbi, bb, k, hbp, hr, xbh, tb,
+// bip, roe, sf, sb, plus derived ba/obp/slg added after.
+function _aggregateOppBat(games){
+  function empty(){return {pa:0,ab:0,h:0,r:0,rbi:0,bb:0,k:0,hbp:0,hr:0,xbh:0,tb:0,bip:0,roe:0,sf:0,sb:0,cs:0};}
+  var bands={'1-3':empty(),'4-6':empty(),'7-9':empty(),'10-12':empty(),'unknown':empty()};
+  games.forEach(function(g){
+    var ourSide=_ourTeamSide(g);
+    var oppSide=ourSide==='home'?'away':'home';
+    var oppTeam=_oppTeamName(g);
+    (g.abs||[]).forEach(function(ab){
+      if(ab.team!==oppSide)return;
+      var band=_getOppRoundBand(ab.batter,oppTeam)||'unknown';
+      var s=bands[band];
+      if(!ab.autoOut)s.pa++;
+      var r=ab.result;
+      if(!['BB','HBP','SAC'].includes(r))s.ab++;
+      if(['1B','2B','3B','HR','LLHR'].includes(r))s.h++;
+      if(['2B','3B','HR','LLHR'].includes(r))s.xbh++;
+      if(r==='HR'||r==='LLHR')s.hr++;
+      if(r==='BB')s.bb++;
+      if(r==='K'||r==='KL')s.k++;
+      if(r==='HBP')s.hbp++;
+      if(r==='SAC')s.sf++;
+      if(r==='ROE')s.roe++;
+      if(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','ROE'].includes(r))s.bip++;
+      s.rbi+=(ab.rbi||0);
+      if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;
+    });
+    // Opp steals / cs / runs
+    (g.steals||[]).forEach(function(e){
+      if(e.team!==oppSide)return;
+      var lu=oppSide==='home'?g.hlu:g.alu;
+      var p=lu&&lu[e.bi];
+      var band=p&&p.name?(_getOppRoundBand(p.name,oppTeam)||'unknown'):'unknown';
+      bands[band].sb++;
+    });
+    (g.css||[]).forEach(function(e){
+      if(e.team!==oppSide)return;
+      var lu=oppSide==='home'?g.hlu:g.alu;
+      var p=lu&&lu[e.bi];
+      var band=p&&p.name?(_getOppRoundBand(p.name,oppTeam)||'unknown'):'unknown';
+      bands[band].cs++;
+    });
+    (g.runs||[]).forEach(function(rn){
+      if(rn.team!==oppSide)return;
+      var lu=oppSide==='home'?g.hlu:g.alu;
+      var p=lu&&lu[rn.bi];
+      var band=p&&p.name?(_getOppRoundBand(p.name,oppTeam)||'unknown'):'unknown';
+      bands[band].r++;
+    });
+  });
+  var total=empty();
+  Object.keys(bands).forEach(function(b){
+    var s=bands[b];
+    Object.keys(s).forEach(function(k){total[k]+=s[k];});
+  });
+  function derive(s){
+    s.obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;
+    s.slg=s.ab>0?s.tb/s.ab:0;
+    s.ba=s.ab>0?s.h/s.ab:0;
+  }
+  derive(total);Object.keys(bands).forEach(function(b){derive(bands[b]);});
+  return {total:total,bands:bands};
+}
+// v169: aggregate opp pitching across all final games, bucketed by round band.
+function _aggregateOppPit(games){
+  function empty(){return {games:0,ip_outs:0,pc:0,ba:0,stk:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,tbf:0};}
+  var bands={'1-3':empty(),'4-6':empty(),'7-9':empty(),'10-12':empty(),'unknown':empty()};
+  games.forEach(function(g){
+    var oppTeam=_oppTeamName(g);
+    var oppPit=_oppPitchers(g);
+    (oppPit||[]).forEach(function(p){
+      if(!p||!p.name)return;
+      if(!((p.ip_outs||0)>0||(p.total||0)>0))return;
+      var band=_getOppRoundBand(p.name,oppTeam)||'unknown';
+      var s=bands[band];
+      s.games++;
+      s.ip_outs+=(p.ip_outs||0);s.pc+=(p.total||0);
+      s.ba+=(p.ba||0);s.stk+=(p.stk||0);s.hits+=(p.hits||0);
+      s.r+=(p.runs_allowed||0);s.er+=(p.er||0);
+      s.bb+=(p.bb_allowed||0);s.k+=(p.k_pitched||0);s.hbp+=(p.hbp_allowed||0);
+    });
+    // TBF from opp ABs
+    var ourSide=_ourTeamSide(g);
+    var oppSide=ourSide==='home'?'away':'home';
+    (g.abs||[]).forEach(function(ab){
+      if(!ab.pitcher||ab.pitcherTeam!==oppSide)return;
+      var band=_getOppRoundBand(ab.pitcher,oppTeam)||'unknown';
+      bands[band].tbf++;
+    });
+  });
+  var total=empty();
+  Object.keys(bands).forEach(function(b){
+    var s=bands[b];
+    Object.keys(s).forEach(function(k){total[k]+=s[k];});
+  });
+  function derive(s){
+    s.abAgainst=s.ip_outs+s.hits;
+    s.baEst=Math.max(s.ba,4*(s.bb+s.hbp));
+    s.stkEst=Math.max(s.stk,3*s.k);
+    s.baa=s.abAgainst>0?s.hits/s.abAgainst:0;
+    s.era=s.ip_outs>0?(s.er/(s.ip_outs/3)*6):null;
+  }
+  derive(total);Object.keys(bands).forEach(function(b){derive(bands[b]);});
+  return {total:total,bands:bands};
+}
+// v169: toggle whether the round-band breakdown is shown on the season tables
+function _toggleOppExpand(){
+  A.statsOppExpanded=!A.statsOppExpanded;
+  sa();
+  if(typeof _renderSeasonView==='function')_renderSeasonView();
+}
 function renderSeasonBat(games){
   var byPlayer={};
   games.forEach(function(g){
@@ -1667,7 +1801,29 @@ function renderSeasonBat(games){
   var T={games:games.length,pa:0,ab:0,r:0,h:0,rbi:0,hr:0,bb:0,k:0,sb:0,tb:0,hbp:0,sf:0,bip:0,roe:0};
   rows.forEach(function(s){T.pa+=s.pa;T.ab+=s.ab;T.r+=s.r;T.h+=s.h;T.rbi+=s.rbi;T.hr+=s.hr;T.bb+=s.bb;T.k+=s.k;T.sb+=s.sb;T.tb+=s.tb;T.hbp+=s.hbp;T.sf+=s.sf;T.bip+=s.bip;T.roe+=(s.roe||0);});
   var Tba=T.ab>0?T.h/T.ab:0;var Tobp=(T.ab+T.bb+T.hbp+T.sf)>0?(T.h+T.bb+T.hbp)/(T.ab+T.bb+T.hbp+T.sf):0;var Tslg=T.ab>0?T.tb/T.ab:0;
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TEAM</td><td>'+T.games+'</td><td>'+T.pa+'</td><td>'+T.ab+'</td><td>'+T.r+'</td><td>'+T.h+'</td><td>'+T.rbi+'</td><td>'+T.hr+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td>'+T.sb+'</td><td>'+T.bip+'</td><td>'+T.roe+'</td><td class="hi">'+(T.ab>0?fmt3(Tba):'—')+'</td><td class="hi">'+(T.ab+T.bb+T.hbp+T.sf>0?fmt3(Tobp):'—')+'</td><td class="hi">'+(T.ab>0?fmt3(Tslg):'—')+'</td></tr></tfoot>';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TEAM</td><td>'+T.games+'</td><td>'+T.pa+'</td><td>'+T.ab+'</td><td>'+T.r+'</td><td>'+T.h+'</td><td>'+T.rbi+'</td><td>'+T.hr+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td>'+T.sb+'</td><td>'+T.bip+'</td><td>'+T.roe+'</td><td class="hi">'+(T.ab>0?fmt3(Tba):'—')+'</td><td class="hi">'+(T.ab+T.bb+T.hbp+T.sf>0?fmt3(Tobp):'—')+'</td><td class="hi">'+(T.ab>0?fmt3(Tslg):'—')+'</td></tr>';
+  // v169: OPP row — total opp stats, with optional round-band breakdown
+  var opp=_aggregateOppBat(games);
+  var oT=opp.total;
+  var expanded=!!A.statsOppExpanded;
+  var chev=expanded?'▾':'▸';
+  function _oppBatRow(label,s,cls){
+    var indent=cls==='band'?'padding-left:24px;':'';
+    return '<tr style="'+(cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);')+'"'+(cls==='total'?' onclick="_toggleOppExpand()"':'')+'>'
+      +'<td style="'+indent+'">'+label+'</td><td>'+(cls==='total'?games.length:'—')+'</td><td>'+s.pa+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td>'+s.sb+'</td><td>'+s.bip+'</td><td>'+s.roe+'</td><td class="hi">'+(s.ab>0?fmt3(s.ba):'—')+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
+  }
+  if(oT.pa>0){
+    h+=_oppBatRow(chev+' OPP TOTAL',oT,'total');
+    if(expanded){
+      ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
+        var s=opp.bands[b];
+        if(s.pa===0)return;
+        var lbl=b==='unknown'?'└─ Unmatched':('└─ Round '+b);
+        h+=_oppBatRow(lbl,s,'band');
+      });
+    }
+  }
+  h+='</tfoot>';
   $('season-bat').innerHTML=h;
 }
 function renderSeasonPit(games){
@@ -1723,7 +1879,32 @@ function renderSeasonPit(games){
   var Tip=Math.floor(T.ip_outs/3)+'.'+(T.ip_outs%3);
   var Tera=T.ip_outs>0?fmt3(T.er/(T.ip_outs/3)*6):'—';
   var Tbaa=T.abAgainst>0?fmt3(T.hits/T.abAgainst):'—';
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td></tr></tfoot>';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td></tr>';
+  // v169: OPP pitching row(s) — total then optional round-band breakdown
+  var oppP=_aggregateOppPit(games);
+  var oP=oppP.total;
+  var expanded=!!A.statsOppExpanded;
+  var chev=expanded?'▾':'▸';
+  function _oppPitRow(label,s,cls){
+    var indent=cls==='band'?'padding-left:24px;':'';
+    var ipStr=Math.floor(s.ip_outs/3)+'.'+(s.ip_outs%3);
+    var eraStr=s.era!=null?fmt3(s.era):'—';
+    var baaStr=s.abAgainst>0?fmt3(s.baa):'—';
+    return '<tr style="'+(cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);')+'"'+(cls==='total'?' onclick="_toggleOppExpand()"':'')+'>'
+      +'<td style="'+indent+'">'+label+'</td><td>'+s.games+'</td><td class="hi">'+ipStr+'</td><td>'+(s.tbf||0)+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baaStr+'</td><td class="hi">'+eraStr+'</td></tr>';
+  }
+  if(oP.games>0||oP.ip_outs>0){
+    h+=_oppPitRow(chev+' OPP TOTAL',oP,'total');
+    if(expanded){
+      ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
+        var s=oppP.bands[b];
+        if(s.games===0&&s.ip_outs===0)return;
+        var lbl=b==='unknown'?'└─ Unmatched':('└─ Round '+b);
+        h+=_oppPitRow(lbl,s,'band');
+      });
+    }
+  }
+  h+='</tfoot>';
   $('season-pit').innerHTML=h;
 }
 // =============================================================================
@@ -8251,7 +8432,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v168';
+var APP_VERSION='v169';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
