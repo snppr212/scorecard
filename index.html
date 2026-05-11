@@ -769,6 +769,15 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   </div>
   <div class="mact"><button class="btn btn-full" onclick="cm('m-options')">Close</button></div>
 </div></div>
+<!-- v171: opp matching diagnostic — shows each opp player encountered and
+     why they did or didn't match LEAGUE_POOL with a round. Opened by tapping
+     the Unmatched row on the season stats opp breakdown. -->
+<div class="modal-ov" id="m-opp-diag"><div class="modal" style="max-width:480px;">
+<h3>🔍 Opp matching diagnostic</h3>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.45;">For each opp player we've logged across all final games: was their name found in LEAGUE_POOL, and do they have a <code>round</code> assigned? Green = matched + round; amber = matched but no round; red = no pool match at all.</div>
+<div id="opp-diag-list" style="max-height:60vh;overflow-y:auto;"></div>
+<div class="mact"><button class="btn btn-full" onclick="cm('m-opp-diag')">Done</button></div>
+</div></div>
 <!-- v167: team logos manager — list of all known teams (us + opp from
      schedule + standings) with upload / clear per team. Stored as data URLs
      in A.teamLogos[teamName]. -->
@@ -1794,6 +1803,55 @@ function _toggleOppExpand(){
   sa();
   if(typeof _renderSeasonView==='function')_renderSeasonView();
 }
+// v171: diagnostic — for every opp player encountered across final games,
+// figure out why they're unmatched (or confirm they're matched). Useful for
+// spotting gaps in LEAGUE_POOL data (missing player, missing round, etc.).
+function openOppDiagnostic(){
+  var games=window._seasonGames||[];
+  var seen={},rows=[];
+  games.forEach(function(g){
+    var oppSide=_ourTeamSide(g)==='home'?'away':'home';
+    var oppTeam=_oppTeamName(g);
+    // Walk all opp ABs and opp pitchers; dedupe per (name, team)
+    var names=[];
+    (g.abs||[]).forEach(function(ab){
+      if(ab.team===oppSide&&ab.batter)names.push(ab.batter);
+    });
+    (_oppPitchers(g)||[]).forEach(function(p){if(p&&p.name)names.push(p.name);});
+    names.forEach(function(name){
+      var key=name+'||'+oppTeam;
+      if(seen[key])return;seen[key]=true;
+      var match=_lookupLeaguePlayer(name,oppTeam);
+      var pool=match?LEAGUE_POOL[match]:null;
+      var round=pool?pool.round:null;
+      var status,color;
+      if(!LEAGUE_POOL){status='LEAGUE_POOL not loaded';color='var(--red2)';}
+      else if(!match){status='No pool match';color='var(--red2)';}
+      else if(round==null){status='Matched, no round';color='var(--amber2)';}
+      else{status='OK · round '+round;color='var(--green2)';}
+      rows.push({name:name,team:oppTeam,match:match,round:round,status:status,color:color});
+    });
+  });
+  rows.sort(function(a,b){
+    // Failed matches first so they're easy to spot
+    var aFail=a.color==='var(--red2)'?0:(a.color==='var(--amber2)'?1:2);
+    var bFail=b.color==='var(--red2)'?0:(b.color==='var(--amber2)'?1:2);
+    if(aFail!==bFail)return aFail-bFail;
+    if(a.team!==b.team)return a.team.localeCompare(b.team);
+    return a.name.localeCompare(b.name);
+  });
+  var html=rows.map(function(r){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border);font-family:sans-serif;font-size:12px;">'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="color:var(--text);">'+esc(r.name)+(r.match&&r.match!==r.name?' <span style="color:var(--text3);font-size:10px;">→ '+esc(r.match)+'</span>':'')+'</div>'
+        +'<div style="color:var(--text3);font-size:10px;">'+esc(r.team)+'</div>'
+      +'</div>'
+      +'<div style="color:'+r.color+';font-size:11px;text-align:right;">'+esc(r.status)+'</div>'
+      +'</div>';
+  }).join('');
+  $('opp-diag-list').innerHTML=html||'<div style="padding:14px;color:var(--text3);text-align:center;font-family:sans-serif;">No opp data to analyze</div>';
+  om('m-opp-diag');
+}
 function renderSeasonBat(games){
   var byPlayer={};
   games.forEach(function(g){
@@ -1853,9 +1911,12 @@ function renderSeasonBat(games){
   var oT=opp.total;
   var expanded=!!A.statsOppExpanded;
   var chev=expanded?'▾':'▸';
-  function _oppBatRow(label,s,cls){
+  function _oppBatRow(label,s,cls,clickAttr){
     var indent=cls==='band'?'padding-left:24px;':'';
-    return '<tr style="'+(cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);')+'"'+(cls==='total'?' onclick="_toggleOppExpand()"':'')+'>'
+    var rowStyle=cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);';
+    if(clickAttr)rowStyle+='cursor:pointer;';
+    var onClick=cls==='total'?'_toggleOppExpand()':(clickAttr||'');
+    return '<tr style="'+rowStyle+'"'+(onClick?' onclick="'+onClick+'"':'')+'>'
       +'<td style="'+indent+'">'+label+'</td><td>'+(cls==='total'?games.length:'—')+'</td><td>'+s.pa+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td>'+s.sb+'</td><td>'+s.bip+'</td><td>'+s.roe+'</td><td class="hi">'+(s.ab>0?fmt3(s.ba):'—')+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
   }
   if(oT.pa>0){
@@ -1864,8 +1925,8 @@ function renderSeasonBat(games){
       ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
         var s=opp.bands[b];
         if(s.pa===0)return;
-        var lbl=b==='unknown'?'└─ Unmatched':('└─ Round '+b);
-        h+=_oppBatRow(lbl,s,'band');
+        var lbl=b==='unknown'?'└─ Unmatched · tap to diagnose ▶':('└─ Round '+b);
+        h+=_oppBatRow(lbl,s,'band',b==='unknown'?'openOppDiagnostic()':null);
       });
     }
   }
@@ -1931,12 +1992,15 @@ function renderSeasonPit(games){
   var oP=oppP.total;
   var expanded=!!A.statsOppExpanded;
   var chev=expanded?'▾':'▸';
-  function _oppPitRow(label,s,cls){
+  function _oppPitRow(label,s,cls,clickAttr){
     var indent=cls==='band'?'padding-left:24px;':'';
     var ipStr=Math.floor(s.ip_outs/3)+'.'+(s.ip_outs%3);
     var eraStr=s.era!=null?fmt3(s.era):'—';
     var baaStr=s.abAgainst>0?fmt3(s.baa):'—';
-    return '<tr style="'+(cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);')+'"'+(cls==='total'?' onclick="_toggleOppExpand()"':'')+'>'
+    var rowStyle=cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);';
+    if(clickAttr)rowStyle+='cursor:pointer;';
+    var onClick=cls==='total'?'_toggleOppExpand()':(clickAttr||'');
+    return '<tr style="'+rowStyle+'"'+(onClick?' onclick="'+onClick+'"':'')+'>'
       +'<td style="'+indent+'">'+label+'</td><td>'+s.games+'</td><td class="hi">'+ipStr+'</td><td>'+(s.tbf||0)+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baaStr+'</td><td class="hi">'+eraStr+'</td></tr>';
   }
   if(oP.games>0||oP.ip_outs>0){
@@ -1945,8 +2009,8 @@ function renderSeasonPit(games){
       ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
         var s=oppP.bands[b];
         if(s.games===0&&s.ip_outs===0)return;
-        var lbl=b==='unknown'?'└─ Unmatched':('└─ Round '+b);
-        h+=_oppPitRow(lbl,s,'band');
+        var lbl=b==='unknown'?'└─ Unmatched · tap to diagnose ▶':('└─ Round '+b);
+        h+=_oppPitRow(lbl,s,'band',b==='unknown'?'openOppDiagnostic()':null);
       });
     }
   }
@@ -8478,7 +8542,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v170';
+var APP_VERSION='v171';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
