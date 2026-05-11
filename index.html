@@ -762,7 +762,21 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
     <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;"><input type="radio" name="opt2-playslayout" value="cards" onchange="setPlaysLayoutStyle('cards')" style="width:auto;margin:0;"> Cards (default)</label>
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="opt2-playslayout" value="espn" onchange="setPlaysLayoutStyle('espn')" style="width:auto;margin:0;"> ESPN/Gameday</label>
   </div>
+  <!-- v167: Team logos — opens dedicated logos modal -->
+  <div style="font-family:sans-serif;font-size:12px;color:var(--text2);margin-bottom:12px;padding-top:10px;border-top:1px dashed var(--border);">
+    <div style="margin-bottom:6px;"><strong>Team logos</strong> <span style="color:var(--text3);font-size:10px;">(optional)</span></div>
+    <button class="btn btn-sm btn-full" onclick="cm('m-options');openTeamLogosModal()">🏆 Manage team logos</button>
+  </div>
   <div class="mact"><button class="btn btn-full" onclick="cm('m-options')">Close</button></div>
+</div></div>
+<!-- v167: team logos manager — list of all known teams (us + opp from
+     schedule + standings) with upload / clear per team. Stored as data URLs
+     in A.teamLogos[teamName]. -->
+<div class="modal-ov" id="m-logos"><div class="modal" style="max-width:420px;">
+  <h3>🏆 Team logos</h3>
+  <div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.45;">Upload a small image per team (PNG or JPG, ideally under 100KB). Logo replaces the team-name text in the scorebar and plays log headers. Leave empty to keep the name.</div>
+  <div id="logos-list" style="max-height:55vh;overflow-y:auto;"></div>
+  <div class="mact"><button class="btn btn-full" onclick="cm('m-logos')">Done</button></div>
 </div></div>
 <!-- v108: league standings modal -->
 <div class="modal-ov" id="m-standings"><div class="modal" style="max-width:520px;">
@@ -2998,7 +3012,14 @@ function stab(name,el){['atbat','field','pitch','lineup','stats','log','box','ru
 renderSB();// always keep scorebar current
 if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='rules')renderRulesBook();if(name==='atbat'){renderSC();renderABDetail();renderSummary();if(G._needOppPicker){G._needOppPicker=false;setTimeout(function(){openOppBatterPicker();},300);}}}
 
-function renderSB(){$('sb-away').textContent=G.at;$('sb-home').textContent=G.ht;$('sb-away-score').textContent=G.as;$('sb-home-score').textContent=G.hs;$('sb-inn').textContent=ord(G.inn);$('sb-half').textContent=G.half==='top'?'▲ Top':'▼ Bot';for(var b=1;b<=3;b++)$('sbb-'+b).className='sb-base b'+b+(G.bases[b-1]?' on':'');
+function renderSB(){
+  // v167: show logo if a logo is set for the team, else fall back to the
+  // team name as before. innerHTML so we can embed an <img> tag.
+  var awayLogo=(typeof _teamLogoHtml==='function')?_teamLogoHtml(G.at,24):'';
+  var homeLogo=(typeof _teamLogoHtml==='function')?_teamLogoHtml(G.ht,24):'';
+  if(awayLogo)$('sb-away').innerHTML=awayLogo;else $('sb-away').textContent=G.at;
+  if(homeLogo)$('sb-home').innerHTML=homeLogo;else $('sb-home').textContent=G.ht;
+  $('sb-away-score').textContent=G.as;$('sb-home-score').textContent=G.hs;$('sb-inn').textContent=ord(G.inn);$('sb-half').textContent=G.half==='top'?'▲ Top':'▼ Bot';for(var b=1;b<=3;b++)$('sbb-'+b).className='sb-base b'+b+(G.bases[b-1]?' on':'');
 var DOT_S='width:7px;height:7px;border-radius:50%;border:1.5px solid ';
 var bd='',sd='',od='';
 for(var i=0;i<4;i++)bd+='<div style="'+DOT_S+(i<G.balls?'var(--green2);background:var(--green2)':'var(--text3)')+'"></div>';
@@ -7424,6 +7445,77 @@ function _togglePlaysOrder(){
   sa();
   if(typeof renderLog==='function')renderLog();
 }
+// v167: team logos. Stored as data URLs in A.teamLogos[teamName]. Helper
+// _teamLogoHtml returns an <img> tag if a logo is set, else empty string —
+// callers wrap with a name fallback.
+function _teamLogoHtml(teamName,sizePx){
+  if(!A.teamLogos)return '';
+  var url=A.teamLogos[teamName];
+  if(!url)return '';
+  var s=sizePx||22;
+  return '<img src="'+url+'" alt="" style="height:'+s+'px;width:auto;max-width:'+(s*2.5)+'px;vertical-align:middle;display:inline-block;object-fit:contain;">';
+}
+// Show logo if set, else show the team-name text (fallback). Used wherever
+// a team is identified in the UI.
+function _teamLogoOrName(teamName,sizePx){
+  var logo=_teamLogoHtml(teamName,sizePx);
+  return logo||esc(teamName||'');
+}
+// Open the logos manager modal. Lists every team known to the app: our
+// team (Mighty Mussels), all opp teams from the schedule, and any team in
+// the league standings.
+function openTeamLogosModal(){
+  var teams=['Mighty Mussels'];
+  (A.schedule||[]).forEach(function(e){
+    if(e.type==='game'&&e.opponent&&teams.indexOf(e.opponent)<0)teams.push(e.opponent);
+  });
+  // Also include teams from standings if loaded
+  if(typeof LEAGUE_STANDINGS!=='undefined'&&LEAGUE_STANDINGS){
+    Object.keys(LEAGUE_STANDINGS||{}).forEach(function(div){
+      (LEAGUE_STANDINGS[div]||[]).forEach(function(t){
+        if(t.team&&teams.indexOf(t.team)<0)teams.push(t.team);
+      });
+    });
+  }
+  var html=teams.map(function(t,i){
+    var cur=(A.teamLogos&&A.teamLogos[t])||'';
+    var preview=cur?'<img src="'+cur+'" style="height:36px;width:auto;max-width:100px;object-fit:contain;background:rgba(255,255,255,.06);padding:3px;border-radius:3px;">':'<span style="color:var(--text3);font-size:11px;">(no logo)</span>';
+    var clearBtn=cur?'<button class="btn btn-xs btn-red" onclick="_clearTeamLogo(\''+esc(t).replace(/\x27/g,"\\\x27")+'\')" style="margin-left:6px;font-size:10px;">✕ Clear</button>':'';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 6px;border-bottom:1px solid var(--border);">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:12px;font-family:sans-serif;color:var(--text);">'+esc(t)+'</div>'
+      +'<input type="file" accept="image/*" onchange="_uploadTeamLogo(\''+esc(t).replace(/\x27/g,"\\\x27")+'\',this)" style="font-size:10px;width:100%;margin-top:4px;color:var(--text2);"></div>'
+      +'<div style="text-align:right;">'+preview+clearBtn+'</div></div>';
+  }).join('');
+  $('logos-list').innerHTML=html;
+  om('m-logos');
+}
+function _uploadTeamLogo(teamName,fileInput){
+  if(!fileInput.files||!fileInput.files[0])return;
+  var file=fileInput.files[0];
+  if(!file.type||file.type.indexOf('image/')!==0){toast('Pick an image file');return;}
+  if(file.size>200*1024){toast('Image too large — keep under 200KB',3000);return;}
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    if(!A.teamLogos)A.teamLogos={};
+    A.teamLogos[teamName]=ev.target.result;
+    sa();
+    toast('Logo set for '+teamName,2000);
+    openTeamLogosModal();// re-render with new preview
+    if(typeof renderSB==='function')try{renderSB();}catch(e){}
+    if(typeof renderLog==='function')try{renderLog();}catch(e){}
+  };
+  reader.readAsDataURL(file);
+}
+function _clearTeamLogo(teamName){
+  if(!A.teamLogos)return;
+  confirmModal('Clear logo for '+teamName+'?','Team name will show as text again.',function(){
+    delete A.teamLogos[teamName];
+    sa();
+    openTeamLogosModal();
+    if(typeof renderSB==='function')try{renderSB();}catch(e){}
+    if(typeof renderLog==='function')try{renderLog();}catch(e){}
+  },null,{yesLabel:'Clear',danger:true});
+}
 // v166: standalone "fix later" notes tied to the current inning/half. Render
 // on the Plays tab as amber sticky-note rows; tap to mark resolved or
 // remove. Stored in G.fixNotes array of {id, text, inn, half, ts, resolved}.
@@ -8155,7 +8247,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v166';
+var APP_VERSION='v167';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
