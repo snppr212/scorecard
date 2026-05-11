@@ -1626,6 +1626,93 @@ function _ourPitchers(g){return g.ht==='Mighty Mussels'?g.hp:g.ap;}
 function _oppTeamName(g){return g.ht==='Mighty Mussels'?g.at:g.ht;}
 function _oppLineup(g){return g.ht==='Mighty Mussels'?g.alu:g.hlu;}
 function _oppPitchers(g){return g.ht==='Mighty Mussels'?g.ap:g.hp;}
+// v172: hardcoded fallback for draft round info — used when LEAGUE_POOL
+// either doesn't have the player or has them without a round. Keys are
+// proper-case full names; lookup is case-insensitive via _draftRoundsByLower
+// built lazily on first use. From the AA Spring 2026 draft sheet.
+var DRAFT_ROUNDS={
+  // Round 1
+  'Eli Kassutto':1,'William Gardner':1,'Declan Prisinzano':1,'Cavan Harriger':1,
+  'Felix Burnett':1,'Paxton Eggert':1,'Theo Reznik-Slater':1,'Duncan Stabert':1,
+  'William Burke':1,'Cole Engler':1,'Christopher Rieman':1,
+  // Round 2
+  'Nolan Roth':2,'Andrew Kiczek':2,'Leo Kunkle':2,'Ezra Kalman':2,'Gavin Amoroso':2,
+  'Miles Beck':2,'Austin Blazic':2,'Leo Kesselman':2,'Garrett Freeland':2,
+  'William Church':2,'Ari Elbaum':2,
+  // Round 3
+  'Remy Bull':3,'Nash Davis':3,'Robert McCallion':3,'Peter Huynh':3,'Ezra Girson':3,
+  'Alexander Cohen':3,'Ethan Thomas':3,'Race Mandel':3,'Owen Tatlow':3,
+  'Peter Christopher':3,'Brady S. Duncan':3,
+  // Round 4
+  'Hunter Bresson':4,'Archie Brimacombe':4,'Tristan Clark':4,'Rivaan Dhyllon':4,
+  'Danny Tantino':4,'Penn Leonards':4,'Franklin Bee':4,'Aron Briskin':4,
+  'Gregory Zervalis':4,'William Agnew':4,'Ralph Agnew':4,
+  // Round 5
+  'Andrew Zelinsky':5,'Elliot Bockman':5,'Brody Steinberg':5,'Johnny Richardson':5,
+  'Malcolm McPherson':5,'Harris Stellabotte':5,'Brian Ferreira':5,'Jack Alwine':5,
+  'Joseph Gettings':5,'Zev Savett':5,'Saul Klein':5,
+  // Round 6
+  'Ryker Chen':6,'Emmanuel Shih':6,'Jeffrey Blisard':6,'Asher Rizvi':6,
+  'Evan Hoffman':6,'Barron Ma':6,'Simon Smith':6,'Jacob Gutmann':6,
+  'Dillon Dhingra':6,'Julian Singer':6,'Grant Monna':6,
+  // Round 7
+  'Jack Land':7,'Gavin Tomback':7,'Asi Frechette':7,'Anthony Christopher':7,
+  'Conley Livingston':7,'Graham Lovett':7,'Andre Pendleton':7,'Logan Baill':7,
+  'Eric Rosenthal':7,'James Christopher':7,'Blake Shore':7,
+  // Round 8
+  'Ishaan Guruswamy':8,'Reece Landis':8,'William Leonard':8,'Benjamin Shapiro':8,
+  'Quinn Strauss':8,'Theo Cherkas':8,'Bodhi Langford':8,'Yasine Berriche':8,
+  'Seth Gold':8,'Neel Khatnani':8,'Graham Haggerson':8,
+  // Round 9
+  'Lucas Marley':9,'Andrew Virtue':9,'Jacob Aronstein':9,'Henry Eureka':9,
+  'Max Nathan':9,'Leo Cohen':9,'Jack Bellis':9,'Jet Sanders':9,
+  'Jack Felkins':9,'Henry Livengood':9,'Beau Abramowitz':9,
+  // Round 10
+  'Lucas Morrissey':10,'Whit Baird':10,'Cameron Speller':10,'Campbell Pfister':10,
+  'PJ Tanker':10,'Oscar Oehlberg':10,'Teddy Isaacs':10,'Ryan Prince':10,
+  'Charlie Breish':10,'Cobe Bresson':10,'James Davis':10,
+  // Round 11
+  'Travon Owens':11,'Gabriel Pecchio':11,
+  // Round 12
+  'Luke Buzzard':12,'Kiran Meighan':12,'Hale Smith':12,'Ryder Berman':12,
+  'Sakhir Allen':12,'William Ickes':12,'Austin Schroeder':12,'Bradley Blisard':12,
+  'Luke Davidson':12,'Lucas Iskrant':12,'Lucas Ziemba':12,'Rylan Cullen':12,
+  'Zachary Moyer':12,'Andrew Miller':12,'River Adams':12,'Mihir Chatnani':12,
+  'Jaylen Nance':12
+};
+var _draftRoundsByLower=null;
+function _lookupDraftRound(playerName){
+  if(!playerName)return null;
+  if(!_draftRoundsByLower){
+    _draftRoundsByLower={};
+    Object.keys(DRAFT_ROUNDS).forEach(function(k){_draftRoundsByLower[k.toLowerCase()]=k;});
+  }
+  var clean=String(playerName).toLowerCase().trim();
+  // 1) exact
+  if(_draftRoundsByLower[clean])return DRAFT_ROUNDS[_draftRoundsByLower[clean]];
+  // 2) F.LastName pattern
+  var m=clean.match(/^([a-z])[\.\s]+([a-z][a-z\-']*)$/);
+  if(m){
+    var initial=m[1],last=m[2];
+    var ms=Object.keys(DRAFT_ROUNDS).filter(function(k){
+      var parts=k.toLowerCase().split(/\s+/);
+      if(parts.length<2)return false;
+      return parts[0].charAt(0)===initial&&parts[parts.length-1]===last;
+    });
+    if(ms.length>=1)return DRAFT_ROUNDS[ms[0]];
+  }
+  // 3) last-name only (unique)
+  var ps=clean.split(/[\s\.]+/).filter(Boolean);
+  if(ps.length>0){
+    var lastN=ps[ps.length-1];
+    var ms2=Object.keys(DRAFT_ROUNDS).filter(function(k){
+      var kp=k.toLowerCase().split(/\s+/);
+      return kp[kp.length-1]===lastN;
+    });
+    if(ms2.length===1)return DRAFT_ROUNDS[ms2[0]];
+  }
+  return null;
+}
 // v170: smart name → LEAGUE_POOL lookup with three strategies:
 // 1) exact case-insensitive match (Brandon Ma → Brandon Ma)
 // 2) first-initial + last-name pattern (B.Ma / B. Ma / B Ma → Brandon Ma)
@@ -1674,15 +1761,17 @@ function _lookupLeaguePlayer(playerName,teamName){
   _leagueLookupCache[ck]=null;
   return null;
 }
-// v169: draft round band for an opp player. Reads player.round directly from
-// LEAGUE_POOL. Uses _lookupLeaguePlayer (v170) for smart name matching so
-// abbreviated names ("B.Ma") resolve to the canonical pool entry.
+// v169/v172: draft round band for an opp player. Tries LEAGUE_POOL first,
+// falls back to hardcoded DRAFT_ROUNDS (v172) for players the pool either
+// doesn't have or has without a round field. The hardcoded list is the
+// AA Spring 2026 draft order — should cover everyone we'll face this season.
 function _getOppRoundBand(playerName,teamName){
+  var r=null;
+  // 1) LEAGUE_POOL with smart name match
   var key=_lookupLeaguePlayer(playerName,teamName);
-  if(!key)return 'unknown';
-  var player=LEAGUE_POOL[key];
-  if(!player)return 'unknown';
-  var r=player.round;
+  if(key&&LEAGUE_POOL[key]&&LEAGUE_POOL[key].round!=null)r=LEAGUE_POOL[key].round;
+  // 2) Hardcoded DRAFT_ROUNDS fallback (covers gaps in LEAGUE_POOL data)
+  if(r==null)r=_lookupDraftRound(playerName);
   if(r==null||isNaN(r))return 'unknown';
   if(r<=3)return '1-3';
   if(r<=6)return '4-6';
@@ -1823,13 +1912,21 @@ function openOppDiagnostic(){
       if(seen[key])return;seen[key]=true;
       var match=_lookupLeaguePlayer(name,oppTeam);
       var pool=match?LEAGUE_POOL[match]:null;
-      var round=pool?pool.round:null;
-      var status,color;
-      if(!LEAGUE_POOL){status='LEAGUE_POOL not loaded';color='var(--red2)';}
-      else if(!match){status='No pool match';color='var(--red2)';}
-      else if(round==null){status='Matched, no round';color='var(--amber2)';}
-      else{status='OK · round '+round;color='var(--green2)';}
-      rows.push({name:name,team:oppTeam,match:match,round:round,status:status,color:color});
+      var poolRound=pool?pool.round:null;
+      var fallbackRound=_lookupDraftRound(name);
+      var status,color,roundShown;
+      if(poolRound!=null){
+        roundShown=poolRound;status='OK · round '+poolRound+' (pool)';color='var(--green2)';
+      }else if(fallbackRound!=null){
+        roundShown=fallbackRound;status='OK · round '+fallbackRound+' (fallback)';color='var(--green2)';
+      }else if(!LEAGUE_POOL&&!fallbackRound){
+        status='No data — pool not loaded';color='var(--red2)';
+      }else if(!match&&!fallbackRound){
+        status='No match';color='var(--red2)';
+      }else{
+        status='Matched, no round';color='var(--amber2)';
+      }
+      rows.push({name:name,team:oppTeam,match:match,round:roundShown,status:status,color:color});
     });
   });
   rows.sort(function(a,b){
@@ -8542,7 +8639,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v171';
+var APP_VERSION='v172';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
