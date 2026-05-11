@@ -433,7 +433,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Tag last swing/foul/BIP as <strong>good pitch</strong> or <strong>bad pitch</strong>:</div>
   <div class="row" style="gap:6px;"><button id="swq-good" class="btn btn-sm" disabled onclick="tagLastPitchQuality('good')" style="flex:1;border-color:var(--green2);color:var(--green2);opacity:.4;font-weight:bold;">˚ · Good pitch</button><button id="swq-bad" class="btn btn-sm" disabled onclick="tagLastPitchQuality('bad')" style="flex:1;border-color:var(--red2);color:var(--red2);opacity:.4;font-weight:bold;">¸ · Bad pitch</button></div>
 </div></div>
-<div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('PO')">Pop out</button><button class="rbtn" onclick="endAB('FF')">Foul fly</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="openCI()" style="border-color:var(--amber2);color:var(--amber2);font-size:10px;">CI</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button></div></div>
+<div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('PO')">Pop out</button><button class="rbtn" onclick="endAB('FF')">Foul fly</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="openCI()" style="border-color:var(--amber2);color:var(--amber2);font-size:10px;">CI</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button><button class="btn btn-sm" onclick="openAddNote()" style="border-color:#ffcc66;color:#ffcc66;">📝 Note</button></div></div>
 <div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
@@ -606,7 +606,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- B1: Generic prompt modal — replaces native prompt() across the app -->
 <div class="modal-ov" id="m-prompt"><div class="modal"><h3 id="m-prompt-title">Enter</h3><div class="mrow"><label id="m-prompt-label"></label><input type="text" id="m-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();_promptSubmit();}"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="_promptSubmit()">OK</button><button class="btn btn-full" onclick="_promptCancel()">Cancel</button></div></div></div>
 <!-- EDIT-AB MODAL: fix a logged at-bat (wrong batter, wrong result, wrong RBI) -->
-<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="CI">CI</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="PO">PO</option><option value="FF">FF</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Forced outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add forced out</button></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution. Pitches and bases-state at the time stay as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="CI">CI</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="PO">PO</option><option value="FF">FF</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><div class="mrow"><label>📝 Fix-it note (optional)</label><textarea id="editab-note" rows="2" placeholder="e.g. 'check who threw to first'" style="font-size:12px;width:100%;font-family:inherit;padding:6px;"></textarea></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Forced outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add forced out</button></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-editab')">Cancel</button></div></div></div>
 <!-- v127: add-steal-to-AB picker modal -->
 <div class="modal-ov" id="m-absb"><div class="modal" style="max-width:340px;"><h3>Add steal during this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">LMLL: no steal of home permitted.</div><div class="mrow"><label>Runner</label><select id="absb-runner"></select></div><div class="mrow"><label>Steal</label><select id="absb-bases"><option value="1-2">1st → 2nd</option><option value="2-3">2nd → 3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddSBToAB()">Log steal</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-absb')">Cancel</button></div></div></div>
 <!-- v135: AB delete with state-rewind option. Shown when deleting the LATEST
@@ -790,6 +790,15 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div></div>
 
 <!-- MANUAL RUN MODAL -->
+<!-- v166: Standalone note modal — drop a quick "fix later" note tied to the
+     current inning/half. Renders on the Plays tab so user can find and fix
+     during the game or after. -->
+<div class="modal-ov" id="m-note"><div class="modal" style="max-width:380px;">
+<h3>📝 Add note</h3>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.45;">Quick note for something you want to come back to. Shows on the Plays tab in this half-inning — tap to resolve or remove.</div>
+<div class="mrow"><textarea id="note-text" rows="4" placeholder="e.g. 'Bobby grounded out — need to confirm who fielded it'" style="font-size:13px;width:100%;font-family:inherit;padding:6px;"></textarea></div>
+<div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddNote()">Save note</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-note')">Cancel</button></div>
+</div></div>
 <!-- v164: Catcher's Interference modal — gives the user 4 options because
      the rule's "election" + LL umpire variability means there's no single
      right answer in the moment. Default is Award 1B (the official rule). -->
@@ -6363,6 +6372,7 @@ function openEditAB(idx){
   $('editab-res').value=ab.result;
   $('editab-rbi').value=ab.rbi||0;
   $('editab-not').value=ab.not||'';
+  if($('editab-note'))$('editab-note').value=ab.fixNote||'';
   _renderEditAbSteals();
   _renderEditAbOuts();
   _renderEditAbAdvances();
@@ -6673,6 +6683,9 @@ function confirmEditAB(){
   var lu=ab.team==='home'?G.hlu:G.alu;
   if(lu[newBi]){ab.bi=newBi;ab.batter=lu[newBi].name||('#'+(lu[newBi].jersey||'?'));}
   ab.result=newRes;ab.rbi=newRbi;ab.not=newNot;
+  // v166: AB-level fix-it note
+  var newNote=$('editab-note')?($('editab-note').value||'').trim():'';
+  if(newNote)ab.fixNote=newNote;else delete ab.fixNote;
   // A1 FIX: adjust team score and inning total by RBI delta — keeps the box
   // score in sync with the edit. Manual runs (added via "+ Run") are
   // preserved because we only adjust by the delta, not rebuild from scratch.
@@ -6935,10 +6948,20 @@ function _shortName(name){if(!name)return'?';var p=name.trim().split(' ');return
 function mkHalf(abs,label,inn,half){
   // Pull standalone errors for this half — they'll be shown at the bottom of the half
   var halfErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&e.standalone;});
-  if(!abs.length&&!halfErrs.length)return'';
+  // v166: pick up standalone notes for this half
+  var halfNotes=(G.fixNotes||[]).filter(function(n){return n.inn===inn&&n.half===half;});
+  if(!abs.length&&!halfErrs.length&&!halfNotes.length)return'';
   // Per-half numbering — first batter of each half = 1
   var lastPitcher=null;
   var pieces=[];
+  // v166: render notes right after the half header (above all ABs)
+  halfNotes.forEach(function(n){
+    var deco=n.resolved?'text-decoration:line-through;opacity:.6;':'';
+    var actions=n.resolved
+      ? '<span onclick="_resolveNote('+n.id+')" style="cursor:pointer;color:var(--text3);font-size:10px;">↺ unresolve</span> · <span onclick="_removeNote('+n.id+')" style="cursor:pointer;color:var(--red2);font-size:10px;">✕</span>'
+      : '<span onclick="_resolveNote('+n.id+')" style="cursor:pointer;color:var(--green2);font-size:10px;">✓ resolve</span> · <span onclick="_removeNote('+n.id+')" style="cursor:pointer;color:var(--red2);font-size:10px;">✕</span>';
+    pieces.push('<div style="padding:6px 8px;background:rgba(255,204,102,0.10);border-left:3px solid #ffcc66;border-radius:var(--rs);margin-bottom:4px;font-size:11px;color:#ffcc66;font-family:sans-serif;'+deco+'"><div>📝 '+esc(n.text)+'</div><div style="margin-top:4px;">'+actions+'</div></div>');
+  });
   // v153: track running outs across this half so we can stamp 1/2/3 next to
   // each AB that produced outs. Caps at 3 (third out ends the half).
   var halfOutsRunning=0;
@@ -7110,6 +7133,10 @@ function mkHalf(abs,label,inn,half){
       var color=hasManual?'var(--red2)':'var(--amber2)';
       subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:'+color+';font-family:sans-serif;font-style:italic;">↳ Scored: '+names+rbiPart+'</div>');
     }
+    // v166: AB-level fix-it note
+    if(ab.fixNote){
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:#ffcc66;font-family:sans-serif;">📝 '+esc(ab.fixNote)+'</div>');
+    }
     pieces.push.apply(pieces,subPieces);
     pieces.push('</div>');// v152: close per-AB card
   });
@@ -7150,7 +7177,9 @@ function mkHalf(abs,label,inn,half){
 // Hidden behind A.experimentalPlaysLayout flag; flipped from m-options.
 function mkHalfESPN(abs,inn,half){
   var halfErrs=(G.errs||[]).filter(function(e){return e.inn===inn&&e.half===half&&e.standalone;});
-  if(!abs.length&&!halfErrs.length)return'';
+  // v166: standalone notes for this half
+  var halfNotes=(G.fixNotes||[]).filter(function(n){return n.inn===inn&&n.half===half;});
+  if(!abs.length&&!halfErrs.length&&!halfNotes.length)return'';
   var battingTeam=(half==='top')?G.at:G.ht;
   var pitchTeam=(half==='top')?G.ht:G.at;
   function _ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
@@ -7207,6 +7236,15 @@ function mkHalfESPN(abs,inn,half){
     +'<span style="min-width:28px;text-align:right;">'+esc(awayAbbr)+'</span>'
     +'<span style="min-width:28px;text-align:right;">'+esc(homeAbbr)+'</span>'
     +'</div></div>');
+  // v166: render notes for this half right after the header (visible even
+  // when the half is collapsed since they're "fix later" reminders).
+  halfNotes.forEach(function(n){
+    var deco=n.resolved?'text-decoration:line-through;opacity:.6;':'';
+    var actions=n.resolved
+      ? '<span onclick="_resolveNote('+n.id+')" style="cursor:pointer;color:var(--text3);font-size:10px;">↺ unresolve</span> · <span onclick="_removeNote('+n.id+')" style="cursor:pointer;color:var(--red2);font-size:10px;">✕</span>'
+      : '<span onclick="_resolveNote('+n.id+')" style="cursor:pointer;color:var(--green2);font-size:10px;">✓ resolve</span> · <span onclick="_removeNote('+n.id+')" style="cursor:pointer;color:var(--red2);font-size:10px;">✕</span>';
+    pieces.push('<div style="padding:6px 8px;background:rgba(255,204,102,0.10);border-left:3px solid #ffcc66;border-radius:var(--rs);margin:4px 6px;font-size:11px;color:#ffcc66;font-family:sans-serif;'+deco+'"><div>📝 '+esc(n.text)+'</div><div style="margin-top:4px;">'+actions+'</div></div>');
+  });
   // Pre-pass: compute halfRuns/halfHits/halfPC even when collapsed so the
   // summary line stays accurate.
   abs.forEach(function(ab){
@@ -7312,6 +7350,10 @@ function mkHalfESPN(abs,inn,half){
         var rbiPart=ab.rbi>0?' (+'+ab.rbi+' R)':' ('+ab.pscored.length+' R)';
         sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:'+(hasManual?'var(--red2)':'var(--amber2)')+';font-family:sans-serif;font-style:italic;">↳ Scored: '+parts.join(', ')+rbiPart+'</div>');
       }
+      // v166: AB-level fix-it note
+      if(ab.fixNote){
+        sub.push('<div style="padding:2px 0 2px 28px;font-size:11px;color:#ffcc66;font-family:sans-serif;">📝 '+esc(ab.fixNote)+'</div>');
+      }
       if(sub.length)pieces.push('<div style="background:rgba(255,255,255,0.02);padding:2px 0 4px;">'+sub.join('')+'</div>');
     }
   });
@@ -7381,6 +7423,44 @@ function _togglePlaysOrder(){
   A.playsLogReverse=!A.playsLogReverse;
   sa();
   if(typeof renderLog==='function')renderLog();
+}
+// v166: standalone "fix later" notes tied to the current inning/half. Render
+// on the Plays tab as amber sticky-note rows; tap to mark resolved or
+// remove. Stored in G.fixNotes array of {id, text, inn, half, ts, resolved}.
+function openAddNote(){
+  if(typeof _voGuard==='function'&&_voGuard())return;
+  if($('note-text'))$('note-text').value='';
+  om('m-note');
+  setTimeout(function(){if($('note-text'))$('note-text').focus();},80);
+}
+function confirmAddNote(){
+  var text=$('note-text')?$('note-text').value.trim():'';
+  if(!text){toast('Note is empty');return;}
+  if(!G.fixNotes)G.fixNotes=[];
+  G.fixNotes.push({id:Date.now(),text:text,inn:G.inn,half:G.half,ts:Date.now(),resolved:false});
+  sv();
+  cm('m-note');
+  toast('Note saved',2000);
+  if(typeof renderLog==='function')try{renderLog();}catch(e){}
+}
+function _resolveNote(id){
+  if(!G.fixNotes)return;
+  var note=G.fixNotes.find(function(n){return n.id===id;});
+  if(!note)return;
+  note.resolved=!note.resolved;
+  sv();
+  if(typeof renderLog==='function')try{renderLog();}catch(e){}
+}
+function _removeNote(id){
+  if(!G.fixNotes)return;
+  var idx=G.fixNotes.findIndex(function(n){return n.id===id;});
+  if(idx<0)return;
+  var text=G.fixNotes[idx].text;
+  confirmModal('Remove note?',text,function(){
+    G.fixNotes.splice(idx,1);
+    sv();
+    if(typeof renderLog==='function')try{renderLog();}catch(e){}
+  },null,{yesLabel:'Remove',danger:true});
 }
 
 // SUMMARY STATS (without pitcher attribution)
@@ -8075,7 +8155,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v165';
+var APP_VERSION='v166';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
