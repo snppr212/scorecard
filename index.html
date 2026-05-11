@@ -5967,6 +5967,57 @@ else if(r==='BB'||r==='HBP'||r==='ROE'||r==='CI'){
   G.bases[0]={name:b?b.name:'?',jerseyNum:b?b.jersey:'',bi:G.cbi,team:t};
   addR(scored);
 }
+else if(r==='GO'){
+  // v178: forced runners advance one base on a ground out. Force chain =
+  // continuous occupied bases starting from 1B (batter is out, so R1 is
+  // forced; R2 is forced only if R1 was on; etc.). Process highest-down so
+  // R3 scores before R2's slot is overwritten. Same chain-break semantics
+  // as the v140 BI cascade and the FC cascade above.
+  var forceUpTo=-1;
+  for(var _fc=0;_fc<3;_fc++){if(G.bases[_fc])forceUpTo=_fc;else break;}
+  var scored=0;
+  for(var _fr=forceUpTo;_fr>=0;_fr--){
+    var _rb=G.bases[_fr];if(!_rb)continue;
+    var _np=_fr+1;
+    if(_np>=3){logRun(_rb.bi,_rb.team);G.bases[_fr]=null;scored++;}
+    else{G.bases[_np]=_rb;G.bases[_fr]=null;}
+  }
+  // RBI fallback for unforced advances the user marked (e.g. R2-only ground
+  // out where R2 sneaks home on the throw — coach enters rbi=1).
+  var extra=(rbi||0)-scored;
+  for(var _eb=2;_eb>=0&&extra>0;_eb--){
+    if(G.bases[_eb]){logRun(G.bases[_eb].bi,G.bases[_eb].team);G.bases[_eb]=null;scored++;extra--;}
+  }
+  addR(scored);
+}
+else if(r==='SAC'){
+  // v178: ALL runners advance one base on a sacrifice (bunt or fly that
+  // intentionally moves a runner). Differs from GO: R2-only advances to 3rd
+  // without R1 forcing them, R3 scores on a sac fly without bases loaded.
+  var scored=0;
+  for(var _fr=2;_fr>=0;_fr--){
+    var _rb=G.bases[_fr];if(!_rb)continue;
+    var _np=_fr+1;
+    if(_np>=3){logRun(_rb.bi,_rb.team);G.bases[_fr]=null;scored++;}
+    else{G.bases[_np]=_rb;G.bases[_fr]=null;}
+  }
+  var extra=(rbi||0)-scored;
+  for(var _eb=2;_eb>=0&&extra>0;_eb--){
+    if(G.bases[_eb]){logRun(G.bases[_eb].bi,G.bases[_eb].team);G.bases[_eb]=null;scored++;extra--;}
+  }
+  addR(scored);
+}
+else if(r==='FO'||r==='LO'||r==='PO'||r==='FF'||r==='DP'||r==='GIDP'){
+  // v178: air outs hold runners by default — coach enters rbi for tag-ups
+  // (sac fly territory). DP/GIDP already removed the dpout runner above;
+  // RBI here is for run-scoring double plays (R3 scores before the 2nd out).
+  // Score from highest base down to log + clear the runner.
+  var scored=0;var extra=(rbi||0);
+  for(var _eb=2;_eb>=0&&extra>0;_eb--){
+    if(G.bases[_eb]){logRun(G.bases[_eb].bi,G.bases[_eb].team);G.bases[_eb]=null;scored++;extra--;}
+  }
+  addR(scored);
+}
 else{if(rbi>0)addR(rbi);}
 if(G.outs>=3)G.outs=3;
 // update per-team batter index, skipping DNP/skipped/battedOOO players
@@ -8921,7 +8972,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v178';
+var APP_VERSION='v179';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
