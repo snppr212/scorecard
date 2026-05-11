@@ -1046,6 +1046,9 @@ fa:{},notes:'',isu:false,pp:[],pres:null,prbi:0,pscored:[],dpout:null,fcout:null
 
 // [STATE] ===================================================================
 function $(id){return document.getElementById(id);}
+// v178: gated debug logging. Flip A.debugLog=true via console to enable
+// verbose logging. Default off so production console is clean.
+function _dlog(){if(A&&A.debugLog)console.log.apply(console,arguments);}
 function sa(){try{localStorage.setItem('mm_a',JSON.stringify(A));}catch(e){}}
 function sg(){try{localStorage.setItem('mm_g',JSON.stringify(G));}catch(e){}}
 function sv(){sa();sg();}
@@ -3174,6 +3177,10 @@ if(fbReady){
       // Equal AB counts → use local (covers the normal sync case where we
       // just pushed our latest state).
       if(hasMeaningful&&(!has||remoteAbs>localAbs)){
+        // v178: per-field reconcile (drop local-only keys, then overlay remote)
+        // so a key deleted on another device actually disappears on resume.
+        // No mid-AB preserve needed — this path runs from a cold start.
+        Object.keys(G).forEach(function(k){if(!(k in remote))delete G[k];});
         Object.assign(G,remote);
         has=true;
       }
@@ -8866,7 +8873,7 @@ async function ensureSamRatingsSynced(){
     await db.collection('coachRatings').doc('sam').set({
       coachId:'sam',ratings:ratings,migratedFrom:'localStorage v91',updated:new Date()
     },{merge:true});
-    console.log('Sam ratings migrated to Firebase coachRatings/sam');
+    _dlog('Sam ratings migrated to Firebase coachRatings/sam');
   }catch(e){console.log('ensureSamRatingsSynced error:',e);}
 }
 // Push Sam's full local ratings to Firebase. Called from saveRating() so his edits
@@ -8914,7 +8921,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v177';
+var APP_VERSION='v178';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
@@ -9022,6 +9029,28 @@ async function fbSaveRoster(){
 }
 
 var unsubGame=null,unsubRoster=null;
+// v178: order-insensitive deep equality. JSON.stringify treats {a:1,b:2} and
+// {b:2,a:1} as different, which fired bogus re-merges (and bogus skips when
+// keys happened to line up). Recurses through plain objects + arrays — good
+// enough for G/A which are JSON-shaped state.
+function _deepEq(a,b){
+  if(a===b)return true;
+  if(a==null||b==null||typeof a!=='object'||typeof b!=='object')return false;
+  if(Array.isArray(a)!==Array.isArray(b))return false;
+  if(Array.isArray(a)){
+    if(a.length!==b.length)return false;
+    for(var i=0;i<a.length;i++)if(!_deepEq(a[i],b[i]))return false;
+    return true;
+  }
+  var ka=Object.keys(a),kb=Object.keys(b);
+  if(ka.length!==kb.length)return false;
+  for(var j=0;j<ka.length;j++){
+    var k=ka[j];
+    if(!Object.prototype.hasOwnProperty.call(b,k))return false;
+    if(!_deepEq(a[k],b[k]))return false;
+  }
+  return true;
+}
 function setupSyncListeners(){
   if(!fbReady)return;
   if(G.eid){
@@ -9034,19 +9063,23 @@ function setupSyncListeners(){
       // those for multi-device sync.
       if(snap.metadata&&snap.metadata.hasPendingWrites)return;
       var remoteG=snap.data().gdata;
-      if(JSON.stringify(remoteG)===JSON.stringify(G))return;
-      // v126: when user is mid-AB on this device, preserve the live in-AB
-      // state (cpitch, balls, strikes, outs, bases, current batter) rather
-      // than letting a stale server snapshot reset the count after an undo.
-      // Non-transient fields (abs, score, inning, fielding, lineups) still
-      // accept remote updates so true multi-device changes flow through.
+      if(_deepEq(remoteG,G))return;
+      // v178: per-field reconcile so REMOVED remote keys actually disappear
+      // locally (e.g., interference flag cleared on an AB from another device).
+      // Old Object.assign(G,remoteG,preserve) only overwrote — deleted keys
+      // lingered, causing silent state divergence between devices.
+      // Mid-AB ephemeral state (cpitch / count / cbi / live bases+outs) is
+      // skipped on both passes so an in-flight at-bat survives snapshot echo.
       var localActive=(G.cbi>=0)||(G.cpitch&&G.cpitch.length>0);
-      if(localActive){
-        var preserve={cpitch:G.cpitch,cpitchQuality:G.cpitchQuality,balls:G.balls,strikes:G.strikes,outs:G.outs,bases:G.bases,cbi:G.cbi};
-        Object.assign(G,remoteG,preserve);
-      }else{
-        Object.assign(G,remoteG);
-      }
+      var preserve=localActive?{cpitch:1,cpitchQuality:1,balls:1,strikes:1,outs:1,bases:1,cbi:1}:null;
+      Object.keys(G).forEach(function(k){
+        if(preserve&&preserve[k])return;
+        if(!(k in remoteG))delete G[k];
+      });
+      Object.keys(remoteG).forEach(function(k){
+        if(preserve&&preserve[k])return;
+        G[k]=remoteG[k];
+      });
       renderSC();
     },err=>console.log('Game listener error:',err));
   }
@@ -9061,7 +9094,7 @@ function setupSyncListeners(){
         if(!r||r.final!==true)delete remoteA.gameResults[k];
       });
     }
-    if(JSON.stringify(remoteA)!==JSON.stringify(A)){
+    if(!_deepEq(remoteA,A)){
       Object.assign(A,remoteA);
       renderHome();
     }
@@ -9102,7 +9135,7 @@ try{
     },1500);
   }
 }catch(e){}
-console.log('Firebase initialized');
+_dlog('Firebase initialized');
 </script>
 </body>
 </html>
