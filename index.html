@@ -182,6 +182,10 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 .play-diamond .fielder.pos1 circle{fill:#FFD700;stroke:#D4A017;stroke-width:2.5;}
 .play-diamond .fielder.pos2 circle{fill:#5fb6ff;stroke:#3a85d4;stroke-width:2.5;}
 .play-diamond .fielder text{pointer-events:none;font-family:sans-serif;}
+/* v153: outfield split — LC/RC by default, single CF in legacy mode. */
+.play-diamond .cf-fielder{display:none;}
+.play-diamond.legacy-cf .cf-fielder{display:inline;}
+.play-diamond.legacy-cf .lc-fielder,.play-diamond.legacy-cf .rc-fielder{display:none;}
 .play-toggle-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
 .play-toggle-group .btn.selected{background:rgba(200,169,110,.18);border-color:var(--gold);color:var(--gold);}
 /* VIEW-ONLY mode for finalized games — hide all input UI on the at-bat tab,
@@ -516,7 +520,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- v152: viewBox compressed from 180h to 140h (22% shorter). All y coords
      scaled by ~0.78 to match. Saves vertical real estate so the good
      pitch / bad pitch buttons sit above the fold without needing to scroll.
-     LC/RC fielder split is a separate task (parallel work). -->
+     v153: outfield split — LC (8a) and RC (8b) replace the single CF (8).
+     CF is preserved for legacy 9-fielder games (toggled via .legacy-cf). -->
 <svg class="play-diamond" viewBox="0 0 240 140">
 <rect width="240" height="140" fill="#1e6838" rx="3"/>
 <path d="M 120,109 L 175,74 L 120,39 L 65,74 Z" fill="#a87a45" stroke="#7a5a30" stroke-width="0.6"/>
@@ -524,15 +529,18 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <rect x="171" y="70" width="8" height="8" transform="rotate(45 175 74)" fill="white" opacity="0.7"/>
 <rect x="116" y="35" width="8" height="8" transform="rotate(45 120 39)" fill="white" opacity="0.7"/>
 <rect x="61" y="70" width="8" height="8" transform="rotate(45 65 74)" fill="white" opacity="0.7"/>
-<g class="fielder" data-pos="1" onclick="setPlayPos(1)"><circle cx="120" cy="82" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="86" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">P</text></g>
-<g class="fielder" data-pos="2" onclick="setPlayPos(2)"><circle cx="120" cy="125" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="129" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">C</text></g>
-<g class="fielder" data-pos="3" onclick="setPlayPos(3)"><circle cx="170" cy="90" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="170" y="94" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">1B</text></g>
-<g class="fielder" data-pos="4" onclick="setPlayPos(4)"><circle cx="155" cy="59" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="155" y="63" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">2B</text></g>
-<g class="fielder" data-pos="5" onclick="setPlayPos(5)"><circle cx="70" cy="90" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="70" y="94" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">3B</text></g>
-<g class="fielder" data-pos="6" onclick="setPlayPos(6)"><circle cx="85" cy="59" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="85" y="63" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">SS</text></g>
-<g class="fielder" data-pos="7" onclick="setPlayPos(7)"><circle cx="40" cy="27" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="40" y="31" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">LF</text></g>
-<g class="fielder" data-pos="8" onclick="setPlayPos(8)"><circle cx="120" cy="16" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="20" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">CF</text></g>
-<g class="fielder" data-pos="9" onclick="setPlayPos(9)"><circle cx="200" cy="27" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="200" y="31" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">RF</text></g>
+<g class="fielder" data-pos="1" onclick="setPlayPos('1')"><circle cx="120" cy="82" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="86" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">P</text></g>
+<g class="fielder" data-pos="2" onclick="setPlayPos('2')"><circle cx="120" cy="125" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="129" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">C</text></g>
+<g class="fielder" data-pos="3" onclick="setPlayPos('3')"><circle cx="170" cy="90" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="170" y="94" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">1B</text></g>
+<g class="fielder" data-pos="4" onclick="setPlayPos('4')"><circle cx="155" cy="59" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="155" y="63" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">2B</text></g>
+<g class="fielder" data-pos="5" onclick="setPlayPos('5')"><circle cx="70" cy="90" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="70" y="94" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">3B</text></g>
+<g class="fielder" data-pos="6" onclick="setPlayPos('6')"><circle cx="85" cy="59" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="85" y="63" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">SS</text></g>
+<g class="fielder" data-pos="7" onclick="setPlayPos('7')"><circle cx="40" cy="27" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="40" y="31" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">LF</text></g>
+<!-- v153: outfield split. LC/RC are the default (10-fielder). CF circle is shown only in legacy 9-fielder mode (toggled via .legacy-cf class on the parent svg). -->
+<g class="fielder cf-fielder" data-pos="8" onclick="setPlayPos('8')"><circle cx="120" cy="16" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="120" y="20" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">CF</text></g>
+<g class="fielder lc-fielder" data-pos="8a" onclick="setPlayPos('8a')"><circle cx="87" cy="20" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="87" y="24" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">LC</text></g>
+<g class="fielder rc-fielder" data-pos="8b" onclick="setPlayPos('8b')"><circle cx="153" cy="20" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="153" y="24" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">RC</text></g>
+<g class="fielder" data-pos="9" onclick="setPlayPos('9')"><circle cx="200" cy="27" r="13" fill="white" stroke="rgba(0,0,0,.3)" stroke-width="1"/><text x="200" y="31" text-anchor="middle" font-size="10" font-weight="bold" fill="#0d1b2a">RF</text></g>
 </svg>
 <div id="play-diamond-hint" style="font-size:10px;color:var(--text3);font-family:sans-serif;text-align:center;margin-top:2px;">Tap where the ball went. Tap a 2nd fielder for the throw target.</div>
 </div>
@@ -912,7 +920,12 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 // ============================================================================
 // [SETUP] ===================================================================
 var RNAMES=['Benjamin Shapiro','Bodhi Langford','Brody Steinberg','Cobe Bresson','Ethan Thomas','Ezra Kalman','Hunter Bresson','Jacob Aronstein','Julian Singer','Malcolm McPherson','Mihir Chatnani','Miles Beck'];
-var POS=['P','C','1B','2B','3B','SS','LF','CF','RF'],APOS=POS.slice();
+var POS=['P','C','1B','2B','3B','SS','LF','LC','RC','RF'],APOS=POS.slice();
+// v153: 10-fielder default (LC + RC instead of single CF). A game is treated as
+// "legacy CF" mode if its fielding plan ever assigned someone to CF — those
+// games render a single CF circle and use plain "8" notation. New games default
+// to LC/RC with 8a / 8b notation.
+function _isLegacyCFGame(){if(!G||!G.fa)return false;var inns=Object.keys(G.fa);for(var i=0;i<inns.length;i++){if(G.fa[inns[i]]&&G.fa[inns[i]]['CF'])return true;}return false;}
 // TEST OPP ROSTER — 12 made-up players for sandbox scenario testing.
 // The default sandbox lineup is 11 of these (one absent — see _testOppDefaultLineup).
 var TEST_OPP_ROSTER=[
@@ -3552,8 +3565,13 @@ function fieldFirstName(fullName){if(!fullName)return'';return fullName.trim().s
 function renderFD(){
 var _vi=(typeof viewInn==='function')?viewInn():G.inn;
 var fa=G.fa[_vi]||{},wf=theyBat();
-// auto 10-player: if our lineup has 10+ players, show 4OF
-var hasRCF=olu().length>=10;
+// v153: legacy 9-fielder games render a single CF; default 10-fielder games
+// render LC + RC. Legacy detection runs off whether the fielding plan ever
+// assigned someone to CF (so old games keep working as-is).
+var legacy=_isLegacyCFGame();
+// Some legacy games also assigned RCF (the old "10th fielder" extra slot) —
+// keep displaying it when present so we don't drop their labels.
+var legacyHasRCF=legacy&&Object.keys(G.fa||{}).some(function(i){return G.fa[i]&&G.fa[i]['RCF'];});
 // Position label coords — fielders sit BEHIND their bases (smaller y) so
 // the labels never collide with the bases or runners standing on them.
 var pc={
@@ -3564,9 +3582,11 @@ var pc={
   SS:[108,56],
   '3B':[78,88],
   LF:[40,30],
-  CF:[hasRCF?100:140,15],
   RF:[240,30],
-  'RCF':[hasRCF?180:9999,15]
+  CF:legacy?[legacyHasRCF?100:140,15]:[9999,15],
+  LC:legacy?[9999,15]:[100,15],
+  RC:legacy?[9999,15]:[180,15],
+  'RCF':legacyHasRCF?[180,15]:[9999,15]
 };
 // runner circle positions — sit directly on the base
 var rc=[[208,110],[140,70],[72,110]];
@@ -3605,7 +3625,8 @@ s+='<polygon points="136,147 144,147 144,151 140,155 136,151" fill="white" strok
 // fielder labels — show player first name when assigned, fall back to
 // position name as a placeholder.
 if(wf){
-  var posToShow=POS.slice();if(hasRCF)posToShow.push('RCF');
+  var posToShow=legacy?['P','C','1B','2B','3B','SS','LF','CF','RF']:POS.slice();
+  if(legacyHasRCF)posToShow.push('RCF');
   posToShow.forEach(function(p){var c=pc[p];if(!c||c[0]>900)return;
   var assigned=fa[p];var nm=assigned?fieldFirstName(assigned):'';
   s+='<g><rect x="'+(c[0]-16)+'" y="'+(c[1]-7.5)+'" width="32" height="15" rx="3.5" fill="'+(nm?'rgba(13,27,42,0.92)':'rgba(13,27,42,0.55)')+'" stroke="'+(nm?'rgba(200,169,110,0.75)':'rgba(255,255,255,0.18)')+'" stroke-width="0.6"/>';
@@ -3617,7 +3638,17 @@ s+='<circle cx="'+bc[0]+'" cy="'+bc[1]+'" r="13" fill="#FFD700" stroke="#D4A017"
 s+='<text x="'+bc[0]+'" y="'+(bc[1]+3.2)+'" text-anchor="middle" font-size="8" font-family="sans-serif" fill="#0d1b2a" font-weight="bold" style="pointer-events:none;">'+rn+'</text>';}}
 s+='</svg>';$('field-svg').innerHTML=s;}
 // also expose 4OF in field assignment tab
-function getActivePOS(){var p=POS.slice();if(olu().length>=10)p.push('RCF');if(G.ef&&p.indexOf(G.ef)<0)p.push(G.ef);return p;}
+// v153: legacy CF games return the 9-fielder list; default returns the
+// 10-fielder list (LC + RC). G.ef extra-fielder is appended either way.
+// Legacy games that ALSO had RCF assignments keep RCF in the list so the data
+// remains visible/editable.
+function getActivePOS(){
+  var legacy=_isLegacyCFGame();
+  var p=legacy?['P','C','1B','2B','3B','SS','LF','CF','RF']:POS.slice();
+  if(legacy&&Object.keys(G.fa||{}).some(function(i){return G.fa[i]&&G.fa[i]['RCF'];}))p.push('RCF');
+  if(G.ef&&p.indexOf(G.ef)<0)p.push(G.ef);
+  return p;
+}
 
 function renderMU(){var lu=clu(),b=G.cbi>=0&&lu[G.cbi]?lu[G.cbi]:null;var pt=G.half==='top'?'home':'away',pl=pt==='home'?G.hp:G.ap,pi=pt==='home'?G.chp:G.cap,p=pi>=0&&pl[pi]?pl[pi]:null;
 // Look up pitcher jersey from opposing lineup if available
@@ -3690,7 +3721,7 @@ function parseLineupText(txt){
 // Handles JSON, line-by-line "Inning 1: Brody P, Miles C, ...", and per-inning blocks.
 function parseFieldingText(txt){
   txt=String(txt||'').trim();if(!txt)return null;
-  var validPos=['P','C','1B','2B','3B','SS','LF','CF','RF','EF','RCF'];
+  var validPos=['P','C','1B','2B','3B','SS','LF','LC','RC','CF','RF','EF','RCF'];
   // Try JSON first
   try{
     var json=JSON.parse(txt);
@@ -3713,7 +3744,7 @@ function parseFieldingText(txt){
     }
   }catch(e){}
   // Text-based parse
-  var posPattern='(?:P|C|1B|2B|3B|SS|LF|CF|RF|EF|RCF)';
+  var posPattern='(?:P|C|1B|2B|3B|SS|LF|LC|RC|CF|RF|EF|RCF)';
   var out={};var currentInning=null;
   var lines=txt.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
   lines.forEach(function(line){
@@ -5428,6 +5459,9 @@ if(fc){var fb='';for(var b=0;b<3;b++){if(G.bases[b]){var rn=G.bases[b].name||'?'
 // otherwise — no UI clutter for plain 1Bs with empty bases or non-1B results.
 var biShow=(r==='1B'&&G.bases.some(function(rb){return rb!==null;}));
 if($('bi-sec'))$('bi-sec').style.display=biShow?'block':'none';
+// v153: toggle the diamond between LC/RC mode (default) and single-CF (legacy)
+var _pd=document.querySelector('.play-diamond');
+if(_pd)_pd.classList.toggle('legacy-cf',_isLegacyCFGame());
 om('m-play');}
 function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePOS().map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
 // ============================================================================
@@ -5441,7 +5475,9 @@ var _playPos1=null,_playPos2=null,_playTrajectory=null,_playHardness=null,_playE
 // runner who was hit by the batted ball). _biFielder is 1-9 (putout credit).
 // Set when the user toggles "Runner hit by ball" in the play modal on a 1B.
 var _biBaseIdx=null,_biFielder=null;
-function _posToLabel(n){return({1:'P',2:'C',3:'1B',4:'2B',5:'3B',6:'SS',7:'LF',8:'CF',9:'RF'})[n]||'';}
+// v153: positions are now strings ('1'..'9' plus '8a' / '8b' for LC / RC).
+// Accept either int or string input for backward-compat with any old callers.
+function _posToLabel(n){return({'1':'P','2':'C','3':'1B','4':'2B','5':'3B','6':'SS','7':'LF','8':'CF','8a':'LC','8b':'RC','9':'RF'})[String(n)]||'';}
 // v137: toggle the BI detail section. Auto-pre-select the leading runner as a
 // sensible default (most common interference is R1 hit going to 2B).
 function _toggleBI(){
@@ -5515,9 +5551,10 @@ function clearPlayPos2(){
 }
 function _refreshPlayDiamond(){
   document.querySelectorAll('.play-diamond .fielder').forEach(function(el){
-    var pos=parseInt(el.getAttribute('data-pos'));
-    el.classList.toggle('pos1',pos===_playPos1);
-    el.classList.toggle('pos2',pos===_playPos2);
+    // v153: data-pos is a string ('1'..'9' / '8a' / '8b'); compare as strings.
+    var pos=el.getAttribute('data-pos');
+    el.classList.toggle('pos1',pos===String(_playPos1));
+    el.classList.toggle('pos2',pos===String(_playPos2));
   });
   var r=G.pres;
   var needsThrow=['GO','FC','DP','GIDP','SAC','LO','FO','PO','FF'].indexOf(r)>=0;
@@ -5553,7 +5590,7 @@ function _autoPlayNotation(){
   if(r==='DP'||r==='GIDP'){
     if(_playPos2==='u')return _playPos1+'u-3';
     if(_playPos2)return _playPos1+'-'+_playPos2+'-3';
-    return _playPos1+'-'+(_playPos1===6?'4':'6')+'-3';
+    return _playPos1+'-'+(_playPos1==='6'?'4':'6')+'-3';
   }
   if(r==='SAC'){
     if(_playPos2==='u')return'SAC '+_playPos1+'u';
@@ -6517,7 +6554,9 @@ function confirmStandaloneErr(){
   cm('m-serr');sv();renderSC();
   toast('E'+_posNum(pos)+' logged'+(adv>0?' — runner advanced':''));
 }
-function _posNum(p){var m={P:1,C:2,'1B':3,'2B':4,'3B':5,SS:6,LF:7,CF:8,RF:9,RCF:10};return m[p]||p;}
+// v153: LC / RC return '8a' / '8b' so error notation reads E8a / E8b. Single-CF
+// legacy games keep E8. RCF (legacy 10th fielder) keeps E10.
+function _posNum(p){var m={P:1,C:2,'1B':3,'2B':4,'3B':5,SS:6,LF:7,CF:8,LC:'8a',RC:'8b',RF:9,RCF:10};return m[p]||p;}
 function confirmCS(){var at=$('cs-at').value;
 // Capture the runner's name + bi BEFORE clearing the base, for the Plays log sub-line
 var fromBaseIdx=at==='2'?0:(at==='3'?1:-1);
@@ -8771,7 +8810,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v174';
+var APP_VERSION='v175';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
