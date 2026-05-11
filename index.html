@@ -7466,17 +7466,21 @@ function _teamLogoOrName(teamName,sizePx){
 // the league standings.
 function openTeamLogosModal(){
   var teams=['Mighty Mussels'];
-  (A.schedule||[]).forEach(function(e){
-    if(e.type==='game'&&e.opponent&&teams.indexOf(e.opponent)<0)teams.push(e.opponent);
-  });
-  // Also include teams from standings if loaded
-  if(typeof LEAGUE_STANDINGS!=='undefined'&&LEAGUE_STANDINGS){
-    Object.keys(LEAGUE_STANDINGS||{}).forEach(function(div){
-      (LEAGUE_STANDINGS[div]||[]).forEach(function(t){
-        if(t.team&&teams.indexOf(t.team)<0)teams.push(t.team);
-      });
+  try{
+    (A.schedule||[]).forEach(function(e){
+      if(e.type==='game'&&e.opponent&&teams.indexOf(e.opponent)<0)teams.push(e.opponent);
     });
-  }
+  }catch(e){console.log('openTeamLogosModal schedule err:',e);}
+  // v168: LEAGUE_STANDINGS is {teams:[{team,...}], updated:'...'}, NOT a map.
+  // Walk LEAGUE_STANDINGS.teams directly. (Previous code iterated Object.keys
+  // and called .forEach on the 'updated' string — which threw silently.)
+  try{
+    if(typeof LEAGUE_STANDINGS!=='undefined'&&LEAGUE_STANDINGS&&Array.isArray(LEAGUE_STANDINGS.teams)){
+      LEAGUE_STANDINGS.teams.forEach(function(t){
+        if(t&&t.team&&teams.indexOf(t.team)<0)teams.push(t.team);
+      });
+    }
+  }catch(e){console.log('openTeamLogosModal standings err:',e);}
   var html=teams.map(function(t,i){
     var cur=(A.teamLogos&&A.teamLogos[t])||'';
     var preview=cur?'<img src="'+cur+'" style="height:36px;width:auto;max-width:100px;object-fit:contain;background:rgba(255,255,255,.06);padding:3px;border-radius:3px;">':'<span style="color:var(--text3);font-size:11px;">(no logo)</span>';
@@ -8247,7 +8251,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v167';
+var APP_VERSION='v168';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
