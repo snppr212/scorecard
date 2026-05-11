@@ -1593,80 +1593,57 @@ function _renderSeasonView(){
   _renderSeasonLegend(view);
   _renderFirstPitchPanel(games);
 }
-// v183: first-pitch breakdown — only counts ABs where we can be CONFIDENT
-// about what the actual first pitch was. The auto-fill in endAB plants
-// default pitch characters when the user clicks a result button without
-// logging individual pitches (3×'S' for K, 4×'B' for BB, 'H' for HBP, 'X'
-// for any BIP). Those defaults satisfy the count math but tell us nothing
-// about the REAL pitch sequence beyond minimum-required totals.
+// v184: first-pitch breakdown — trusts ab.pitches[0] across all ABs. If
+// the user manually logged each pitch (the default workflow), the auto-
+// fill in endAB never triggered (it only runs when cpitch is empty), so
+// pitches[0] is the real first pitch. For the corner cases where the
+// auto-fill DID kick in:
+//   - 3-pitch K → cpitch=[S,S,S] → pitches[0]='S' (strike). Still correct
+//     by definition: a 3-pitch K is 3 strikes, so first was a strike.
+//   - 4-pitch BB → cpitch=[B,B,B,B] → first='B' (ball). Same logic.
+//   - 1-pitch HBP → cpitch=[H] → first='H' (counted as ball, since the
+//     pitch was off the plate).
+//   - 1-pitch BIP → cpitch=[X] → first='X' (counted as strike, since the
+//     batter put the pitch in play, which it must have been over the plate).
 //
-// Confirmed first-pitch cases:
-//   1. K / KL with EXACTLY 3 pitches → first pitch is a strike. By
-//      definition: a 3-pitch K must be 3 strikes, so the first was one.
-//      Same answer whether logged manually or auto-filled.
-//   2. BB with EXACTLY 4 pitches → first pitch is a ball. Same reasoning.
-//   3. Any result with MORE pitches than the auto-fill minimum → user
-//      manually logged the sequence, so pitches[0] is the real first pitch.
-//      Thresholds: K/KL > 3, BB > 4, HBP > 1, BIP > 1 (BIP auto-X is 1).
-//
-// Excluded (counted in "unconfirmed" but not in the strike/ball percentages):
-//   - K/KL with 3 pitches that aren't the auto-fill default — wait, never
-//     happens; K always autos to 3 strikes. So 3 ≡ definitional.
-//   - HBP with exactly 1 'H' pitch → could be a real first-pitch HBP or
-//     a coach who didn't log prior pitches. Can't tell.
-//   - BIP with exactly 1 'X' pitch → same: could be a real first-pitch
-//     ball-in-play or auto-X with prior pitches unlogged.
-//   - ABs with 0 pitches → no data.
-function _firstPitchInfo(ab){
-  var r=ab.result;
-  var pitches=ab.pitches||[];
-  var len=pitches.length;
-  var first=pitches[0];
-  if(len===0)return {ok:false,reason:'no pitches'};
-  // K/KL: auto-fill is exactly 3 strikes
-  if(r==='K'||r==='KL'){
-    if(len===3)return {ok:true,bucket:'strike',source:'definitional'};
-    if(len>3)return {ok:true,bucket:(first==='B'?'ball':'strike'),source:'manual'};
-    return {ok:false,reason:'K with <3 pitches (shouldn\'t happen)'};
-  }
-  // BB: auto-fill is exactly 4 balls
-  if(r==='BB'){
-    if(len===4)return {ok:true,bucket:'ball',source:'definitional'};
-    if(len>4)return {ok:true,bucket:(first==='B'?'ball':'strike'),source:'manual'};
-    return {ok:false,reason:'BB with <4 pitches (shouldn\'t happen)'};
-  }
-  // HBP: auto-fill is one 'H'
-  if(r==='HBP'){
-    if(len>1)return {ok:true,bucket:(first==='B'?'ball':'strike'),source:'manual'};
-    return {ok:false,reason:'HBP with auto-H only'};
-  }
-  // BIP results: X is auto-appended
-  var bipResults=['1B','2B','3B','HR','LLHR','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE','CI','AO'];
-  if(bipResults.indexOf(r)>=0){
-    if(len>1)return {ok:true,bucket:(first==='B'?'ball':'strike'),source:'manual'};
-    return {ok:false,reason:'BIP with auto-X only'};
-  }
-  return {ok:false,reason:'unknown result type'};
+// Diagnostic flag: we also report how many ABs are at the auto-fill
+// minimum so the user can spot any games where logging was incomplete.
+function _firstPitchBucket(c){
+  if(!c)return null;
+  if(c==='B'||c==='H')return 'ball';// H = HBP (off the plate)
+  return 'strike';// S, L, F, FT, X all over the plate
 }
 function _computeFirstPitches(games){
-  function empty(){return {strike:0,ball:0,unconfirmed:0,total:0};}
+  function empty(){return {strike:0,ball:0,noData:0,autoFillMin:0,total:0};}
   var ourBat=empty(), ourPit=empty();
+  // Auto-fill minimums per result type — if pitches.length === minimum AND
+  // the pitch[0] is the default char, the AB MIGHT have been clicked
+  // without logging. Doesn't affect the binary first-pitch answer (it's
+  // still correct by definition) but worth reporting.
+  function _looksAutoMin(ab){
+    var r=ab.result,p=ab.pitches||[],n=p.length;
+    if((r==='K'||r==='KL')&&n===3)return true;
+    if(r==='BB'&&n===4)return true;
+    if(r==='HBP'&&n===1&&p[0]==='H')return true;
+    var bip=['1B','2B','3B','HR','LLHR','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE','CI','AO'];
+    if(bip.indexOf(r)>=0&&n===1&&p[0]==='X')return true;
+    return false;
+  }
   games.forEach(function(g){
     var ourSide=_ourTeamSide(g);
     var oppSide=ourSide==='home'?'away':'home';
     (g.abs||[]).forEach(function(ab){
-      var info=_firstPitchInfo(ab);
+      var first=(ab.pitches||[])[0];
+      var bucket=_firstPitchBucket(first);
       var target=null;
       if(ab.team===ourSide)target=ourBat;
       else if(ab.team===oppSide)target=ourPit;
       if(!target)return;
       target.total++;
-      if(info.ok){
-        if(info.bucket==='strike')target.strike++;
-        else if(info.bucket==='ball')target.ball++;
-      }else{
-        target.unconfirmed++;
-      }
+      if(!bucket){target.noData++;return;}
+      if(bucket==='strike')target.strike++;
+      else target.ball++;
+      if(_looksAutoMin(ab))target.autoFillMin++;
     });
   });
   return {ourBat:ourBat,ourPit:ourPit};
@@ -1678,19 +1655,21 @@ function _renderFirstPitchPanel(games){
     if(s.total===0)return '';
     var confirmed=s.strike+s.ball;
     if(confirmed===0){
-      return '<div style="font-size:12px;font-family:sans-serif;margin:3px 0;line-height:1.5;"><span style="color:var(--text2);">'+esc(label)+':</span> <span style="color:var(--text3);">no confirmed first pitches yet ('+s.unconfirmed+' ABs without manual pitch log)</span></div>';
+      return '<div style="font-size:12px;font-family:sans-serif;margin:3px 0;line-height:1.5;"><span style="color:var(--text2);">'+esc(label)+':</span> <span style="color:var(--text3);">no pitch data ('+s.noData+' ABs)</span></div>';
     }
     var stkPct=Math.round(100*s.strike/confirmed);
     var balPct=Math.round(100*s.ball/confirmed);
-    var extras=s.unconfirmed>0?(' · <span style="color:var(--text3);">'+s.unconfirmed+' AB'+(s.unconfirmed===1?'':'s')+' excluded (auto-filled, no manual log)</span>'):'';
-    return '<div style="font-size:12px;font-family:sans-serif;margin:3px 0;line-height:1.5;"><span style="color:var(--text2);">'+esc(label)+':</span> <strong>'+confirmed+'</strong> confirmed first pitch'+(confirmed===1?'':'es')+' → <strong style="color:var(--red2);">'+s.strike+' strike'+(s.strike===1?'':'s')+' ('+stkPct+'%)</strong> · <strong style="color:var(--green2);">'+s.ball+' ball'+(s.ball===1?'':'s')+' ('+balPct+'%)</strong>'+extras+'</div>';
+    return '<div style="font-size:12px;font-family:sans-serif;margin:3px 0;line-height:1.5;"><span style="color:var(--text2);">'+esc(label)+':</span> <strong>'+confirmed+'</strong> AB'+(confirmed===1?'':'s')+' → <strong style="color:var(--red2);">'+s.strike+' strike'+(s.strike===1?'':'s')+' ('+stkPct+'%)</strong> · <strong style="color:var(--green2);">'+s.ball+' ball'+(s.ball===1?'':'s')+' ('+balPct+'%)</strong></div>';
   }
   var batLine=_fmtLine('Our batters faced',fp.ourBat);
   var pitLine=_fmtLine('Our pitchers threw',fp.ourPit);
   if(!batLine&&!pitLine){panel.style.display='none';return;}
-  panel.innerHTML='<div style="font-size:11px;color:var(--gold);font-family:sans-serif;font-weight:bold;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">First-pitch breakdown</div>'
-    +'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:4px;line-height:1.45;">Only counts ABs where we can confirm the first pitch — 3-pitch Ks (first must be strike), 4-pitch BBs (first must be ball), and ABs where you manually logged pitches before the result. Auto-filled results without per-pitch logging are excluded since the real first pitch is unknown.</div>'
-    +batLine+pitLine;
+  // Show the auto-fill-minimum diagnostic only if any exist, as a small note
+  var diagParts=[];
+  if(fp.ourBat.autoFillMin>0)diagParts.push(fp.ourBat.autoFillMin+' (batters)');
+  if(fp.ourPit.autoFillMin>0)diagParts.push(fp.ourPit.autoFillMin+' (pitchers)');
+  var diag=diagParts.length?'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:4px;line-height:1.45;">Note: '+diagParts.join(', ')+' ABs are at the auto-fill minimum pitch count (3-pitch K, 4-pitch BB, 1-pitch HBP, 1-pitch BIP). For K and BB this is mathematically correct anyway. For 1-pitch HBP / BIP, this is correct IF the AB really was a first-pitch event — which it is when each pitch was manually logged.</div>':'';
+  panel.innerHTML='<div style="font-size:11px;color:var(--gold);font-family:sans-serif;font-weight:bold;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">First-pitch breakdown</div>'+batLine+pitLine+diag;
   panel.style.display='block';
 }
 // v101: explain every column in plain English. Toggle reveals legend.
@@ -9178,7 +9157,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v183';
+var APP_VERSION='v184';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
