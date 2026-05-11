@@ -767,7 +767,26 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
     <div style="margin-bottom:6px;"><strong>Team logos</strong> <span style="color:var(--text3);font-size:10px;">(optional)</span></div>
     <button class="btn btn-sm btn-full" onclick="cm('m-options');openTeamLogosModal()">🏆 Manage team logos</button>
   </div>
+  <!-- v174: Rebuild pitcher stats across all final games. Walks each saved
+       game, recomputes each pitcher's hits/bb/k/hbp/r/er from the AB log,
+       saves back to Firestore. Fixes drift from old games or incomplete
+       attribution. Safe to run repeatedly. -->
+  <div style="font-family:sans-serif;font-size:12px;color:var(--text2);margin-bottom:12px;padding-top:10px;border-top:1px dashed var(--border);">
+    <div style="margin-bottom:6px;"><strong>Pitcher stats integrity</strong> <span style="color:var(--text3);font-size:10px;">(admin)</span></div>
+    <div style="font-size:10px;color:var(--text3);line-height:1.45;margin-bottom:6px;">Recompute every pitcher's stats from the AB log on every final game and save back to Firestore. Use if season totals don't reconcile with batting (e.g. our H ≠ opp pitchers' H).</div>
+    <button class="btn btn-sm btn-full" onclick="cm('m-options');openRebuildPitcherStats()">🔄 Rebuild pitcher stats (all games)</button>
+  </div>
   <div class="mact"><button class="btn btn-full" onclick="cm('m-options')">Close</button></div>
+</div></div>
+<!-- v174: rebuild pitcher stats progress modal -->
+<div class="modal-ov" id="m-rebuild-pit"><div class="modal" style="max-width:420px;">
+<h3>🔄 Rebuild pitcher stats</h3>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.45;">Walks every final game and recomputes each pitcher's stats from the AB log. Safe to run repeatedly. Will write to Firestore — make sure other devices aren't actively scoring.</div>
+<div id="rebuild-pit-status" style="font-size:12px;font-family:sans-serif;color:var(--text2);margin-bottom:10px;min-height:60px;padding:8px;background:var(--bg3);border-radius:var(--rs);">Ready.</div>
+<div class="mact">
+<button class="btn btn-gold btn-full" id="rebuild-pit-start" onclick="_doRebuildPitcherStats()">Start rebuild</button>
+<button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-rebuild-pit')">Close</button>
+</div>
 </div></div>
 <!-- v171: opp matching diagnostic — shows each opp player encountered and
      why they did or didn't match LEAGUE_POOL with a round. Opened by tapping
@@ -1845,20 +1864,18 @@ function _aggregateOppBat(games){
   return {total:total,bands:bands};
 }
 // v169: aggregate opp pitching across all final games, bucketed by round band.
-// v173: most stats now DERIVED from g.abs / g.runs rather than saved p.hits etc.
-// — older games or games where opp pitcher attribution was incomplete left
-// the saved p.* values stale. Walking the ABs gives correct totals that
-// match our batting hits (every hit we got was given up by an opp pitcher).
+// v174: reads from saved pitcher records (g.hp[].hits, etc.) — the canonical
+// source of truth. If these are stale or wrong (older games, incomplete
+// attribution), run the Rebuild Pitcher Stats tool (Settings → 🔄 Rebuild
+// pitcher stats) to walk each game's ABs and rewrite the saved records.
 function _aggregateOppPit(games){
-  function empty(){return {games:0,ip_outs:0,pc:0,ba:0,stk:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,tbf:0,roe:0};}
+  function empty(){return {games:0,ip_outs:0,pc:0,ba:0,stk:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,tbf:0};}
   var bands={'1-3':empty(),'4-6':empty(),'7-9':empty(),'10-12':empty(),'unknown':empty()};
   games.forEach(function(g){
     var ourSide=_ourTeamSide(g);
     var oppSide=ourSide==='home'?'away':'home';
     var oppTeam=_oppTeamName(g);
     var oppPit=_oppPitchers(g);
-    // ip_outs and pc from the saved pitcher records — those are accurate
-    // because they're incremented per-pitch / per-out as the game runs.
     (oppPit||[]).forEach(function(p){
       if(!p||!p.name)return;
       if(!((p.ip_outs||0)>0||(p.total||0)>0))return;
@@ -1866,30 +1883,15 @@ function _aggregateOppPit(games){
       var s=bands[band];
       s.games++;// pitcher-appearances (NOT team-games; total override below)
       s.ip_outs+=(p.ip_outs||0);s.pc+=(p.total||0);
-      s.ba+=(p.ba||0);s.stk+=(p.stk||0);
+      s.ba+=(p.ba||0);s.stk+=(p.stk||0);s.hits+=(p.hits||0);
+      s.r+=(p.runs_allowed||0);s.er+=(p.er||0);
+      s.bb+=(p.bb_allowed||0);s.k+=(p.k_pitched||0);s.hbp+=(p.hbp_allowed||0);
     });
-    // Hits / BB / K / HBP / ROE / TBF — derive from ABs where opp pitched
+    // TBF from opp ABs (only field that's been ab-derived since v169)
     (g.abs||[]).forEach(function(ab){
-      if(ab.team!==ourSide)return;// only ABs where we batted against opp
-      // If pitcher attribution is missing, bucket as unknown so we don't lose the hit
-      var pitcherName=ab.pitcher;
-      var band=pitcherName?(_getOppRoundBand(pitcherName,oppTeam)||'unknown'):'unknown';
-      var s=bands[band];
-      var r=ab.result;
-      s.tbf++;
-      if(['1B','2B','3B','HR','LLHR'].includes(r))s.hits++;
-      if(r==='BB')s.bb++;
-      if(r==='K'||r==='KL')s.k++;
-      if(r==='HBP')s.hbp++;
-      if(r==='ROE')s.roe++;
-    });
-    // R / ER from g.runs (each scored runner attributed to a pitcher)
-    (g.runs||[]).forEach(function(rn){
-      if(rn.team!==ourSide)return;// only runs we scored (against opp)
-      var band=rn.pitcher?(_getOppRoundBand(rn.pitcher,oppTeam)||'unknown'):'unknown';
-      var s=bands[band];
-      s.r++;
-      if(!rn.unearned)s.er++;
+      if(!ab.pitcher||ab.pitcherTeam!==oppSide)return;
+      var band=_getOppRoundBand(ab.pitcher,oppTeam)||'unknown';
+      bands[band].tbf++;
     });
   });
   var total=empty();
@@ -1915,6 +1917,112 @@ function _toggleOppExpand(){
   A.statsOppExpanded=!A.statsOppExpanded;
   sa();
   if(typeof _renderSeasonView==='function')_renderSeasonView();
+}
+// v174: standalone pitcher-stats rebuild that operates on an isolated game
+// object (not the live G). Mirrors the live recalcPitcherStats logic but
+// against an arbitrary gdata. Returns the mutated game (caller saves to FB).
+function _rebuildPitcherStatsOnGame(g){
+  if(!g||!g.abs)return g;
+  var allP=[].concat(g.hp||[]).concat(g.ap||[]);
+  // Reset countable fields
+  allP.forEach(function(p){
+    p.total=0;p.sw=0;p.lk=0;p.fo=0;p.ba=0;p.bip=0;p.hbp=0;p.stk=0;
+    p.ip_outs=0;p.hits=0;p.runs_allowed=0;p.er=0;
+    p.bb_allowed=0;p.k_pitched=0;p.hbp_allowed=0;
+  });
+  // Helper: find the pitcher object for an AB, falling back through:
+  // 1) ab.pitcher in the right team's list
+  // 2) fa[inn].P in the right team's list
+  // 3) first pitcher in the fielding side's list (last-resort attribution)
+  function _findPit(ab){
+    if(!ab)return null;
+    var pTeam=ab.pitcherTeam||(ab.half==='top'?'home':'away');
+    var list=pTeam==='home'?g.hp:g.ap;
+    if(!list||!list.length)return null;
+    if(ab.pitcher){
+      var p=list.find(function(x){return x.name===ab.pitcher;});
+      if(p)return p;
+    }
+    var faName=(g.fa&&g.fa[ab.inn]&&g.fa[ab.inn].P)||null;
+    if(faName){
+      var p2=list.find(function(x){return x.name===faName;});
+      if(p2)return p2;
+    }
+    return list[0]||null;// last-resort attribution
+  }
+  // Walk ABs and credit each pitcher
+  g.abs.forEach(function(ab){
+    var p=_findPit(ab);if(!p)return;
+    if(ab.autoOut)return;
+    var pSeq=ab.pitches||[];
+    var pcTotal=(ab.pc>0)?ab.pc:pSeq.length;
+    p.total+=pcTotal;
+    pSeq.forEach(function(c){
+      if(c==='S'){p.sw++;p.stk++;}
+      else if(c==='L'){p.lk++;p.stk++;}
+      else if(c==='F'||c==='FT'){p.fo++;p.stk++;}
+      else if(c==='B')p.ba++;
+      else if(c==='X')p.bip++;
+      else if(c==='H')p.hbp++;
+    });
+    var r=ab.result;
+    var isOut=['K','KL','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
+    if(isOut)p.ip_outs=(p.ip_outs||0)+1;
+    if(r==='DP'||r==='GIDP')p.ip_outs=(p.ip_outs||0)+1;
+    if(r==='TP')p.ip_outs=(p.ip_outs||0)+2;
+    if(ab.interference)p.ip_outs=(p.ip_outs||0)+1;
+    if(['1B','2B','3B','HR','LLHR'].includes(r))p.hits=(p.hits||0)+1;
+    if(r==='BB')p.bb_allowed=(p.bb_allowed||0)+1;
+    if(r==='K'||r==='KL')p.k_pitched=(p.k_pitched||0)+1;
+    if(r==='HBP')p.hbp_allowed=(p.hbp_allowed||0)+1;
+  });
+  // Runs from g.runs
+  (g.runs||[]).forEach(function(rn){
+    if(!rn.pitcher)return;
+    var allList=[].concat(g.hp||[]).concat(g.ap||[]);
+    var p=allList.find(function(x){return x.name===rn.pitcher;});
+    if(!p)return;
+    p.runs_allowed=(p.runs_allowed||0)+1;
+    if(!rn.unearned)p.er=(p.er||0)+1;
+  });
+  return g;
+}
+async function openRebuildPitcherStats(){
+  $('rebuild-pit-status').textContent='Ready. Tap Start rebuild to begin.';
+  $('rebuild-pit-start').disabled=false;
+  om('m-rebuild-pit');
+}
+async function _doRebuildPitcherStats(){
+  if(!fbReady||!db){
+    $('rebuild-pit-status').textContent='Firebase not ready — try again in a moment.';
+    return;
+  }
+  var btn=$('rebuild-pit-start');
+  btn.disabled=true;
+  var status=$('rebuild-pit-status');
+  var ids=Object.keys(A.gameResults||{}).filter(function(k){return A.gameResults[k]&&A.gameResults[k].final===true&&k!=='test-sandbox';});
+  if(!ids.length){status.textContent='No final games to rebuild.';btn.disabled=false;return;}
+  status.textContent='Found '+ids.length+' final game(s). Starting...';
+  var done=0, failed=0, skipped=0;
+  for(var i=0;i<ids.length;i++){
+    var eid=ids[i];
+    status.innerHTML='Rebuilding '+(i+1)+' of '+ids.length+'<br><span style="color:var(--text3);font-size:10px;">'+esc(eid)+'</span>';
+    try{
+      var doc=await db.collection('games').doc(eid).get();
+      if(!doc.exists||!doc.data()||!doc.data().gdata){skipped++;continue;}
+      var gdata=doc.data().gdata;
+      _rebuildPitcherStatsOnGame(gdata);
+      await db.collection('games').doc(eid).set({gdata:gdata,updated:new Date(),rebuiltAt:new Date().toISOString()},{merge:true});
+      done++;
+    }catch(e){
+      console.log('rebuild err for '+eid,e);
+      failed++;
+    }
+  }
+  status.innerHTML='Done. <strong style="color:var(--green2);">'+done+' rebuilt</strong>'+(failed>0?(', <strong style="color:var(--red2);">'+failed+' failed</strong>'):'')+(skipped>0?(', '+skipped+' skipped'):'')+'.<br><span style="font-size:10px;color:var(--text3);">Reload Season Stats to see updated totals.</span>';
+  btn.disabled=false;
+  // Invalidate the season-games cache so reopening Season Stats picks up the new data
+  window._seasonGames=null;
 }
 // v171: diagnostic — for every opp player encountered across final games,
 // figure out why they're unmatched (or confirm they're matched). Useful for
@@ -8663,7 +8771,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v173';
+var APP_VERSION='v174';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
