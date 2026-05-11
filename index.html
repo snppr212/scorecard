@@ -8972,7 +8972,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v179';
+var APP_VERSION='v180';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
@@ -9011,71 +9011,86 @@ db=firebase.firestore();
 db.enablePersistence().catch(err=>{if(err.code!=='failed-precondition'&&err.code!=='unimplemented')console.log('Persistence init:',err)});
 fbReady=true;
 
+// v178: wrap read-check-write in runTransaction so the stale-overwrite guards
+// can't be raced by another device writing between our get() and set().
 async function fbSaveGame(){
   if(!fbReady||!G.eid)return;
   try{
-    // Guard: don't overwrite populated remote data with blank/default/stale local state
-    var snap=await db.collection('games').doc(G.eid).get();
-    if(snap.exists&&snap.data()&&snap.data().gdata){
-      var remote=snap.data().gdata;
-      var localAbs=(G.abs||[]).length, remoteAbs=(remote.abs||[]).length;
-      // Block if remote has ABs and local has none (most common race)
-      if(remoteAbs>0&&localAbs===0){
-        console.log('fbSaveGame blocked: remote has '+remoteAbs+' ABs, local has 0');
-        return;
+    var ref=db.collection('games').doc(G.eid);
+    var blockReason=null;
+    await db.runTransaction(async function(tx){
+      blockReason=null;// reset on each retry attempt
+      var snap=await tx.get(ref);
+      if(snap.exists&&snap.data()&&snap.data().gdata){
+        var remote=snap.data().gdata;
+        var localAbs=(G.abs||[]).length, remoteAbs=(remote.abs||[]).length;
+        // Block if remote has ABs and local has none (most common race)
+        if(remoteAbs>0&&localAbs===0){
+          blockReason='remote has '+remoteAbs+' ABs, local has 0';
+          return;// skip write cleanly — don't throw (would trigger retry)
+        }
+        // Block if local has FEWER ABs than remote (stale local state)
+        if(remoteAbs>localAbs){
+          blockReason='remote has '+remoteAbs+' ABs, local has '+localAbs+' (remote is newer)';
+          return;
+        }
+        // Block if remote has fielding script and local has none
+        var remoteFAcount=remote.fa?Object.keys(remote.fa).length:0;
+        var localFAcount=G.fa?Object.keys(G.fa).length:0;
+        if(remoteFAcount>0&&localFAcount===0){
+          blockReason='remote has fielding for '+remoteFAcount+' innings, local has none';
+          return;
+        }
+        // Block if remote has pitchers and local has none
+        if(remote.hp&&remote.hp.length>0&&(!G.hp||G.hp.length===0)){
+          blockReason='remote has '+remote.hp.length+' pitchers, local has none';
+          return;
+        }
       }
-      // Block if local has FEWER ABs than remote (stale local state — prevents
-      // a phone with old data from overwriting the canonical remote box-score
-      // after offline patches or another device's updates have landed).
-      if(remoteAbs>localAbs){
-        console.log('fbSaveGame blocked: remote has '+remoteAbs+' ABs, local has '+localAbs+' (remote is newer)');
-        return;
-      }
-      // Block if remote has fielding script and local has none (preloaded data race)
-      var remoteFAcount=remote.fa?Object.keys(remote.fa).length:0;
-      var localFAcount=G.fa?Object.keys(G.fa).length:0;
-      if(remoteFAcount>0&&localFAcount===0){
-        console.log('fbSaveGame blocked: remote has fielding for '+remoteFAcount+' innings, local has none');
-        return;
-      }
-      // Block if remote has pitchers and local has none
-      if(remote.hp&&remote.hp.length>0&&(!G.hp||G.hp.length===0)){
-        console.log('fbSaveGame blocked: remote has '+remote.hp.length+' pitchers, local has none');
-        return;
-      }
-    }
-    var cleanG=JSON.parse(JSON.stringify(G));// strip undefined fields (Firestore rejects them)
-    await db.collection('games').doc(G.eid).set({gdata:cleanG,updated:new Date()},{merge:true});
+      var cleanG=JSON.parse(JSON.stringify(G));// strip undefined fields
+      tx.set(ref,{gdata:cleanG,updated:new Date()},{merge:true});
+    });
+    // Log outside the closure so retries don't produce duplicate noise
+    if(blockReason)console.log('fbSaveGame blocked: '+blockReason);
   }catch(e){console.log('fbSaveGame error:',e);}
 }
 async function fbSaveRoster(){
   if(!fbReady)return;
   try{
-    var writeA=A;
-    // Guard: if remote has any game-results marked final, preserve them.
-    // (Prevents a phone with stale local state from un-finalizing a game
-    // that's already been marked complete — same class of issue as the
-    // gdata stale-overwrite guard in fbSaveGame.)
-    var snap=await db.collection('appdata').doc('roster').get();
-    if(snap.exists&&snap.data()&&snap.data().adata){
-      var remoteA=snap.data().adata;
-      if(remoteA.gameResults){
-        var mergedGR=Object.assign({},A.gameResults||{});
-        Object.keys(remoteA.gameResults).forEach(function(eid){
-          var r=remoteA.gameResults[eid];
-          var l=mergedGR[eid];
-          if(r&&r.final&&(!l||!l.final)){
-            // Remote says final, local doesn't — adopt remote so we don't undo it
-            mergedGR[eid]=Object.assign({},l||{},r);
-            // Also patch local A in-memory so subsequent renders match
-            if(!A.gameResults)A.gameResults={};
-            A.gameResults[eid]=mergedGR[eid];
-          }
-        });
-        writeA=Object.assign({},A,{gameResults:mergedGR});
+    var ref=db.collection('appdata').doc('roster');
+    var pendingMerges=null;
+    await db.runTransaction(async function(tx){
+      pendingMerges=null;// reset on each retry attempt
+      var writeA=A;
+      var snap=await tx.get(ref);
+      if(snap.exists&&snap.data()&&snap.data().adata){
+        var remoteA=snap.data().adata;
+        if(remoteA.gameResults){
+          var mergedGR=Object.assign({},A.gameResults||{});
+          var merges={};
+          Object.keys(remoteA.gameResults).forEach(function(eid){
+            var r=remoteA.gameResults[eid];
+            var l=mergedGR[eid];
+            if(r&&r.final&&(!l||!l.final)){
+              // Remote says final, local doesn't — adopt remote so we don't undo it
+              mergedGR[eid]=Object.assign({},l||{},r);
+              merges[eid]=mergedGR[eid];
+            }
+          });
+          if(Object.keys(merges).length)pendingMerges=merges;
+          writeA=Object.assign({},A,{gameResults:mergedGR});
+        }
       }
+      tx.set(ref,{adata:writeA,updated:new Date()},{merge:true});
+    });
+    // Apply in-memory merges only after the transaction commits, so a retry
+    // doesn't mutate A multiple times before the final write lands.
+    if(pendingMerges){
+      if(!A.gameResults)A.gameResults={};
+      Object.keys(pendingMerges).forEach(function(eid){
+        A.gameResults[eid]=pendingMerges[eid];
+      });
     }
-    await db.collection('appdata').doc('roster').set({adata:writeA,updated:new Date()},{merge:true});
   }catch(e){console.log('fbSaveRoster error:',e);}
 }
 
