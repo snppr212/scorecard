@@ -2135,6 +2135,47 @@ function openOppDiagnostic(){
   $('opp-diag-list').innerHTML=html||'<div style="padding:14px;color:var(--text3);text-align:center;font-family:sans-serif;">No opp data to analyze</div>';
   om('m-opp-diag');
 }
+// v181: sortable season-stats tables. Per-table sort state saved on
+// A.statsSorts so a coach's preferred sort survives reloads. Click a <th>
+// to sort by that column (desc default); click again to flip to asc; pick
+// a different column → desc again. Helpers used by all four season
+// renderers (regular bat/pit + advanced bat/pit).
+function _statsSortDefault(which){
+  return ({bat:{col:'ba',dir:'desc'}, pit:{col:'ip_outs',dir:'desc'},
+          batAdv:{col:'pa',dir:'desc'}, pitAdv:{col:'pitches',dir:'desc'}})[which]||{col:null,dir:'desc'};
+}
+function _getStatsSort(which){
+  if(!A.statsSorts)A.statsSorts={};
+  return A.statsSorts[which]||_statsSortDefault(which);
+}
+function _setStatsSort(which,col){
+  if(!A.statsSorts)A.statsSorts={};
+  var cur=_getStatsSort(which);
+  // Same column → flip direction; new column → desc by default
+  A.statsSorts[which]={col:col,dir:(cur.col===col&&cur.dir==='desc')?'asc':'desc'};
+  if(cur.col===col&&cur.dir==='asc')A.statsSorts[which].dir='desc';// asc → desc
+  sa();
+  if(typeof _renderSeasonView==='function')_renderSeasonView();
+}
+function _sortRows(rows,sort){
+  if(!sort||!sort.col)return rows;
+  var col=sort.col, mult=sort.dir==='asc'?1:-1;
+  return rows.slice().sort(function(a,b){
+    var av=a[col], bv=b[col];
+    // Nulls / undefined always sort last regardless of direction
+    if(av==null&&bv==null)return 0;
+    if(av==null)return 1;
+    if(bv==null)return -1;
+    if(typeof av==='string'&&typeof bv==='string')return mult*av.localeCompare(bv);
+    return mult*((av||0)-(bv||0));
+  });
+}
+function _sortableTh(label,col,which){
+  var sort=_getStatsSort(which);
+  var arrow=sort.col===col?(sort.dir==='asc'?' ▲':' ▼'):'';
+  var style=sort.col===col?'color:var(--gold);cursor:pointer;':'cursor:pointer;';
+  return '<th onclick="_setStatsSort(\''+which+'\',\''+col+'\')" style="'+style+'" title="Tap to sort">'+label+arrow+'</th>';
+}
 function renderSeasonBat(games){
   var byPlayer={};
   games.forEach(function(g){
@@ -2177,9 +2218,27 @@ function renderSeasonBat(games){
     s.slg=s.ab>0?s.tb/s.ab:0;
     s.ba=s.ab>0?s.h/s.ab:0;
   });
-  // Sort by BA desc, then PA desc
-  rows.sort(function(a,b){if(a.ba!==b.ba)return b.ba-a.ba;return b.pa-a.pa;});
-  var h='<thead><tr><th>Player</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>RBI</th><th>HR</th><th>BB</th><th>K</th><th>HBP</th><th>SB</th><th>BIP</th><th>ROE</th><th>BA</th><th>OBP</th><th>SLG</th></tr></thead><tbody>';
+  // v181: apply user-selected sort (defaults to BA desc)
+  rows=_sortRows(rows,_getStatsSort('bat'));
+  var h='<thead><tr>'
+    +_sortableTh('Player','name','bat')
+    +_sortableTh('G','games','bat')
+    +_sortableTh('PA','pa','bat')
+    +_sortableTh('AB','ab','bat')
+    +_sortableTh('R','r','bat')
+    +_sortableTh('H','h','bat')
+    +_sortableTh('RBI','rbi','bat')
+    +_sortableTh('HR','hr','bat')
+    +_sortableTh('BB','bb','bat')
+    +_sortableTh('K','k','bat')
+    +_sortableTh('HBP','hbp','bat')
+    +_sortableTh('SB','sb','bat')
+    +_sortableTh('BIP','bip','bat')
+    +_sortableTh('ROE','roe','bat')
+    +_sortableTh('BA','ba','bat')
+    +_sortableTh('OBP','obp','bat')
+    +_sortableTh('SLG','slg','bat')
+    +'</tr></thead><tbody>';
   rows.forEach(function(s){
     var nm=s.jersey?'#'+s.jersey+' '+sn(s.name):sn(s.name);
     h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pa+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td>'+s.sb+'</td><td>'+s.bip+'</td><td>'+(s.roe||0)+'</td><td class="hi">'+(s.ab>0?fmt3(s.ba):'—')+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
@@ -2243,7 +2302,6 @@ function renderSeasonPit(games){
     });
   });
   var rows=Object.values(byPit).filter(function(s){return s.games>0;});
-  rows.sort(function(a,b){return b.ip_outs-a.ip_outs;});
   // Pitch-breakdown fallback: if exact pitches weren't all logged,
   //   floor balls at 4*(BB+HBP) and strikes at 3*K. Always reported as ≥ logged value.
   // v102: Derive BF and AB-against from pitcher record (ip_outs + hits + bb + hbp)
@@ -2255,8 +2313,27 @@ function renderSeasonPit(games){
     s.abAgainst=s.ip_outs+s.hits;
     s.bf=s.abAgainst+s.bb+s.hbp+(s.sac||0);
     s.baa=s.abAgainst>0?s.hits/s.abAgainst:0;
+    s.era=s.ip_outs>0?(s.er/(s.ip_outs/3)*6):null;
   });
-  var h='<thead><tr><th>Pitcher</th><th>G</th><th>IP</th><th>BF</th><th>PC</th><th>Ba</th><th>St</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>HBP</th><th>BAA</th><th>ERA</th></tr></thead><tbody>';
+  // v181: apply user-selected sort (defaults to IP desc)
+  rows=_sortRows(rows,_getStatsSort('pit'));
+  var h='<thead><tr>'
+    +_sortableTh('Pitcher','name','pit')
+    +_sortableTh('G','games','pit')
+    +_sortableTh('IP','ip_outs','pit')
+    +_sortableTh('BF','bf','pit')
+    +_sortableTh('PC','pc','pit')
+    +_sortableTh('Ba','baEst','pit')
+    +_sortableTh('St','stkEst','pit')
+    +_sortableTh('H','hits','pit')
+    +_sortableTh('R','r','pit')
+    +_sortableTh('ER','er','pit')
+    +_sortableTh('BB','bb','pit')
+    +_sortableTh('K','k','pit')
+    +_sortableTh('HBP','hbp','pit')
+    +_sortableTh('BAA','baa','pit')
+    +_sortableTh('ERA','era','pit')
+    +'</tr></thead><tbody>';
   rows.forEach(function(s){
     var ip=Math.floor(s.ip_outs/3)+'.'+(s.ip_outs%3);
     var era=s.ip_outs>0?fmt3(s.er/(s.ip_outs/3)*6):'—';
@@ -2352,8 +2429,21 @@ function renderSeasonBatAdvanced(games){
     s.whiffPct=totalSw>0?s.whiffs/totalSw:0;
     s.totalSw=totalSw;
   });
-  rows.sort(function(a,b){if(a.swDec!==b.swDec)return b.swDec-a.swDec;return b.pa-a.pa;});
-  var h='<thead><tr><th>Player</th><th>G</th><th>PA</th><th title="Total pitches seen">P</th><th title="Good swings (Sg+Fg+Tg+Xg)">G·Sw</th><th title="Bad swings (Sb+Fb+Tb+Xb)">B·Sw</th><th title="Untagged swings (S/F/FT/X without good/bad)">U·Sw</th><th title="Good takes (B — took a ball)">G·Tk</th><th title="Bad takes (L — took a strike)">B·Tk</th><th title="Whiffs (S count) / total swings">Whiff%</th><th title="(Good swings + good takes) / tagged decisions">Disc%</th></tr></thead><tbody>';
+  // v181: apply user-selected sort (defaults to PA desc for advanced bat)
+  rows=_sortRows(rows,_getStatsSort('batAdv'));
+  var h='<thead><tr>'
+    +_sortableTh('Player','name','batAdv')
+    +_sortableTh('G','games','batAdv')
+    +_sortableTh('PA','pa','batAdv')
+    +_sortableTh('P','pitchesSeen','batAdv')
+    +_sortableTh('G·Sw','gSw','batAdv')
+    +_sortableTh('B·Sw','bSw','batAdv')
+    +_sortableTh('U·Sw','uSw','batAdv')
+    +_sortableTh('G·Tk','gTk','batAdv')
+    +_sortableTh('B·Tk','bTk','batAdv')
+    +_sortableTh('Whiff%','whiffPct','batAdv')
+    +_sortableTh('Disc%','swDec','batAdv')
+    +'</tr></thead><tbody>';
   rows.forEach(function(s){
     var nm=s.jersey?'#'+s.jersey+' '+sn(s.name):sn(s.name);
     var whP=s.totalSw>0?Math.round(s.whiffPct*100)+'%':'—';
@@ -2427,8 +2517,19 @@ function renderSeasonPitAdvanced(games){
     s.whiffPct=s.swings>0?s.whiffs/s.swings:0;
     s.chasePct=s.swings>0?s.chases/s.swings:0;
   });
-  rows.sort(function(a,b){return b.pitches-a.pitches;});
-  var h='<thead><tr><th>Pitcher</th><th>G</th><th>P</th><th title="Strikes thrown (L+S+F+FT+X)">St</th><th title="Balls thrown (B+HBP)">Ba</th><th title="Strike% = strikes / total pitches">St%</th><th title="Whiffs (S) / opp swings">Whf%</th><th title="Chase = batters swung at a pitch you threw out of zone (Sb/Fb/Tb/Xb) / total opp swings">Ch%</th><th title="Zone swings = batters swung at strikes (Sg/Fg/Tg/Xg) — count">Z·Sw</th></tr></thead><tbody>';
+  // v181: apply user-selected sort (defaults to PC desc for advanced pit)
+  rows=_sortRows(rows,_getStatsSort('pitAdv'));
+  var h='<thead><tr>'
+    +_sortableTh('Pitcher','name','pitAdv')
+    +_sortableTh('G','games','pitAdv')
+    +_sortableTh('P','pitches','pitAdv')
+    +_sortableTh('St','strikes','pitAdv')
+    +_sortableTh('Ba','balls','pitAdv')
+    +_sortableTh('St%','strikePct','pitAdv')
+    +_sortableTh('Whf%','whiffPct','pitAdv')
+    +_sortableTh('Ch%','chasePct','pitAdv')
+    +_sortableTh('Z·Sw','zoneSwings','pitAdv')
+    +'</tr></thead><tbody>';
   rows.forEach(function(s){
     var j=_findJersey(s.name);var nm=j?'#'+j+' '+sn(s.name):sn(s.name);
     h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+Math.round(s.strikePct*100)+'%</td><td class="hi">'+(s.swings>0?Math.round(s.whiffPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.chasePct*100)+'%':'—')+'</td><td>'+s.zoneSwings+'</td></tr>';
@@ -8972,7 +9073,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v180';
+var APP_VERSION='v181';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
