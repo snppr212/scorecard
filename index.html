@@ -2042,6 +2042,12 @@ function _aggregateOppPit(games){
     s.stkEst=Math.max(s.stk,3*s.k);
     s.baa=s.abAgainst>0?s.hits/s.abAgainst:0;
     s.era=s.ip_outs>0?(s.er/(s.ip_outs/3)*6):null;
+    // v185: apply BB/K/HBP invariants to the per-AB-walked counts too, so the
+    // advanced metrics below (strikePct etc.) honor the same floors as the
+    // basic baEst/stkEst above. See `renderSeasonPitAdvanced` for the rationale.
+    s.balls=Math.max(s.balls,4*s.bb+s.hbp);
+    s.strikes=Math.max(s.strikes,3*s.k);
+    s.pitches=Math.max(s.pitches,s.balls+s.strikes);
     // v170: advanced (swing-quality) derived rates
     s.strikePct=s.pitches>0?s.strikes/s.pitches:0;
     s.whiffPct=s.swings>0?s.whiffs/s.swings:0;
@@ -2586,8 +2592,14 @@ function renderSeasonPitAdvanced(games){
     var pl=_ourPitchers(g);var ourSide=_ourTeamSide(g);
     pl.forEach(function(p){
       if(!p||!p.name)return;
-      if(!byPit[p.name])byPit[p.name]={name:p.name,games:0,pitches:0,strikes:0,balls:0,swings:0,whiffs:0,chases:0,zoneSwings:0,lookStrikes:0};
+      if(!byPit[p.name])byPit[p.name]={name:p.name,games:0,pitches:0,strikes:0,balls:0,swings:0,whiffs:0,chases:0,zoneSwings:0,lookStrikes:0,bb:0,k:0,hbp:0};
       if((p.total||0)>0||(p.ip_outs||0)>0)byPit[p.name].games++;
+      // v185: track outcome counts so we can apply the BB / K / HBP invariants
+      // as floors on ball/strike totals (a walk always = 4 balls regardless of
+      // logged pitch codes; K always = 3 strikes min; HBP always = 1 ball).
+      byPit[p.name].bb+=(p.bb_allowed||0);
+      byPit[p.name].k+=(p.k_pitched||0);
+      byPit[p.name].hbp+=(p.hbp_allowed||0);
     });
     (g.abs||[]).forEach(function(ab){
       if(!ab.pitcher||ab.pitcherTeam!==ourSide)return;
@@ -2597,6 +2609,13 @@ function renderSeasonPitAdvanced(games){
   });
   var rows=Object.values(byPit).filter(function(s){return s.pitches>0;});
   rows.forEach(function(s){
+    // v185: enforce BB/K/HBP invariants as floors. Every walk contributes ≥4
+    // balls, every HBP contributes 1 ball (H code), every K contributes ≥3
+    // strikes. With manual per-pitch logging these floors are usually no-ops,
+    // but they protect against partial logging and keep strike% honest.
+    s.balls=Math.max(s.balls,4*s.bb+s.hbp);
+    s.strikes=Math.max(s.strikes,3*s.k);
+    s.pitches=Math.max(s.pitches,s.balls+s.strikes);
     s.strikePct=s.pitches>0?s.strikes/s.pitches:0;
     s.whiffPct=s.swings>0?s.whiffs/s.swings:0;
     s.chasePct=s.swings>0?s.chases/s.swings:0;
@@ -9157,7 +9176,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v184';
+var APP_VERSION='v185';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
