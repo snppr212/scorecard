@@ -369,6 +369,10 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
      of every AB across all final games. Shown for our batters (what opp
      pitchers threw us) and our pitchers (what we threw to opp). -->
 <div class="panel" id="season-firstpitch" style="display:none;padding:8px 10px;margin-bottom:8px;"></div>
+<!-- v186: pitch-log completeness audit — for each game, how many ABs have
+     the full per-pitch sequence logged (pitches.length === pc) vs how many
+     are at the auto-fill minimum (sequence shorter than pc). -->
+<div class="panel" id="season-pitchlog-audit" style="display:none;padding:8px 10px;margin-bottom:8px;"></div>
 <!-- Print-only header (hidden on screen via CSS, revealed when body has .printing-season) -->
 <div id="season-print-header" style="display:none;"><h1>Mighty Mussels — Season Stats</h1><div id="season-print-sub">LMLL · Spring 2026</div></div>
 <div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div>
@@ -1592,6 +1596,7 @@ function _renderSeasonView(){
   }
   _renderSeasonLegend(view);
   _renderFirstPitchPanel(games);
+  _renderPitchLogAuditPanel(games);
 }
 // v184: first-pitch breakdown — trusts ab.pitches[0] across all ABs. If
 // the user manually logged each pitch (the default workflow), the auto-
@@ -1671,6 +1676,95 @@ function _renderFirstPitchPanel(games){
   var diag=diagParts.length?'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:4px;line-height:1.45;">Note: '+diagParts.join(', ')+' ABs are at the auto-fill minimum pitch count (3-pitch K, 4-pitch BB, 1-pitch HBP, 1-pitch BIP). For K and BB this is mathematically correct anyway. For 1-pitch HBP / BIP, this is correct IF the AB really was a first-pitch event — which it is when each pitch was manually logged.</div>':'';
   panel.innerHTML='<div style="font-size:11px;color:var(--gold);font-family:sans-serif;font-weight:bold;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">First-pitch breakdown</div>'+batLine+pitLine+diag;
   panel.style.display='block';
+}
+// v186: walk every AB across the season and bucket by pitch-log completeness.
+// `ab.pc` is the authoritative total pitch count (set when the coach logs the
+// result button, possibly corrected post-game). `ab.pitches[]` is the per-
+// pitch sequence. When the coach taps individual pitch buttons every time,
+// pitches.length === pc — fully logged. When the coach taps only the result
+// button, endAB auto-fills the minimum sequence (3×S for K, 4×B for BB, 1×H
+// for HBP, 1×X for BIP) — in that case pitches.length is the auto-fill min,
+// which may be shorter than the true pc.
+function _classifyAB(ab){
+  var pc=ab.pc||0, len=(ab.pitches||[]).length, r=ab.result;
+  if(!pc&&!len)return 'nodata';
+  if(pc&&len===pc)return 'full';
+  if(pc&&!len)return 'pcOnly';
+  // pitches.length > 0 but != pc — under or over
+  if(pc&&len<pc){
+    // Is this at the auto-fill minimum for this result?
+    var autoMin=0;
+    if(r==='K'||r==='KL')autoMin=3;
+    else if(r==='BB')autoMin=4;
+    else if(r==='HBP')autoMin=1;
+    else if(['1B','2B','3B','HR','LLHR','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE'].indexOf(r)>=0)autoMin=1;
+    if(autoMin>0&&len===autoMin)return 'autoMin';// result-only logging
+    return 'partial';// some pitches logged but not all
+  }
+  if(pc&&len>pc)return 'extra';// shouldn't happen — sequence longer than pc
+  // pc=0 but len>0 — old data without explicit pc; treat as full
+  return 'full';
+}
+function _renderPitchLogAuditPanel(games){
+  var panel=$('season-pitchlog-audit');if(!panel)return;
+  if(!games||!games.length){panel.style.display='none';return;}
+  var perGame=[];var T={full:0,autoMin:0,partial:0,pcOnly:0,extra:0,nodata:0,total:0};
+  games.forEach(function(g){
+    var row={eid:g.eid||'',ht:g.ht||'',at:g.at||'',ef:g.ef||'',date:_gameDateGuess(g),full:0,autoMin:0,partial:0,pcOnly:0,extra:0,nodata:0,total:0};
+    (g.abs||[]).forEach(function(ab){
+      if(ab.autoOut)return;// auto-outs aren't real ABs
+      var b=_classifyAB(ab);
+      row[b]=(row[b]||0)+1;row.total++;
+      T[b]=(T[b]||0)+1;T.total++;
+    });
+    perGame.push(row);
+  });
+  if(T.total===0){panel.style.display='none';return;}
+  // Compose summary line
+  var parts=[];
+  parts.push('<strong style="color:var(--green2);">'+T.full+' fully logged</strong>');
+  if(T.autoMin>0)parts.push('<strong style="color:var(--gold);">'+T.autoMin+' result-only</strong>');
+  if(T.partial>0)parts.push('<strong style="color:var(--red2);">'+T.partial+' partial</strong>');
+  if(T.pcOnly>0)parts.push('<strong style="color:var(--red2);">'+T.pcOnly+' count-only</strong>');
+  if(T.extra>0)parts.push('<strong style="color:var(--red2);">'+T.extra+' over-logged</strong>');
+  if(T.nodata>0)parts.push('<strong style="color:var(--text3);">'+T.nodata+' no data</strong>');
+  var summary='<div style="font-size:12px;font-family:sans-serif;margin:3px 0;line-height:1.5;"><span style="color:var(--text2);">'+games.length+' games · '+T.total+' ABs ·</span> '+parts.join(' <span style="color:var(--text3);">·</span> ')+'</div>';
+  // Per-game detail (expandable)
+  var rowsHtml='';
+  // sort by date if we have it (most recent first)
+  perGame.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  perGame.forEach(function(r){
+    var fullPct=r.total>0?Math.round(100*r.full/r.total):0;
+    var allFull=r.full===r.total;
+    var icon=allFull?'<span style="color:var(--green2);">✓</span>':(r.full===0?'<span style="color:var(--gold);">○</span>':'<span style="color:var(--gold);">◐</span>');
+    var matchup=(r.ht||'?')+' vs '+(r.at||'?');var when=r.date||'';
+    var detail=[];
+    if(r.full>0)detail.push(r.full+' full');
+    if(r.autoMin>0)detail.push(r.autoMin+' result-only');
+    if(r.partial>0)detail.push(r.partial+' partial');
+    if(r.pcOnly>0)detail.push(r.pcOnly+' count-only');
+    if(r.extra>0)detail.push(r.extra+' over-logged');
+    if(r.nodata>0)detail.push(r.nodata+' no data');
+    rowsHtml+='<div style="font-size:11px;font-family:sans-serif;margin:2px 0;color:var(--text2);line-height:1.5;">'+icon+' <span style="color:var(--text);">'+esc(when)+' '+esc(matchup)+'</span> <span style="color:var(--text3);">— '+r.total+' ABs:</span> '+esc(detail.join(', '))+'</div>';
+  });
+  var legend='<div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:6px;line-height:1.45;">Legend: <strong>fully logged</strong> = every pitch in the sequence (pitches.length = pc). <strong>result-only</strong> = sequence at the auto-fill minimum (3-pitch K, 4-pitch BB, 1-pitch HBP/BIP) — i.e. just the result button was tapped, individual pitches weren\'t. <strong>partial</strong> = some pitches logged but fewer than pc. <strong>count-only</strong> = pc set with no pitch codes. Ball/strike/strike% stats apply the BB+K+HBP invariants as floors so result-only ABs still count correctly toward those totals.</div>';
+  panel.innerHTML='<div style="font-size:11px;color:var(--gold);font-family:sans-serif;font-weight:bold;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">Pitch-log completeness</div>'+summary+'<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:11px;color:var(--gold);font-family:sans-serif;">Per-game breakdown</summary><div style="margin-top:6px;">'+rowsHtml+'</div>'+legend+'</details>';
+  panel.style.display='block';
+}
+// Best-effort game date for sorting + display. Tries common shapes.
+function _gameDateGuess(g){
+  var d=g.ef||g.date||g.gameDate||g.eventDate||'';
+  if(typeof d==='string'){
+    // ISO yyyy-mm-dd or yyyy/mm/dd
+    var m=d.match(/(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+    if(m)return m[1]+'-'+m[2]+'-'+m[3];
+    // mm/dd/yyyy
+    var m2=d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(m2)return m2[3]+'-'+('0'+m2[1]).slice(-2)+'-'+('0'+m2[2]).slice(-2);
+    return d;
+  }
+  if(d&&d.toDate)try{return d.toDate().toISOString().slice(0,10);}catch(e){}
+  return '';
 }
 // v101: explain every column in plain English. Toggle reveals legend.
 function _renderSeasonLegend(view){
@@ -9176,7 +9270,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v185';
+var APP_VERSION='v186';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
