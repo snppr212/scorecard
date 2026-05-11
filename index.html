@@ -365,6 +365,10 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
 <!-- v100: Regular vs Advanced view toggle -->
 <div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div></div>
+<!-- v182: first-pitch summary panel — strikes vs balls on the FIRST pitch
+     of every AB across all final games. Shown for our batters (what opp
+     pitchers threw us) and our pitchers (what we threw to opp). -->
+<div class="panel" id="season-firstpitch" style="display:none;padding:8px 10px;margin-bottom:8px;"></div>
 <!-- Print-only header (hidden on screen via CSS, revealed when body has .printing-season) -->
 <div id="season-print-header" style="display:none;"><h1>Mighty Mussels — Season Stats</h1><div id="season-print-sub">LMLL · Spring 2026</div></div>
 <div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div>
@@ -1587,6 +1591,54 @@ function _renderSeasonView(){
     renderSeasonBat(games);renderSeasonPit(games);
   }
   _renderSeasonLegend(view);
+  _renderFirstPitchPanel(games);
+}
+// v182: first-pitch breakdown — for every AB across all final games,
+// classify ab.pitches[0] as a strike (S/L/F/FT/X) or a ball (B), or
+// HBP (H), or empty (no pitches logged). Compute for our batters
+// (first pitch FROM opp pitcher) and our pitchers (first pitch TO opp
+// batter). Display as a compact two-line panel at the top of season
+// stats.
+function _firstPitchBucket(c){
+  if(!c)return 'empty';
+  if(c==='B')return 'ball';
+  if(c==='H')return 'hbp';
+  return 'strike';// S, L, F, FT, X all count as strikes for 1st-pitch purposes
+}
+function _computeFirstPitches(games){
+  function empty(){return {strike:0,ball:0,hbp:0,empty:0,total:0};}
+  var ourBat=empty(), ourPit=empty();
+  games.forEach(function(g){
+    var ourSide=_ourTeamSide(g);
+    var oppSide=ourSide==='home'?'away':'home';
+    (g.abs||[]).forEach(function(ab){
+      var first=(ab.pitches||[])[0];
+      var bucket=_firstPitchBucket(first);
+      if(ab.team===ourSide){ourBat[bucket]++;ourBat.total++;}
+      else if(ab.team===oppSide){ourPit[bucket]++;ourPit.total++;}
+    });
+  });
+  return {ourBat:ourBat,ourPit:ourPit};
+}
+function _renderFirstPitchPanel(games){
+  var panel=$('season-firstpitch');if(!panel)return;
+  var fp=_computeFirstPitches(games);
+  function _fmtLine(label,s){
+    if(s.total===0)return '';
+    var stkPct=Math.round(100*s.strike/s.total);
+    var balPct=Math.round(100*s.ball/s.total);
+    var extras=[];
+    if(s.hbp)extras.push(s.hbp+' HBP');
+    if(s.empty)extras.push(s.empty+' no pitches logged');
+    var extraStr=extras.length?(' · <span style="color:var(--text3);">'+extras.join(' · ')+'</span>'):'';
+    return '<div style="font-size:12px;font-family:sans-serif;margin:3px 0;line-height:1.5;"><span style="color:var(--text2);">'+esc(label)+':</span> <strong>'+s.total+'</strong> first pitches → <strong style="color:var(--red2);">'+s.strike+' strikes ('+stkPct+'%)</strong> · <strong style="color:var(--green2);">'+s.ball+' balls ('+balPct+'%)</strong>'+extraStr+'</div>';
+  }
+  var lines=[];
+  var batLine=_fmtLine('Our batters faced',fp.ourBat);
+  var pitLine=_fmtLine('Our pitchers threw',fp.ourPit);
+  if(!batLine&&!pitLine){panel.style.display='none';return;}
+  panel.innerHTML='<div style="font-size:11px;color:var(--gold);font-family:sans-serif;font-weight:bold;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">First-pitch breakdown</div>'+batLine+pitLine;
+  panel.style.display='block';
 }
 // v101: explain every column in plain English. Toggle reveals legend.
 function _renderSeasonLegend(view){
@@ -9073,7 +9125,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v181';
+var APP_VERSION='v182';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
