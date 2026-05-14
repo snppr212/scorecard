@@ -1629,6 +1629,8 @@ function _renderSeasonView(){
 // minimum so the user can spot any games where logging was incomplete.
 function _firstPitchBucket(c){
   if(!c)return null;
+  if(c==='U')return null;// v188: truly unknown — can't classify (BIP/K context)
+  if(c==='Us')return 'strike';// v188: unknown strike type, but we know it's a strike (BB context)
   if(c==='B'||c==='H')return 'ball';// H = HBP (off the plate)
   return 'strike';// S, L, F, FT, X all over the plate
 }
@@ -2133,6 +2135,8 @@ function _aggregateOppPit(games){
         else if(_c==='F'||_c==='FT'){s.strikes++;s.swings++;if(_qc==='bad')s.chases++;else if(_qc==='good')s.zoneSwings++;}
         else if(_c==='X'){s.strikes++;s.swings++;if(_qc==='bad')s.chases++;else if(_qc==='good')s.zoneSwings++;}
         else if(_c==='H')s.balls++;
+        else if(_c==='Us')s.strikes++;// v188: unknown strike — counts as strike but no whiff/swing/look
+        // U (unknown pitch) falls through: s.pitches incremented above, no other counter
       }
     });
   });
@@ -2216,6 +2220,8 @@ function _rebuildPitcherStatsOnGame(g){
       else if(c==='B')p.ba++;
       else if(c==='X')p.bip++;
       else if(c==='H')p.hbp++;
+      else if(c==='Us')p.stk++;// v188: unknown strike — counts as strike (no sw/lk/fo type)
+      // c==='U' falls through (counts in p.total via pcTotal but no other counter)
     });
     var r=ab.result;
     var isOut=['K','KL','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
@@ -2692,6 +2698,8 @@ function _accumPitAdvanced(s,ab){
     else if(c==='F'||c==='FT'){s.strikes++;s.swings++;if(qc==='bad')s.chases++;else if(qc==='good')s.zoneSwings++;}
     else if(c==='X'){s.strikes++;s.swings++;if(qc==='bad')s.chases++;else if(qc==='good')s.zoneSwings++;}
     else if(c==='H')s.balls++;// HBP counts as a ball outcome
+    else if(c==='Us')s.strikes++;// v188: unknown strike — counts as strike, no whiff/swing/look
+    // c==='U' falls through: s.pitches already incremented above
   }
 }
 function renderSeasonPitAdvanced(games){
@@ -5620,6 +5628,8 @@ function recalcPitcherStats(){
         else if(c==='B')p.ba++;
         else if(c==='X')p.bip++;
         else if(c==='H')p.hbp++;
+        else if(c==='Us')p.stk++;// v188: unknown strike
+        // c==='U' falls through (in p.total only)
       });
     }else if(pcTotal>0){
       // No sequence — coarse breakdown from result.
@@ -5721,7 +5731,10 @@ else if(c==='L'){p.lk=(p.lk||0)+1;p.stk=(p.stk||0)+1;}
 else if(c==='F'||c==='FT'){p.fo=(p.fo||0)+1;if(G.strikes<2)p.stk=(p.stk||0)+1;}
 else if(c==='B')p.ba=(p.ba||0)+1;
 else if(c==='X')p.bip=(p.bip||0)+1;
-else if(c==='H')p.hbp=(p.hbp||0)+1;}
+else if(c==='H')p.hbp=(p.hbp||0)+1;
+else if(c==='Us')p.stk=(p.stk||0)+1;// v188: unknown strike — counts toward strike total only
+// c==='U' falls through: p.total already incremented above, no specific counter
+}
 var _pwarnQueue=[];
 function showPWarn(nm,title,msg,sub){
   // If a warning is already open, queue this one to fire after dismiss
@@ -9469,7 +9482,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v187';
+var APP_VERSION='v188';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
