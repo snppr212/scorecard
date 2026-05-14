@@ -1,4 +1,39 @@
-# Tools — League Pool Management
+# Tools — Firestore push utilities
+
+These tools let you write directly to the production Firestore (`diamond-statz`) without going through the app's in-app paste flows. They use the same client-side Firebase config the app uses.
+
+## File naming convention
+
+- `push_league_pool.html` + `import_league_pool.py` — the original league pool toolchain (xlsx → JSON → Firestore). See [§ League Pool Management](#league-pool-management) below.
+- `push_<thing>.html` — one-shot pushes for specific data drops. Hardcoded data, single button. Kept as an audit trail of what was pushed when.
+
+## Audit log
+
+Each row is a one-shot push that was created in a Claude session and run by the user. Re-running any of them is safe (all are idempotent — pitcher logs dedupe by team+pitcher+date, standings overwrite cleanly).
+
+| Date created | File | What it pushed | Status |
+|--------------|------|----------------|--------|
+| (initial)    | `push_league_pool.html` | `appdata/leaguePool` (full season eval data, generic — takes pasted JSON) | reusable per-season |
+| 2026-05-14   | `push_lugnuts_pitcher_log.html` | Lugnuts: 11 outings across 3 games (Apr 12 / Apr 30 / May 9) | run, then superseded |
+| 2026-05-14   | `push_opp_pitcher_log.html` | Iron Pigs (Apr 23) + Bulls (May 6) + Grasshoppers (May 9) — 10 outings | run via push_all_pending |
+| 2026-05-14   | `push_league_standings.html` | `appdata/leagueStandings` — May 14 LMLL AA snapshot (12 teams, us 3-4 / -19 SD) | run via push_all_pending |
+| 2026-05-14   | `push_all_pending.html` | Combined: standings + all 4 teams' pitcher logs (21 outings, 6 games) | run — most recent |
+
+The three "superseded" files are kept for audit; `push_all_pending.html` writes the same data (plus standings) in one click.
+
+## Adding a new push tool
+
+For a new data drop, copy `push_all_pending.html`, edit the `STANDINGS` / `OPP_OUTINGS` constants, rename to something date- or topic-specific, and add a row to the audit log. The skeleton is small (Firebase init + one async push function + idempotent merge logic). Then:
+
+```bash
+open tools/push_<your_new_file>.html
+```
+
+…and click the button.
+
+---
+
+## League Pool Management
 
 These two tools let you update the LMLL eval data in Firestore without releasing the app.
 
