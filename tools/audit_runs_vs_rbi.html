@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Audit runs vs RBI — Mighty Mussels season</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1100px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:11px;}
+td.num{text-align:right;}
+.bad{background:rgba(184,50,40,.20);color:#e04535;font-weight:bold;}
+.gap{background:rgba(200,169,110,.15);color:#c8a96e;font-weight:bold;}
+.good{color:#36a066;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:13px;}
+</style>
+</head>
+<body>
+<h1>Audit runs vs RBI — Mighty Mussels season</h1>
+
+<div class="note">
+Pulls every finalized game from Firestore, walks the ABs in order while simulating the base state, and identifies missed-RBI cases. Read-only.<br>
+<strong>What counts as an RBI:</strong> a runner scoring on a hit, a sacrifice fly, a bases-loaded BB/HBP/CI, or most outs that drive in a run (FC, GO, FO can all earn an RBI). What doesn't: steal of home, error, wild pitch / passed ball, or the batter himself scoring on his own home run (well — he does get the RBI for himself, that's already credited).
+</div>
+
+<button id="run-btn" onclick="run()">Read all final games + audit</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
+function ourLineup(g){return g.ht==='Mighty Mussels'?(g.hlu||[]):(g.alu||[]);}
+
+// Simulate the base state through one half-inning's ABs to flag missed RBIs.
+// Returns array of {ab, suspicion} where suspicion explains why we think an
+// RBI may be missing.
+function auditHalfInning(abs, gameRuns, inn, half){
+  const suspects=[];
+  // base state: [first, second, third] — track bi of the runner
+  let bases=[null,null,null];
+  // Filter run entries for this exact half (we don't have half stamps on runs,
+  // so we'll just count by inn + team for sanity).
+  // Walk each AB
+  abs.forEach(ab=>{
+    if(ab.autoOut)return;
+    const r=ab.result;
+    const rbi=ab.rbi||0;
+    const basesLoaded=bases[0]!=null&&bases[1]!=null&&bases[2]!=null;
+    // Forced-run results: bases-loaded BB / HBP / CI
+    if(basesLoaded && (r==='BB'||r==='HBP'||r==='CI')){
+      if(rbi<1){
+        suspects.push({ab:ab,reason:'bases-loaded '+r+' but RBI='+rbi+' (should be ≥1)'});
+      }
+    }
+    // SAC (sac fly or bunt) with runner on 3rd = RBI expected
+    if(r==='SAC' && bases[2]!=null && rbi<1){
+      suspects.push({ab:ab,reason:'SAC with runner on 3rd but RBI=0'});
+    }
+    // Update base state heuristically (best effort — we don't fully simulate everything)
+    const bi=ab.bi;
+    if(r==='BB'||r==='HBP'){
+      // Force the trail of runners forward
+      if(basesLoaded){bases[2]=bases[1];bases[1]=bases[0];bases[0]=bi;}
+      else if(bases[0]!=null&&bases[1]!=null){bases[2]=bases[1];bases[1]=bases[0];bases[0]=bi;}
+      else if(bases[0]!=null){bases[1]=bases[0];bases[0]=bi;}
+      else{bases[0]=bi;}
+    }else if(r==='1B'){
+      // Single — advance all runners 1 base (rough approximation)
+      if(bases[2]!=null)bases[2]=null;
+      if(bases[1]!=null){bases[2]=bases[1];bases[1]=null;}
+      if(bases[0]!=null){bases[1]=bases[0];bases[0]=null;}
+      bases[0]=bi;
+    }else if(r==='2B'){
+      bases[2]=null;bases[1]=null;
+      if(bases[0]!=null){bases[2]=bases[0];bases[0]=null;}
+      bases[1]=bi;
+    }else if(r==='3B'){
+      bases=[null,null,null];bases[2]=bi;
+    }else if(r==='HR'||r==='LLHR'){
+      bases=[null,null,null];
+    }else if(r==='K'||r==='KL'||r==='FO'||r==='LO'||r==='PO'||r==='FF'||r==='AO'){
+      // Out, bases generally don't move (some don't advance)
+    }else if(r==='GO'){
+      // Ground out — runners may advance; rough approximation: third stays
+    }else if(r==='SAC'){
+      // Sac fly — runner from 3rd scores
+      if(bases[2]!=null)bases[2]=null;
+    }else if(r==='FC'){
+      // FC — batter to 1st, runner forced out somewhere
+      bases[0]=bi;
+    }else if(r==='ROE'){
+      // Reached on error
+      if(bases[0]!=null&&bases[1]==null)bases[1]=bases[0];
+      bases[0]=bi;
+    }
+  });
+  return suspects;
+}
+
+async function run(){
+  const btn=document.getElementById('run-btn');
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  btn.disabled=true;status.textContent='Reading appdata/roster for schedule…';out.innerHTML='';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    if(!rosterSnap.exists)throw new Error('appdata/roster does not exist');
+    const A=rosterSnap.data().adata||{};
+    const gameResults=A.gameResults||{};
+    const finalIds=Object.keys(gameResults).filter(k=>gameResults[k]&&gameResults[k].final&&k!=='test-sandbox');
+    status.textContent='Fetching '+finalIds.length+' final games…';
+    const games=[];
+    for(const id of finalIds){
+      const snap=await db.collection('games').doc(id).get();
+      if(snap.exists&&snap.data()&&snap.data().gdata)games.push({id:id,g:snap.data().gdata});
+    }
+    let html='<h2>Per-game runs vs RBI</h2>';
+    html+='<table><thead><tr><th>Game</th><th>Matchup</th><th class="num">Our Runs</th><th class="num">Our RBI</th><th class="num">Gap</th></tr></thead><tbody>';
+    let totalRuns=0,totalRbi=0;
+    const allSuspects=[];
+    games.forEach(({id,g})=>{
+      const ours=ourSide(g);
+      const ourRuns=(g.runs||[]).filter(r=>r.team===ours).length;
+      const ourRbi=(g.abs||[]).filter(a=>a.team===ours).reduce((s,a)=>s+(a.rbi||0),0);
+      const gap=ourRuns-ourRbi;
+      totalRuns+=ourRuns;totalRbi+=ourRbi;
+      const matchup=(g.ht||'?')+' v '+(g.at||'?');
+      html+='<tr><td>'+escapeHtml(id)+'</td><td>'+escapeHtml(matchup)+'</td><td class="num">'+ourRuns+'</td><td class="num">'+ourRbi+'</td><td class="num '+(gap>0?'gap':(gap<0?'bad':'good'))+'">'+(gap>0?'+':'')+gap+'</td></tr>';
+      // Walk our ABs by inning/half to find missed-RBI cases
+      const ourAbs=(g.abs||[]).filter(a=>a.team===ours);
+      const byHalf={};
+      ourAbs.forEach(a=>{
+        const k=a.inn+'-'+a.half;
+        if(!byHalf[k])byHalf[k]=[];
+        byHalf[k].push(a);
+      });
+      Object.keys(byHalf).forEach(k=>{
+        const [inn,half]=k.split('-');
+        const sus=auditHalfInning(byHalf[k],g.runs||[],parseInt(inn),half);
+        sus.forEach(s=>allSuspects.push({game:id,matchup:matchup,inn:inn,half:half,ab:s.ab,reason:s.reason}));
+      });
+    });
+    html+='<tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TOTAL</td><td>—</td><td class="num">'+totalRuns+'</td><td class="num">'+totalRbi+'</td><td class="num '+(totalRuns-totalRbi>0?'gap':'good')+'">'+(totalRuns-totalRbi>0?'+':'')+(totalRuns-totalRbi)+'</td></tr>';
+    html+='</tbody></table>';
+    // Suspect ABs
+    html+='<h2>Suspected missed RBIs ('+allSuspects.length+')</h2>';
+    if(!allSuspects.length){
+      html+='<div style="color:#36a066;">No obvious missed RBIs detected by the heuristic. The gap may come from legitimate no-RBI scoring (errors, steals of home, wild pitches/passed balls).</div>';
+    }else{
+      html+='<table><thead><tr><th>Game</th><th>Inn</th><th>AB#</th><th>Batter</th><th>Result</th><th>RBI</th><th>Reason</th></tr></thead><tbody>';
+      allSuspects.forEach(s=>{
+        html+='<tr><td>'+escapeHtml(s.game)+'</td><td>'+s.inn+' '+s.half+'</td><td>'+s.ab.num+'</td><td>'+escapeHtml(s.ab.batter||'')+'</td><td>'+escapeHtml(s.ab.result||'')+'</td><td class="num">'+(s.ab.rbi||0)+'</td><td class="bad">'+escapeHtml(s.reason)+'</td></tr>';
+      });
+      html+='</tbody></table>';
+      const suspectsByGame={};
+      allSuspects.forEach(s=>{suspectsByGame[s.game]=(suspectsByGame[s.game]||0)+1;});
+      html+='<div style="margin-top:8px;font-size:12px;color:var(--text2);">By game: '+Object.keys(suspectsByGame).map(g=>g+' ('+suspectsByGame[g]+')').join(', ')+'</div>';
+    }
+    out.innerHTML=html;
+    status.textContent='✓ Audit complete. Suspected: '+allSuspects.length+' missed RBI events across '+games.length+' games.';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+    out.innerHTML='<pre style="color:#e04535;">'+(e.stack||'')+'</pre>';
+  }
+  btn.disabled=false;
+}
+
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
