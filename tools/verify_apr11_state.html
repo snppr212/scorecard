@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Verify Apr 11 (e2) — current Firestore state</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1200px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;font-family:monospace;}
+th,td{padding:4px 6px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+.inn-top{background:rgba(184,50,40,.08);}
+.inn-bot{background:rgba(42,125,82,.08);}
+.bad{color:#e04535;font-weight:bold;}
+.ok{color:#36a066;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:12px;border-radius:4px;font-size:13px;}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:14px;}
+.summary-box{background:rgba(255,255,255,.04);padding:10px;border-radius:4px;}
+.summary-box h3{color:#c8a96e;font-size:12px;margin:0 0 6px 0;}
+.summary-box .row{font-size:11px;display:flex;justify-content:space-between;}
+.summary-box .row span:last-child{color:#fff;font-weight:bold;}
+</style>
+</head>
+<body>
+<h1>Verify Apr 11 (e2) — current Firestore state</h1>
+
+<div class="note">
+Read-only snapshot of <code>games/e2</code> as it stands right now. Compare to your handwritten card to confirm everything landed correctly.
+</div>
+
+<button id="run-btn" onclick="run()">Read live state</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Expected values from the user's handwritten-card review
+const LEAGUE_PT = {'Evan Hoffman':15,'Conley Livingston':35,'Barron Ma':56,'Jack Van Dyke':12};
+const EXPECTED = {
+  10:{result:'GO',pc:4,batter:'Miles Beck'},
+  14:{result:'BB',pc:6,batter:'Luke Davidson'},
+  20:{result:'2B',pc:3,rbi:1,batter:'Bodhi Langford'},
+  21:{result:'FC',pc:1,rbi:1,batter:'Brody Steinberg'},
+  32:{result:'GO',pc:3,batter:'Miles Beck'},
+  40:{result:'BB',pc:5,batter:'Ezra Kalman'}
+};
+
+async function run(){
+  const btn=document.getElementById('run-btn');
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  btn.disabled=true;status.textContent='Reading games/e2…';status.className='';out.innerHTML='';
+  try{
+    const snap=await db.collection('games').doc('e2').get();
+    if(!snap.exists)throw new Error('games/e2 does not exist');
+    const data=snap.data();
+    const g=data.gdata||{};
+    let html='';
+    // Top-line summary
+    html+='<h2>Game header</h2>';
+    html+='<div class="summary-grid">';
+    html+='<div class="summary-box"><h3>Teams + score</h3>';
+    html+='<div class="row"><span>ht (home)</span><span>'+g.ht+'</span></div>';
+    html+='<div class="row"><span>at (away)</span><span>'+g.at+'</span></div>';
+    html+='<div class="row"><span>hs</span><span>'+g.hs+'</span></div>';
+    html+='<div class="row"><span>as</span><span>'+g.as+'</span></div>';
+    html+='</div>';
+    html+='<div class="summary-box"><h3>Roster placement</h3>';
+    const ourPlayers=['Barron Ma','Zev Savett','Evan Hoffman','Luke Davidson','Conley Livingston','Jack Van Dyke','Andrew Kiczek','Teddy Isaacs','Ryker Chen','Luke Buzzard'];
+    const ourInHp=(g.hp||[]).filter(p=>ourPlayers.includes(p.name)||p.name==='Evan Hoffman').length;
+    const ourInAp=(g.ap||[]).filter(p=>ourPlayers.includes(p.name)||p.name==='Evan Hoffman').length;
+    const ourInHlu=(g.hlu||[]).filter(p=>ourPlayers.includes(p.name)).length;
+    const ourInAlu=(g.alu||[]).filter(p=>ourPlayers.includes(p.name)).length;
+    html+='<div class="row"><span>our pitchers in hp[]</span><span>'+ourInHp+'</span></div>';
+    html+='<div class="row"><span>our pitchers in ap[]</span><span>'+ourInAp+'</span></div>';
+    html+='<div class="row"><span>our hitters in hlu[]</span><span>'+ourInHlu+'</span></div>';
+    html+='<div class="row"><span>our hitters in alu[]</span><span>'+ourInAlu+'</span></div>';
+    html+='</div>';
+    html+='<div class="summary-box"><h3>Pitcher PT (where our pitchers are)</h3>';
+    const allPitchers=(g.hp||[]).concat(g.ap||[]);
+    Object.keys(LEAGUE_PT).forEach(name=>{
+      const p=allPitchers.find(x=>x.name===name);
+      const exp=LEAGUE_PT[name];
+      const actual=p?p.total:null;
+      const match=actual===exp;
+      html+='<div class="row"><span>'+name+'</span><span class="'+(match?'ok':'bad')+'">'+(actual==null?'(missing)':actual)+' / '+exp+'</span></div>';
+    });
+    html+='</div>';
+    html+='</div>';
+    // Overrides check
+    html+='<h2>Override targets (what you flagged for review)</h2>';
+    html+='<table><thead><tr><th>AB#</th><th>Batter</th><th>Expected</th><th>Actual</th><th>Match?</th></tr></thead><tbody>';
+    Object.keys(EXPECTED).forEach(num=>{
+      const exp=EXPECTED[num];
+      const ab=(g.abs||[]).find(a=>a.num===parseInt(num));
+      if(!ab){
+        html+='<tr><td>'+num+'</td><td>'+exp.batter+'</td><td>'+JSON.stringify(exp)+'</td><td class="bad">NOT FOUND</td><td class="bad">✗</td></tr>';
+        return;
+      }
+      const actualParts=['res='+ab.result,'pc='+ab.pc];
+      const expParts=['res='+exp.result,'pc='+exp.pc];
+      if(exp.rbi!=null){actualParts.push('rbi='+(ab.rbi||0));expParts.push('rbi='+exp.rbi);}
+      const actual=actualParts.join(' ');
+      const expected=expParts.join(' ');
+      let match=ab.result===exp.result && ab.pc===exp.pc;
+      if(exp.rbi!=null) match=match&&(ab.rbi||0)===exp.rbi;
+      html+='<tr><td>'+num+'</td><td>'+ab.batter+'</td><td>'+expected+'</td><td>'+actual+'</td><td class="'+(match?'ok':'bad')+'">'+(match?'✓':'✗')+'</td></tr>';
+    });
+    html+='</tbody></table>';
+    // Full AB log
+    html+='<h2>All 50 ABs (current state)</h2>';
+    html+='<table><thead><tr><th>#</th><th>Inn</th><th>Half</th><th>bi</th><th>Batter</th><th>Result</th><th>pc</th><th>Pitches</th><th>RBI</th><th>Not</th></tr></thead><tbody>';
+    (g.abs||[]).forEach(ab=>{
+      const rowCls=ab.half==='top'?'inn-top':'inn-bot';
+      html+='<tr class="'+rowCls+'"><td>'+ab.num+'</td><td>'+ab.inn+'</td><td>'+ab.half+'</td><td>'+ab.bi+'</td><td>'+ab.batter+'</td><td>'+ab.result+'</td><td class="num">'+ab.pc+'</td><td>['+(ab.pitches||[]).join(',')+']</td><td class="num">'+(ab.rbi||0)+'</td><td>'+(ab.not||'')+'</td></tr>';
+    });
+    html+='</tbody></table>';
+    // CS / Steals
+    html+='<h2>Caught stealing</h2><table><thead><tr><th>#</th><th>Inn</th><th>bi</th><th>team</th><th>from→to</th></tr></thead><tbody>';
+    (g.css||[]).forEach((c,i)=>{
+      html+='<tr><td>CS'+(i+1)+'</td><td>'+(c.inn||'?')+'</td><td>'+(c.bi==null?'?':c.bi)+'</td><td>'+(c.team||'?')+'</td><td>'+(c.from||'?')+'→'+(c.to||'?')+'</td></tr>';
+    });
+    if(!(g.css||[]).length)html+='<tr><td colspan="5">(none)</td></tr>';
+    html+='</tbody></table>';
+    html+='<h2>Steals</h2><table><thead><tr><th>#</th><th>Inn</th><th>bi</th><th>team</th><th>from→to</th></tr></thead><tbody>';
+    (g.steals||[]).forEach((s,i)=>{
+      html+='<tr><td>S'+(i+1)+'</td><td>'+(s.inn||'?')+'</td><td>'+(s.bi==null?'?':s.bi)+'</td><td>'+(s.team||'?')+'</td><td>'+(s.from||'?')+'→'+(s.to||'?')+'</td></tr>';
+    });
+    if(!(g.steals||[]).length)html+='<tr><td colspan="5">(none)</td></tr>';
+    html+='</tbody></table>';
+    // Fix metadata
+    if(data.fixNote){
+      html+='<h2>Last fix applied</h2><div style="font-size:11px;color:#c8a96e;">'+escapeHtml(data.fixNote)+' (at '+(data.fixedAt||'?')+')</div>';
+    }
+    out.innerHTML=html;
+    status.textContent='✓ Loaded. Scroll through the AB list to compare to your handwritten card.';
+    status.className='';
+  }catch(e){
+    status.className='';
+    out.innerHTML='<div style="color:#e04535;">Error: '+e.message+(e.stack?'<br><pre>'+e.stack+'</pre>':'')+'</div>';
+  }
+  btn.disabled=false;
+}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
