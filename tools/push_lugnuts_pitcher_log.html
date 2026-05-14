@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Push Lugnuts pitcher log → Firestore</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:780px;margin:auto;}
+h1{color:#c8a96e;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;}
+td.num{text-align:right;}
+button{background:#c8a96e;color:#000;border:none;padding:10px 18px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:13px;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warn{background:rgba(200,169,110,.20);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Push Lugnuts pitcher log → Firestore</h1>
+
+<div class="note">
+This pushes the 3 logged Lugnuts games (Apr 12, Apr 30, May 9) — 11 outings total — to <code>appdata/oppPitcherLog</code>.<br>
+De-dupes by (pitcher, date): re-running this is safe. Existing data for other teams is untouched.
+</div>
+
+<h3>Outings to push</h3>
+<table>
+<thead><tr><th>Date</th><th>Opp</th><th>Pitcher</th><th class="num">PT</th></tr></thead>
+<tbody>
+<tr><td>2026-04-12</td><td>vs Cannonballers (L 0-10)</td><td>Leo Kesselman</td><td class="num">44</td></tr>
+<tr><td>2026-04-12</td><td>"</td><td>Brian Ferreira</td><td class="num">28</td></tr>
+<tr><td>2026-04-12</td><td>"</td><td>Austin Schroeder</td><td class="num">6</td></tr>
+<tr><td>2026-04-12</td><td>"</td><td>Peter Christopher</td><td class="num">22</td></tr>
+<tr><td>2026-04-30</td><td>vs Hot Rods (L 3-7)</td><td>Leo Kesselman</td><td class="num">22</td></tr>
+<tr><td>2026-04-30</td><td>"</td><td>Brian Ferreira</td><td class="num">30</td></tr>
+<tr><td>2026-04-30</td><td>"</td><td>William Gardner</td><td class="num">12</td></tr>
+<tr><td>2026-04-30</td><td>"</td><td>Peter Christopher</td><td class="num">49</td></tr>
+<tr><td>2026-05-09</td><td>vs Mud Hens (W 11-0)</td><td>Leo Kesselman</td><td class="num">40</td></tr>
+<tr><td>2026-05-09</td><td>"</td><td>Brian Ferreira</td><td class="num">35</td></tr>
+<tr><td>2026-05-09</td><td>"</td><td>William Gardner</td><td class="num">37</td></tr>
+</tbody>
+</table>
+
+<button id="push-btn" onclick="doPush()">Push 11 outings → Firestore</button>
+<div id="status"></div>
+
+<!-- Firebase SDK (must match production project — same config as push_league_pool.html) -->
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const TEAM = 'Lugnuts';
+const OUTINGS = [
+  // Apr 12 vs Cannonballers (L 0-10)
+  {date:'2026-04-12', name:'Leo Kesselman',     pitches:44, ip:0},
+  {date:'2026-04-12', name:'Brian Ferreira',    pitches:28, ip:0},
+  {date:'2026-04-12', name:'Austin Schroeder',  pitches:6,  ip:0},
+  {date:'2026-04-12', name:'Peter Christopher', pitches:22, ip:0},
+  // Apr 30 vs Hot Rods (L 3-7)
+  {date:'2026-04-30', name:'Leo Kesselman',     pitches:22, ip:0},
+  {date:'2026-04-30', name:'Brian Ferreira',    pitches:30, ip:0},
+  {date:'2026-04-30', name:'William Gardner',   pitches:12, ip:0},
+  {date:'2026-04-30', name:'Peter Christopher', pitches:49, ip:0},
+  // May 9 vs Mud Hens (W 11-0)
+  {date:'2026-05-09', name:'Leo Kesselman',     pitches:40, ip:0},
+  {date:'2026-05-09', name:'Brian Ferreira',    pitches:35, ip:0},
+  {date:'2026-05-09', name:'William Gardner',   pitches:37, ip:0},
+];
+
+async function doPush(){
+  const btn=document.getElementById('push-btn');
+  const status=document.getElementById('status');
+  status.className='';status.textContent='';btn.disabled=true;
+  try{
+    if(!confirm('Push '+OUTINGS.length+' outings for '+TEAM+'? Other teams\' data is untouched. De-dupes by (pitcher, date).')){
+      btn.disabled=false;return;
+    }
+    status.className='warn';status.textContent='Reading current oppPitcherLog…';
+    const snap=await db.collection('appdata').doc('oppPitcherLog').get();
+    const data=snap.exists?(snap.data()||{}):{};
+    const teams=data.teams||{};
+    const t=teams[TEAM]||{pitchers:{}};
+    if(!t.pitchers)t.pitchers={};
+    let added=0,replaced=0;
+    OUTINGS.forEach(function(o){
+      const p=t.pitchers[o.name]||{outings:[],jersey:''};
+      const before=(p.outings||[]).length;
+      // dedupe: drop any existing outing for the same date, then push new one
+      p.outings=(p.outings||[]).filter(function(x){return x.date!==o.date;});
+      const after=p.outings.length;
+      if(after<before)replaced++;
+      else added++;
+      p.outings.push({date:o.date,pitches:o.pitches,ip:o.ip});
+      p.outings.sort(function(a,b){return a.date.localeCompare(b.date);});
+      t.pitchers[o.name]=p;
+    });
+    t.updated=new Date().toISOString();
+    teams[TEAM]=t;
+    status.textContent='Writing oppPitcherLog…';
+    await db.collection('appdata').doc('oppPitcherLog').set({
+      teams:teams,
+      updated:new Date()
+    },{merge:false});
+    // Read-back verify
+    const verify=await db.collection('appdata').doc('oppPitcherLog').get();
+    const vt=verify.data().teams[TEAM];
+    const vp=vt?vt.pitchers:{};
+    const totalOutings=Object.values(vp).reduce(function(s,p){return s+((p.outings||[]).length);},0);
+    status.className='ok';
+    status.innerHTML='✓ Pushed '+added+' new + '+replaced+' replaced outings for '+TEAM+'.<br>'
+      +'Total on file for '+TEAM+': '+totalOutings+' outings across '+Object.keys(vp).length+' pitchers.<br>'
+      +'Reload the scorecard app to see them.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
