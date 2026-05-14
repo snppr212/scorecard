@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Push all pending → Firestore</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:880px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:20px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;font-family:monospace;}
+th,td{padding:4px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+.us{background:rgba(200,169,110,.14);color:#c8a96e;font-weight:bold;}
+button{background:#c8a96e;color:#000;border:none;padding:14px 28px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:15px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:12px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warn{background:rgba(200,169,110,.20);color:#c8a96e;}
+.summary{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.chip{background:rgba(255,255,255,.06);padding:6px 12px;border-radius:4px;font-size:12px;}
+.chip strong{color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Push all pending data → Firestore</h1>
+
+<div class="note">
+One click pushes every piece of data shared this session that isn't yet live:<br>
+&nbsp;&nbsp;1. League standings (May 14 — 12 teams) — overwrites <code>appdata/leagueStandings</code><br>
+&nbsp;&nbsp;2. Opp pitcher logs (4 teams, 21 outings across 6 games) — merges into <code>appdata/oppPitcherLog</code><br>
+Idempotent: re-running is safe (pitcher logs de-dupe by team+pitcher+date; standings overwrite cleanly).
+</div>
+
+<div class="summary">
+<div class="chip"><strong>1</strong> standings doc</div>
+<div class="chip"><strong>4</strong> opp teams</div>
+<div class="chip"><strong>21</strong> pitcher outings</div>
+<div class="chip"><strong>6</strong> games</div>
+</div>
+
+<button id="push-btn" onclick="doPush()">Push everything now</button>
+<div id="status"></div>
+
+<h2>Standings (May 14 LMLL AA)</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Team</th><th class="num">G</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">F</th><th class="num">A</th><th class="num">Pct</th><th class="num">SD</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>Cannonballers</td><td class="num">8</td><td class="num">6</td><td class="num">1</td><td class="num">1</td><td class="num">56</td><td class="num">35</td><td class="num">.813</td><td class="num">+21</td></tr>
+<tr><td class="num">2</td><td>Thunder</td><td class="num">9</td><td class="num">7</td><td class="num">2</td><td class="num">0</td><td class="num">92</td><td class="num">52</td><td class="num">.778</td><td class="num">+40</td></tr>
+<tr><td class="num">3</td><td>Hurricanes</td><td class="num">6</td><td class="num">4</td><td class="num">1</td><td class="num">1</td><td class="num">50</td><td class="num">32</td><td class="num">.750</td><td class="num">+18</td></tr>
+<tr><td class="num">4</td><td>Hot Rods</td><td class="num">8</td><td class="num">6</td><td class="num">2</td><td class="num">0</td><td class="num">65</td><td class="num">32</td><td class="num">.750</td><td class="num">+33</td></tr>
+<tr><td class="num">5</td><td>Devil Rays</td><td class="num">8</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">55</td><td class="num">65</td><td class="num">.500</td><td class="num">-10</td></tr>
+<tr><td class="num">6</td><td>Iron Pigs</td><td class="num">9</td><td class="num">3</td><td class="num">4</td><td class="num">2</td><td class="num">54</td><td class="num">54</td><td class="num">.444</td><td class="num">0</td></tr>
+<tr class="us"><td class="num">7</td><td>Mighty Mussels</td><td class="num">7</td><td class="num">3</td><td class="num">4</td><td class="num">0</td><td class="num">24</td><td class="num">43</td><td class="num">.429</td><td class="num">-19</td></tr>
+<tr><td class="num">8</td><td>Bulls</td><td class="num">8</td><td class="num">3</td><td class="num">5</td><td class="num">0</td><td class="num">47</td><td class="num">61</td><td class="num">.375</td><td class="num">-14</td></tr>
+<tr><td class="num">9</td><td>Tin Caps - sho</td><td class="num">8</td><td class="num">3</td><td class="num">5</td><td class="num">0</td><td class="num">39</td><td class="num">44</td><td class="num">.375</td><td class="num">-5</td></tr>
+<tr><td class="num">10</td><td>Grasshoppers</td><td class="num">6</td><td class="num">2</td><td class="num">4</td><td class="num">0</td><td class="num">36</td><td class="num">45</td><td class="num">.333</td><td class="num">-9</td></tr>
+<tr><td class="num">11</td><td>Lugnuts</td><td class="num">6</td><td class="num">2</td><td class="num">4</td><td class="num">0</td><td class="num">36</td><td class="num">49</td><td class="num">.333</td><td class="num">-13</td></tr>
+<tr><td class="num">12</td><td>Mud Hens</td><td class="num">9</td><td class="num">1</td><td class="num">8</td><td class="num">0</td><td class="num">31</td><td class="num">73</td><td class="num">.111</td><td class="num">-42</td></tr>
+</tbody>
+</table>
+
+<h2>Opp pitcher outings</h2>
+<table>
+<thead><tr><th>Date</th><th>Team</th><th>Pitcher</th><th class="num">PT</th><th class="num">IP</th></tr></thead>
+<tbody>
+<tr><td>2026-04-12</td><td>Lugnuts</td><td>Leo Kesselman</td><td class="num">44</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-12</td><td>Lugnuts</td><td>Brian Ferreira</td><td class="num">28</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-12</td><td>Lugnuts</td><td>Austin Schroeder</td><td class="num">6</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-12</td><td>Lugnuts</td><td>Peter Christopher</td><td class="num">22</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-23</td><td>Iron Pigs</td><td>Gavin Amoroso</td><td class="num">21</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-23</td><td>Iron Pigs</td><td>Race Mandel</td><td class="num">25</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-23</td><td>Iron Pigs</td><td>Asi Frechette</td><td class="num">35</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-23</td><td>Iron Pigs</td><td>Zachary Moyer</td><td class="num">37</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-30</td><td>Lugnuts</td><td>Leo Kesselman</td><td class="num">22</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-30</td><td>Lugnuts</td><td>Brian Ferreira</td><td class="num">30</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-30</td><td>Lugnuts</td><td>William Gardner</td><td class="num">12</td><td class="num">0.0</td></tr>
+<tr><td>2026-04-30</td><td>Lugnuts</td><td>Peter Christopher</td><td class="num">49</td><td class="num">0.0</td></tr>
+<tr><td>2026-05-06</td><td>Bulls</td><td>Theo Reznik-Slater</td><td class="num">37</td><td class="num">0.0</td></tr>
+<tr><td>2026-05-06</td><td>Bulls</td><td>William Burke</td><td class="num">37</td><td class="num">0.0</td></tr>
+<tr><td>2026-05-06</td><td>Bulls</td><td>William Agnew</td><td class="num">35</td><td class="num">0.0</td></tr>
+<tr><td>2026-05-09</td><td>Lugnuts</td><td>Leo Kesselman</td><td class="num">40</td><td class="num">0.0</td></tr>
+<tr><td>2026-05-09</td><td>Lugnuts</td><td>Brian Ferreira</td><td class="num">35</td><td class="num">0.0</td></tr>
+<tr><td>2026-05-09</td><td>Lugnuts</td><td>William Gardner</td><td class="num">37</td><td class="num">0.0</td></tr>
+<tr><td>2026-05-09</td><td>Grasshoppers</td><td>Christopher Rieman</td><td class="num">37</td><td class="num">2.0</td></tr>
+<tr><td>2026-05-09</td><td>Grasshoppers</td><td>Jack Alwine</td><td class="num">25</td><td class="num">1.0</td></tr>
+<tr><td>2026-05-09</td><td>Grasshoppers</td><td>Franklin Bee</td><td class="num">39</td><td class="num">1.0</td></tr>
+</tbody>
+</table>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const STANDINGS = [
+  {team:'Cannonballers',  g:8, w:6, l:1, t:1, rf:56, ra:35, pct:0.813, sd:21},
+  {team:'Thunder',        g:9, w:7, l:2, t:0, rf:92, ra:52, pct:0.778, sd:40},
+  {team:'Hurricanes',     g:6, w:4, l:1, t:1, rf:50, ra:32, pct:0.750, sd:18},
+  {team:'Hot Rods',       g:8, w:6, l:2, t:0, rf:65, ra:32, pct:0.750, sd:33},
+  {team:'Devil Rays',     g:8, w:4, l:4, t:0, rf:55, ra:65, pct:0.500, sd:-10},
+  {team:'Iron Pigs',      g:9, w:3, l:4, t:2, rf:54, ra:54, pct:0.444, sd:0},
+  {team:'Mighty Mussels', g:7, w:3, l:4, t:0, rf:24, ra:43, pct:0.429, sd:-19},
+  {team:'Bulls',          g:8, w:3, l:5, t:0, rf:47, ra:61, pct:0.375, sd:-14},
+  {team:'Tin Caps - sho', g:8, w:3, l:5, t:0, rf:39, ra:44, pct:0.375, sd:-5},
+  {team:'Grasshoppers',   g:6, w:2, l:4, t:0, rf:36, ra:45, pct:0.333, sd:-9},
+  {team:'Lugnuts',        g:6, w:2, l:4, t:0, rf:36, ra:49, pct:0.333, sd:-13},
+  {team:'Mud Hens',       g:9, w:1, l:8, t:0, rf:31, ra:73, pct:0.111, sd:-42}
+];
+
+const OPP_OUTINGS = {
+  'Lugnuts': [
+    {date:'2026-04-12', name:'Leo Kesselman',     pitches:44, ip:0},
+    {date:'2026-04-12', name:'Brian Ferreira',    pitches:28, ip:0},
+    {date:'2026-04-12', name:'Austin Schroeder',  pitches:6,  ip:0},
+    {date:'2026-04-12', name:'Peter Christopher', pitches:22, ip:0},
+    {date:'2026-04-30', name:'Leo Kesselman',     pitches:22, ip:0},
+    {date:'2026-04-30', name:'Brian Ferreira',    pitches:30, ip:0},
+    {date:'2026-04-30', name:'William Gardner',   pitches:12, ip:0},
+    {date:'2026-04-30', name:'Peter Christopher', pitches:49, ip:0},
+    {date:'2026-05-09', name:'Leo Kesselman',     pitches:40, ip:0},
+    {date:'2026-05-09', name:'Brian Ferreira',    pitches:35, ip:0},
+    {date:'2026-05-09', name:'William Gardner',   pitches:37, ip:0}
+  ],
+  'Iron Pigs': [
+    {date:'2026-04-23', name:'Gavin Amoroso',  pitches:21, ip:0},
+    {date:'2026-04-23', name:'Race Mandel',    pitches:25, ip:0},
+    {date:'2026-04-23', name:'Asi Frechette',  pitches:35, ip:0},
+    {date:'2026-04-23', name:'Zachary Moyer',  pitches:37, ip:0}
+  ],
+  'Bulls': [
+    {date:'2026-05-06', name:'Theo Reznik-Slater', pitches:37, ip:0},
+    {date:'2026-05-06', name:'William Burke',      pitches:37, ip:0},
+    {date:'2026-05-06', name:'William Agnew',      pitches:35, ip:0}
+  ],
+  'Grasshoppers': [
+    {date:'2026-05-09', name:'Christopher Rieman', pitches:37, ip:2.0},
+    {date:'2026-05-09', name:'Jack Alwine',        pitches:25, ip:1.0},
+    {date:'2026-05-09', name:'Franklin Bee',       pitches:39, ip:1.0}
+  ]
+};
+
+async function doPush(){
+  const btn=document.getElementById('push-btn');
+  const status=document.getElementById('status');
+  status.className='';status.textContent='';btn.disabled=true;
+  try{
+    if(!confirm('Push everything? Standings will OVERWRITE; pitcher logs will MERGE (dedupe by pitcher+date).')){
+      btn.disabled=false;return;
+    }
+    const log=[];
+    // 1) Standings
+    status.className='warn';status.textContent='Writing leagueStandings…';
+    const sortedStandings=STANDINGS.slice().sort(function(a,b){return b.pct-a.pct||b.sd-a.sd;});
+    await db.collection('appdata').doc('leagueStandings').set({teams:sortedStandings,updated:new Date()},{merge:false});
+    log.push('✓ leagueStandings: '+sortedStandings.length+' teams');
+    // 2) Opp pitcher logs (merge)
+    status.textContent='Reading oppPitcherLog…';
+    const snap=await db.collection('appdata').doc('oppPitcherLog').get();
+    const docData=snap.exists?(snap.data()||{}):{};
+    const teams=docData.teams||{};
+    let totalAdded=0,totalReplaced=0;
+    Object.keys(OPP_OUTINGS).forEach(function(teamName){
+      const outings=OPP_OUTINGS[teamName];
+      const t=teams[teamName]||{pitchers:{}};
+      if(!t.pitchers)t.pitchers={};
+      let added=0,replaced=0;
+      outings.forEach(function(o){
+        const p=t.pitchers[o.name]||{outings:[],jersey:''};
+        const before=(p.outings||[]).length;
+        p.outings=(p.outings||[]).filter(function(x){return x.date!==o.date;});
+        if(p.outings.length<before)replaced++;else added++;
+        p.outings.push({date:o.date,pitches:o.pitches,ip:o.ip||0});
+        p.outings.sort(function(a,b){return a.date.localeCompare(b.date);});
+        t.pitchers[o.name]=p;
+      });
+      t.updated=new Date().toISOString();
+      teams[teamName]=t;
+      log.push('✓ '+teamName+': '+added+' new, '+replaced+' replaced');
+      totalAdded+=added;totalReplaced+=replaced;
+    });
+    status.textContent='Writing oppPitcherLog…\n'+log.join('\n');
+    await db.collection('appdata').doc('oppPitcherLog').set({teams:teams,updated:new Date()},{merge:false});
+    log.push('');
+    log.push('TOTAL: '+totalAdded+' new outings + '+totalReplaced+' replaced');
+    // Verify
+    const verify=await db.collection('appdata').doc('oppPitcherLog').get();
+    const vTeams=verify.data().teams||{};
+    log.push('');
+    log.push('Read-back per team:');
+    Object.keys(OPP_OUTINGS).forEach(function(teamName){
+      const vp=(vTeams[teamName]||{}).pitchers||{};
+      const totalOutings=Object.values(vp).reduce(function(s,p){return s+((p.outings||[]).length);},0);
+      log.push('  '+teamName+' → '+totalOutings+' outings · '+Object.keys(vp).length+' pitchers');
+    });
+    status.className='ok';
+    status.textContent='✓ All pushed.\n\n'+log.join('\n')+'\n\nReload the scorecard app to see updated data.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
