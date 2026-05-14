@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Push league standings → Firestore</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:820px;margin:auto;}
+h1{color:#c8a96e;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;}
+td.num{text-align:right;}
+.us{background:rgba(200,169,110,.14);color:#c8a96e;font-weight:bold;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:13px;white-space:pre-wrap;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warn{background:rgba(200,169,110,.20);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Push league standings → Firestore</h1>
+
+<div class="note">
+Overwrites <code>appdata/leagueStandings</code> with the latest LMLL AA standings. Standings are cumulative
+(not a merge), so this fully replaces what's there. Source: league site as of May 14, 2026.
+</div>
+
+<table>
+<thead><tr><th class="num">#</th><th>Team</th><th class="num">G</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">F</th><th class="num">A</th><th class="num">Pct</th><th class="num">SD</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>Cannonballers</td><td class="num">8</td><td class="num">6</td><td class="num">1</td><td class="num">1</td><td class="num">56</td><td class="num">35</td><td class="num">.813</td><td class="num">+21</td></tr>
+<tr><td class="num">2</td><td>Thunder</td><td class="num">9</td><td class="num">7</td><td class="num">2</td><td class="num">0</td><td class="num">92</td><td class="num">52</td><td class="num">.778</td><td class="num">+40</td></tr>
+<tr><td class="num">3</td><td>Hurricanes</td><td class="num">6</td><td class="num">4</td><td class="num">1</td><td class="num">1</td><td class="num">50</td><td class="num">32</td><td class="num">.750</td><td class="num">+18</td></tr>
+<tr><td class="num">4</td><td>Hot Rods</td><td class="num">8</td><td class="num">6</td><td class="num">2</td><td class="num">0</td><td class="num">65</td><td class="num">32</td><td class="num">.750</td><td class="num">+33</td></tr>
+<tr><td class="num">5</td><td>Devil Rays</td><td class="num">8</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">55</td><td class="num">65</td><td class="num">.500</td><td class="num">-10</td></tr>
+<tr><td class="num">6</td><td>Iron Pigs</td><td class="num">9</td><td class="num">3</td><td class="num">4</td><td class="num">2</td><td class="num">54</td><td class="num">54</td><td class="num">.444</td><td class="num">0</td></tr>
+<tr class="us"><td class="num">7</td><td>Mighty Mussels</td><td class="num">7</td><td class="num">3</td><td class="num">4</td><td class="num">0</td><td class="num">24</td><td class="num">43</td><td class="num">.429</td><td class="num">-19</td></tr>
+<tr><td class="num">8</td><td>Bulls</td><td class="num">8</td><td class="num">3</td><td class="num">5</td><td class="num">0</td><td class="num">47</td><td class="num">61</td><td class="num">.375</td><td class="num">-14</td></tr>
+<tr><td class="num">9</td><td>Tin Caps - sho</td><td class="num">8</td><td class="num">3</td><td class="num">5</td><td class="num">0</td><td class="num">39</td><td class="num">44</td><td class="num">.375</td><td class="num">-5</td></tr>
+<tr><td class="num">10</td><td>Grasshoppers</td><td class="num">6</td><td class="num">2</td><td class="num">4</td><td class="num">0</td><td class="num">36</td><td class="num">45</td><td class="num">.333</td><td class="num">-9</td></tr>
+<tr><td class="num">11</td><td>Lugnuts</td><td class="num">6</td><td class="num">2</td><td class="num">4</td><td class="num">0</td><td class="num">36</td><td class="num">49</td><td class="num">.333</td><td class="num">-13</td></tr>
+<tr><td class="num">12</td><td>Mud Hens</td><td class="num">9</td><td class="num">1</td><td class="num">8</td><td class="num">0</td><td class="num">31</td><td class="num">73</td><td class="num">.111</td><td class="num">-42</td></tr>
+</tbody>
+</table>
+
+<button id="push-btn" onclick="doPush()">Push 12 teams → Firestore</button>
+<div id="status"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Standings row shape matches what _saveLeagueStandings expects:
+// {team, g, w, l, t, rf, ra, pct, sd}
+const TEAMS = [
+  {team:'Cannonballers',  g:8, w:6, l:1, t:1, rf:56, ra:35, pct:0.813, sd:21},
+  {team:'Thunder',        g:9, w:7, l:2, t:0, rf:92, ra:52, pct:0.778, sd:40},
+  {team:'Hurricanes',     g:6, w:4, l:1, t:1, rf:50, ra:32, pct:0.750, sd:18},
+  {team:'Hot Rods',       g:8, w:6, l:2, t:0, rf:65, ra:32, pct:0.750, sd:33},
+  {team:'Devil Rays',     g:8, w:4, l:4, t:0, rf:55, ra:65, pct:0.500, sd:-10},
+  {team:'Iron Pigs',      g:9, w:3, l:4, t:2, rf:54, ra:54, pct:0.444, sd:0},
+  {team:'Mighty Mussels', g:7, w:3, l:4, t:0, rf:24, ra:43, pct:0.429, sd:-19},
+  {team:'Bulls',          g:8, w:3, l:5, t:0, rf:47, ra:61, pct:0.375, sd:-14},
+  {team:'Tin Caps - sho', g:8, w:3, l:5, t:0, rf:39, ra:44, pct:0.375, sd:-5},
+  {team:'Grasshoppers',   g:6, w:2, l:4, t:0, rf:36, ra:45, pct:0.333, sd:-9},
+  {team:'Lugnuts',        g:6, w:2, l:4, t:0, rf:36, ra:49, pct:0.333, sd:-13},
+  {team:'Mud Hens',       g:9, w:1, l:8, t:0, rf:31, ra:73, pct:0.111, sd:-42}
+];
+
+async function doPush(){
+  const btn=document.getElementById('push-btn');
+  const status=document.getElementById('status');
+  status.className='';status.textContent='';btn.disabled=true;
+  try{
+    if(!confirm('Overwrite appdata/leagueStandings with '+TEAMS.length+' teams? This replaces the existing standings doc (standings are cumulative, not merged).')){
+      btn.disabled=false;return;
+    }
+    status.className='warn';status.textContent='Writing leagueStandings…';
+    // Sort by pct desc, then sd desc — matches _saveLeagueStandings
+    const rows=TEAMS.slice().sort(function(a,b){return b.pct-a.pct||b.sd-a.sd;});
+    await db.collection('appdata').doc('leagueStandings').set({
+      teams:rows,
+      updated:new Date()
+    },{merge:false});
+    // Read-back verify
+    const snap=await db.collection('appdata').doc('leagueStandings').get();
+    const got=snap.data();
+    const gotTeams=got.teams||[];
+    const us=gotTeams.find(function(r){return r.team==='Mighty Mussels';});
+    status.className='ok';
+    status.innerHTML='✓ Pushed '+gotTeams.length+' teams.\n\n'
+      +'Our standing: '+(us?(us.w+'-'+us.l+(us.t?'-'+us.t:'')+', '+us.sd+' SD'):'(not found?!)')+'\n'
+      +'Updated timestamp: '+got.updated.toDate().toLocaleString()+'\n\n'
+      +'Reload the scorecard to see the updated standings + run-diff badges.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
