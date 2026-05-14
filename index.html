@@ -4833,27 +4833,50 @@ function openStandings(){
   $('standings-meta').innerHTML=meta;
   // Build table — tightened for narrow mobile screens. Team col is flex with
   // nowrap so longer names don't break the row layout.
-  var gridCols='18px 1fr 42px 32px 40px 28px';
+  // v186: added a compact pitch-log coverage column (24px) showing ✓/◐/○/—
+  // so you can spot at a glance which opp teams have logged pitcher data.
+  var gridCols='18px 1fr 42px 32px 40px 28px 24px';
+  var covTotals={full:0,games:0,season:0,none:0};
   var rows=teams.map(function(r,i){
     var us=_normalizeStandingsTeam(r.team).toLowerCase()==='mighty mussels';
     var bg=us?'background:rgba(200,169,110,.14);':'';
     var sdStr=(r.sd>0?'+':'')+r.sd;
     var sdCol=r.sd>0?'var(--green2)':r.sd<0?'var(--red2)':'var(--text3)';
     var rec=r.w+'-'+r.l+(r.t?'-'+r.t:'');
-    return '<div style="padding:7px 6px;border-bottom:1px solid var(--border);'+bg+'display:grid;grid-template-columns:'+gridCols+';gap:4px;align-items:center;font-size:12px;font-family:sans-serif;cursor:pointer;" onclick="cm(\'m-standings\');openScoutCard(\''+esc(_normalizeStandingsTeam(r.team)).replace(/\\/g,'\\\\').replace(/\'/g,'\\\'')+'\')">'
+    // v186: pitch-log coverage indicator (skip for us — we don't track ourselves here)
+    var cov=us?null:_oppPitchCoverage(r.team);
+    if(cov)covTotals[cov.status]=(covTotals[cov.status]||0)+1;
+    var covIcon='',covTitle='';
+    if(us){covIcon='<span style="color:var(--text3);">—</span>';covTitle='(us)';}
+    else if(cov.status==='full'){covIcon='<span style="color:var(--green2);">✓</span>';covTitle=cov.gamesCovered+' games · '+cov.outings+' outings · season totals ✓';}
+    else if(cov.status==='games'){covIcon='<span style="color:var(--gold);">◐</span>';covTitle=cov.gamesCovered+' games · '+cov.outings+' outings · no season totals yet';}
+    else if(cov.status==='season'){covIcon='<span style="color:var(--gold);">◑</span>';covTitle='season totals only — no per-game outings';}
+    else{covIcon='<span style="color:var(--red2);">○</span>';covTitle='no pitch-log data yet';}
+    return '<div title="'+esc(covTitle)+'" style="padding:7px 6px;border-bottom:1px solid var(--border);'+bg+'display:grid;grid-template-columns:'+gridCols+';gap:4px;align-items:center;font-size:12px;font-family:sans-serif;cursor:pointer;" onclick="cm(\'m-standings\');openScoutCard(\''+esc(_normalizeStandingsTeam(r.team)).replace(/\\/g,'\\\\').replace(/\'/g,'\\\'')+'\')">'
       +'<span style="color:var(--text3);">'+(i+1)+'</span>'
       +'<span style="'+(us?'color:var(--gold);font-weight:bold;':'color:var(--text);')+'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(r.team)+'</span>'
       +'<span style="text-align:right;font-size:11px;">'+rec+'</span>'
       +'<span style="text-align:right;color:var(--text2);font-size:11px;">'+r.pct.toFixed(3).replace(/^0/,'')+'</span>'
       +'<span style="text-align:right;color:var(--text2);font-size:10px;white-space:nowrap;">'+r.rf+'/'+r.ra+'</span>'
       +'<span style="text-align:right;color:'+sdCol+';font-weight:bold;font-size:11px;">'+sdStr+'</span>'
+      +'<span style="text-align:center;font-size:13px;">'+covIcon+'</span>'
       +'</div>';
   }).join('');
   var header='<div style="padding:5px 6px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:'+gridCols+';gap:4px;font-size:9px;color:var(--text3);font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;">'
-    +'<span>#</span><span>Team</span><span style="text-align:right;">W-L</span><span style="text-align:right;">Pct</span><span style="text-align:right;">RF/RA</span><span style="text-align:right;">SD</span>'
+    +'<span>#</span><span>Team</span><span style="text-align:right;">W-L</span><span style="text-align:right;">Pct</span><span style="text-align:right;">RF/RA</span><span style="text-align:right;">SD</span><span style="text-align:center;" title="Pitch-log coverage">📋</span>'
     +'</div>';
-  $('standings-body').innerHTML=header+rows
-    +'<div style="padding:6px 8px;font-size:9px;color:var(--text3);font-family:sans-serif;">Tap a team to open their scouting card. SD = run differential (RF − RA).</div>';
+  // v186: coverage summary footer
+  var oppTotal=teams.length-(ourStanding?1:0);
+  var covSum='<div style="padding:8px;font-size:11px;color:var(--text2);font-family:sans-serif;background:rgba(0,0,0,.15);border-top:1px solid var(--border);line-height:1.55;">'
+    +'<div style="color:var(--gold);font-weight:bold;font-size:10px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px;">📋 Pitch-log coverage</div>'
+    +'<span style="color:var(--green2);">'+covTotals.full+' full</span> <span style="color:var(--text3);">·</span> '
+    +'<span style="color:var(--gold);">'+covTotals.games+' games-only</span> <span style="color:var(--text3);">·</span> '
+    +'<span style="color:var(--gold);">'+covTotals.season+' season-only</span> <span style="color:var(--text3);">·</span> '
+    +'<span style="color:var(--red2);">'+covTotals.none+' no data</span> '
+    +'<span style="color:var(--text3);">of '+oppTotal+' opp teams</span>'
+    +'</div>';
+  $('standings-body').innerHTML=header+rows+covSum
+    +'<div style="padding:6px 8px;font-size:9px;color:var(--text3);font-family:sans-serif;">Tap a team to open their scouting card. SD = run differential (RF − RA). 📋: ✓ = per-game outings + season totals · ◐ = per-game outings only · ◑ = season totals only · ○ = no data.</div>';
   om('m-standings');
 }
 // v112: from inside the scout card, open the paste modal pre-set to the
@@ -9066,6 +9089,33 @@ async function _saveOppPitcherLog(team,outings){
 function _getOppPitcherLog(team){
   if(!OPP_PITCHER_LOG||!OPP_PITCHER_LOG.teams)return null;
   return OPP_PITCHER_LOG.teams[team]||null;
+}
+// v186: per-team pitch-log coverage summary — answers "which teams do we have
+// data for and which are gaps?" Walks the OPP_PITCHER_LOG and reports outing
+// counts + distinct game-dates + whether season totals are present.
+//   status='full'   — both per-game outings AND season totals
+//   status='games'  — per-game outings only (no season totals paste yet)
+//   status='season' — season totals only (no per-game outings logged)
+//   status='none'   — no data at all
+function _oppPitchCoverage(team){
+  var t=_getOppPitcherLog(_normalizeStandingsTeam(team));
+  if(!t)return {status:'none',outings:0,pitchers:0,gamesCovered:0,hasSeason:false};
+  var pNames=t.pitchers?Object.keys(t.pitchers):[];
+  var outings=0,dates={};
+  pNames.forEach(function(n){
+    var p=t.pitchers[n];
+    if(p&&p.outings){
+      outings+=p.outings.length;
+      p.outings.forEach(function(o){if(o.date)dates[o.date]=1;});
+    }
+  });
+  var gamesCovered=Object.keys(dates).length;
+  var hasSeason=!!(t.seasonTotals&&t.seasonTotals.pitchers&&Object.keys(t.seasonTotals.pitchers).length);
+  var status='none';
+  if(outings>0&&hasSeason)status='full';
+  else if(outings>0)status='games';
+  else if(hasSeason)status='season';
+  return {status:status,outings:outings,pitchers:pNames.length,gamesCovered:gamesCovered,hasSeason:hasSeason};
 }
 // v109: save season totals for a team. Replaces the previous seasonTotals
 // wholesale (since it's cumulative — only the latest paste is correct).
