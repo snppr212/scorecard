@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>UN-swap Apr 11 (e2) — restore correct team slots</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:900px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(184,50,40,.10);color:#e04535;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:11px;}
+.before{color:#e04535;}
+.after{color:#36a066;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+button.danger{background:#e04535;color:#fff;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:12px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+#status.ok{background:rgba(42,125,82,.20);color:#36a066;}
+#status.err{background:rgba(184,50,40,.20);color:#e04535;}
+#status.preview{background:rgba(200,169,110,.10);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>UN-swap Apr 11 vs Hot Rods (e2)</h1>
+
+<div class="note">
+The earlier "team-swap" fix was wrong — it inverted correctly-placed data. This tool restores the original structure:
+<ul style="margin:6px 0 0 18px;padding:0;">
+  <li>Move your pitchers (Brody/Ethan/Ezra) from <code>hp[]</code> back to <code>ap[]</code></li>
+  <li>Move HR's pitchers (Conley/Jack/Barron/Evan Hoffman with corrected PT) from <code>ap[]</code> back to <code>hp[]</code></li>
+  <li>Move your 12 batters from <code>hlu[]</code> back to <code>alu[]</code>; HR's 10 batters from <code>alu[]</code> back to <code>hlu[]</code></li>
+  <li>Flip every AB's <code>team</code> (home↔away) and <code>half</code> (top↔bottom) so batters end up in the right slots</li>
+</ul>
+The PT corrections and AB-level fixes (pitches/RBIs/CS) all stay — they ride with the swap.
+</div>
+
+<button id="preview-btn" onclick="doPreview()">1. Preview changes</button>
+<button id="apply-btn" onclick="doApply()" class="danger" disabled>2. Apply to Firestore</button>
+<div id="status"></div>
+
+<div id="preview-data"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Sanity check names — the user-confirmed lineups:
+const OUR_BATTERS=['Ben','Benjamin','Bodhi','Brody','Ethan','Hunter','Jacob','Julian','Malcolm','Mihir','Miles','Ezra','Cobe'];
+const HR_BATTERS=['Ma','Savett','Hoffman','Davidson','Livingston','Buzzard','Van Dyke','Isaacs','Chen','Kizik','Kiczek'];
+
+function unswap(g){
+  const out=JSON.parse(JSON.stringify(g));
+  // Step 1: swap player arrays
+  [out.hp,out.ap]=[out.ap||[],out.hp||[]];
+  [out.hlu,out.alu]=[out.alu||[],out.hlu||[]];
+  // Step 2: flip team + half on every AB
+  (out.abs||[]).forEach(ab=>{
+    if(ab.team==='home')ab.team='away';
+    else if(ab.team==='away')ab.team='home';
+    if(ab.half==='top')ab.half='bottom';
+    else if(ab.half==='bottom')ab.half='top';
+    if(ab.pitcherTeam==='home')ab.pitcherTeam='away';
+    else if(ab.pitcherTeam==='away')ab.pitcherTeam='home';
+  });
+  return out;
+}
+
+function summarize(g){
+  // Sanity check: do our batters end up in alu, HR's in hlu?
+  function teamGuess(name){
+    if(!name)return '?';
+    const last=name.split(' ').pop();
+    const first=name.split(' ')[0];
+    if(OUR_BATTERS.includes(first)||OUR_BATTERS.includes(last))return 'us';
+    if(HR_BATTERS.includes(first)||HR_BATTERS.includes(last))return 'hr';
+    return '?';
+  }
+  const hlu=(g.hlu||[]).map(p=>p.name);
+  const alu=(g.alu||[]).map(p=>p.name);
+  const hp=(g.hp||[]).map(p=>p.name+' '+(p.total||0)+'p');
+  const ap=(g.ap||[]).map(p=>p.name+' '+(p.total||0)+'p');
+  const hluUs=hlu.filter(n=>teamGuess(n)==='us').length;
+  const hluHr=hlu.filter(n=>teamGuess(n)==='hr').length;
+  const aluUs=alu.filter(n=>teamGuess(n)==='us').length;
+  const aluHr=alu.filter(n=>teamGuess(n)==='hr').length;
+  return {hp:hp,ap:ap,hlu:hlu,alu:alu,hluUs:hluUs,hluHr:hluHr,aluUs:aluUs,aluHr:aluHr};
+}
+
+let preparedGdata=null;
+
+async function doPreview(){
+  const btn=document.getElementById('preview-btn');
+  const applyBtn=document.getElementById('apply-btn');
+  const status=document.getElementById('status');
+  const dataDiv=document.getElementById('preview-data');
+  btn.disabled=true;applyBtn.disabled=true;preparedGdata=null;
+  status.className='preview';status.textContent='Reading games/e2…';dataDiv.innerHTML='';
+  try{
+    const snap=await db.collection('games').doc('e2').get();
+    if(!snap.exists)throw new Error('games/e2 does not exist');
+    const data=snap.data();
+    const g=data.gdata||{};
+    const fixed=unswap(g);
+    preparedGdata=fixed;
+    const before=summarize(g);
+    const after=summarize(fixed);
+    let html='<h2>Before → After</h2><table><thead><tr><th>Field</th><th class="before">Before</th><th class="after">After</th></tr></thead><tbody>';
+    html+='<tr><td>hp[] (home = Hot Rods)</td><td class="before">'+before.hp.join('; ')+'</td><td class="after">'+after.hp.join('; ')+'</td></tr>';
+    html+='<tr><td>ap[] (away = us)</td><td class="before">'+before.ap.join('; ')+'</td><td class="after">'+after.ap.join('; ')+'</td></tr>';
+    html+='<tr><td>hlu count (us / HR / ?)</td><td class="before">'+before.hluUs+' us, '+before.hluHr+' HR</td><td class="after">'+after.hluUs+' us, '+after.hluHr+' HR</td></tr>';
+    html+='<tr><td>alu count (us / HR / ?)</td><td class="before">'+before.aluUs+' us, '+before.aluHr+' HR</td><td class="after">'+after.aluUs+' us, '+after.aluHr+' HR</td></tr>';
+    const beforeHomeCt=(g.abs||[]).filter(a=>a.team==='home').length;
+    const afterHomeCt=(fixed.abs||[]).filter(a=>a.team==='home').length;
+    const beforeAwayCt=(g.abs||[]).filter(a=>a.team==='away').length;
+    const afterAwayCt=(fixed.abs||[]).filter(a=>a.team==='away').length;
+    html+='<tr><td>ABs team=home (= HR batting bottom)</td><td class="before">'+beforeHomeCt+'</td><td class="after">'+afterHomeCt+'</td></tr>';
+    html+='<tr><td>ABs team=away (= us batting top)</td><td class="before">'+beforeAwayCt+'</td><td class="after">'+afterAwayCt+'</td></tr>';
+    html+='</tbody></table>';
+    html+='<h3 style="color:#c8a96e;font-size:12px;">Sanity check after un-swap:</h3>';
+    html+='<ul style="font-size:11px;line-height:1.6;">';
+    html+='<li>Our pitchers (Brody/Ethan/Ezra) should be in <strong>ap[]</strong>: '+(after.ap.some(n=>n.startsWith('Brody'))?'✓':'✗')+'</li>';
+    html+='<li>HR pitchers (Conley/Jack/Barron/Evan Hoffman with corrected PT) should be in <strong>hp[]</strong>: '+(after.hp.some(n=>n.startsWith('Evan Hoffman'))?'✓':'✗')+'</li>';
+    html+='<li>Our batters (12) should be in <strong>alu[]</strong>: '+after.aluUs+' our / '+after.aluHr+' HR (expect ~12/0)</li>';
+    html+='<li>HR batters (10) should be in <strong>hlu[]</strong>: '+after.hluUs+' our / '+after.hluHr+' HR (expect ~0/10)</li>';
+    html+='</ul>';
+    dataDiv.innerHTML=html;
+    status.className='preview';
+    status.textContent='✓ Preview built. Review and click Apply if it looks right.';
+    applyBtn.disabled=false;
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+
+async function doApply(){
+  const applyBtn=document.getElementById('apply-btn');
+  const status=document.getElementById('status');
+  if(!preparedGdata){status.className='err';status.textContent='Click Preview first.';return;}
+  applyBtn.disabled=true;
+  try{
+    if(!confirm('UN-SWAP games/e2 to restore original team slot placement?')){
+      applyBtn.disabled=false;return;
+    }
+    status.className='preview';status.textContent='Writing games/e2…';
+    await db.collection('games').doc('e2').set({
+      gdata:preparedGdata,
+      updated:new Date(),
+      fixedAt:new Date().toISOString(),
+      fixNote:'UN-SWAP — restored original team slot placement after the misguided team-swap fix had inverted correctly-placed data. Our players back in ap[]/alu[], HR back in hp[]/hlu[]; AB team+half fields flipped back. PT corrections preserved (now correctly on HR pitchers in hp[]).'
+    },{merge:true});
+    status.className='ok';
+    status.textContent='✓ Wrote games/e2.\n\nReload the scorecard app — team attribution should now be correct everywhere.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n'+e.stack:'');
+    applyBtn.disabled=false;
+  }
+}
+</script>
+</body>
+</html>
