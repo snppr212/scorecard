@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Verify Apr 11 vs Hot Rods (e2) — Firestore vs league site</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:900px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:11px;}
+td.num{text-align:right;}
+.diff{background:rgba(184,50,40,.20);color:#e04535;font-weight:bold;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.missing{background:rgba(200,169,110,.15);color:#c8a96e;font-style:italic;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:12px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+#status.ok{background:rgba(42,125,82,.20);color:#36a066;}
+#status.err{background:rgba(184,50,40,.20);color:#e04535;}
+</style>
+</head>
+<body>
+<h1>Verify Apr 11 vs Hot Rods (e2)</h1>
+
+<div class="note">
+Read-only: pulls the current <code>games/e2</code> doc from Firestore and diffs the pitcher PT values against the league-site paste shown below.<br>
+<strong>This does NOT write anything.</strong> Use the diff to decide if a fix is needed.
+</div>
+
+<button id="run-btn" onclick="run()">Read live Firestore + diff</button>
+<div id="status"></div>
+
+<h2>League-site paste (source of truth?)</h2>
+<table>
+<thead><tr><th>Pitcher</th><th class="num">PT</th><th class="num">IP</th></tr></thead>
+<tbody>
+<tr><td>Evan Hoffman</td><td class="num">15</td><td class="num">0.0</td></tr>
+<tr><td>Conley Livingston</td><td class="num">35</td><td class="num">0.0</td></tr>
+<tr><td>Barron Ma</td><td class="num">56</td><td class="num">0.0</td></tr>
+<tr><td>Jack Van Dyke</td><td class="num">12</td><td class="num">0.0</td></tr>
+</tbody>
+</table>
+
+<h2>Local snapshot (e2_game_state.json, dated Apr 23)</h2>
+<table>
+<thead><tr><th>Pitcher</th><th class="num">PT</th></tr></thead>
+<tbody>
+<tr><td>Conley Livingston</td><td class="num">27</td></tr>
+<tr><td>Jack Van Dyke</td><td class="num">39</td></tr>
+<tr><td>Barron Ma</td><td class="num">26</td></tr>
+<tr><td>Andrew Kiczek</td><td class="num">15</td></tr>
+</tbody>
+</table>
+
+<h2>Live Firestore (will populate after click)</h2>
+<div id="firestore-data">— click the button above —</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// League-site truth
+const LEAGUE = {
+  'Evan Hoffman': 15,
+  'Conley Livingston': 35,
+  'Barron Ma': 56,
+  'Jack Van Dyke': 12
+};
+
+async function run(){
+  const btn=document.getElementById('run-btn');
+  const status=document.getElementById('status');
+  const dataDiv=document.getElementById('firestore-data');
+  btn.disabled=true;status.className='';status.textContent='Reading games/e2…';dataDiv.innerHTML='';
+  try{
+    const snap=await db.collection('games').doc('e2').get();
+    if(!snap.exists){
+      status.className='err';
+      status.textContent='games/e2 does not exist in Firestore. The Apr 11 Hot Rods game is NOT captured.';
+      btn.disabled=false;return;
+    }
+    const data=snap.data();
+    const g=data.gdata||{};
+    let html='<table><tr><td>eid</td><td>'+g.eid+'</td></tr>';
+    html+='<tr><td>ht (home team)</td><td>'+g.ht+'</td></tr>';
+    html+='<tr><td>at (away team)</td><td>'+g.at+'</td></tr>';
+    html+='<tr><td>hs (home score)</td><td>'+g.hs+'</td></tr>';
+    html+='<tr><td>as (away score)</td><td>'+g.as+'</td></tr>';
+    html+='<tr><td>abs (count)</td><td>'+((g.abs||[]).length)+'</td></tr>';
+    html+='</table>';
+    // Identify which array is OUR pitchers. ha for e2 = 'away', so we were AWAY,
+    // therefore OUR pitchers are in ap[]. But local snapshot showed our players
+    // in hp[] — labels may be reversed. Show BOTH arrays so we can tell.
+    function fmtArr(label,arr){
+      arr=arr||[];
+      let h='<h2>'+label+' (PT only — '+arr.length+' pitcher'+(arr.length===1?'':'s')+')</h2><table><thead><tr><th>Pitcher</th><th class="num">PT (live)</th><th class="num">PT (league)</th><th>Diff</th></tr></thead><tbody>';
+      arr.forEach(p=>{
+        const live=p.total||0;
+        const lg=LEAGUE[p.name];
+        let cls='';let diffStr='';
+        if(lg==null){cls='missing';diffStr='not on league site';}
+        else if(lg===live){cls='ok';diffStr='✓ match';}
+        else{cls='diff';diffStr=(live-lg>0?'+':'')+(live-lg);}
+        h+='<tr><td>'+escapeHtml(p.name)+'</td><td class="num">'+live+'</td><td class="num">'+(lg!=null?lg:'—')+'</td><td class="'+cls+'">'+diffStr+'</td></tr>';
+      });
+      // Reverse direction — league pitchers not in this array
+      const arrNames=new Set(arr.map(p=>p.name));
+      Object.keys(LEAGUE).forEach(n=>{
+        if(!arrNames.has(n))h+='<tr class="missing"><td>'+escapeHtml(n)+'</td><td class="num">—</td><td class="num">'+LEAGUE[n]+'</td><td>not in '+label.split(' ')[0]+'[]</td></tr>';
+      });
+      h+='</tbody></table>';
+      return h;
+    }
+    html+=fmtArr('hp[] (home pitchers, labeled '+g.ht+')',g.hp);
+    html+=fmtArr('ap[] (away pitchers, labeled '+g.at+')',g.ap);
+    // Compute totals
+    const sumHP=(g.hp||[]).reduce((s,p)=>s+(p.total||0),0);
+    const sumAP=(g.ap||[]).reduce((s,p)=>s+(p.total||0),0);
+    const sumLeague=Object.values(LEAGUE).reduce((s,v)=>s+v,0);
+    html+='<h2>Totals</h2><table><tr><td>hp[] total PT</td><td class="num">'+sumHP+'</td></tr>';
+    html+='<tr><td>ap[] total PT</td><td class="num">'+sumAP+'</td></tr>';
+    html+='<tr><td>League site total</td><td class="num">'+sumLeague+'</td></tr></table>';
+    dataDiv.innerHTML=html;
+    status.className='ok';
+    status.textContent='✓ Read complete. Game is captured. Check the diffs above to see if pitch counts match.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
