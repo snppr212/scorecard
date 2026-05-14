@@ -363,8 +363,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
 <div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
-<!-- v100: Regular vs Advanced view toggle -->
-<div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div></div>
+<!-- v100/v189: Regular / Advanced / Opp Pit view toggle -->
+<div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div><div class="team-toggle-btn" id="sv-opppit" onclick="setSeasonView('oppPit')">🥎 Opp Pit</div></div>
 <!-- v182: first-pitch summary panel — strikes vs balls on the FIRST pitch
      of every AB across all final games. Shown for our batters (what opp
      pitchers threw us) and our pitchers (what we threw to opp). -->
@@ -375,10 +375,26 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="panel" id="season-pitchlog-audit" style="display:none;padding:8px 10px;margin-bottom:8px;"></div>
 <!-- Print-only header (hidden on screen via CSS, revealed when body has .printing-season) -->
 <div id="season-print-header" style="display:none;"><h1>Mighty Mussels — Season Stats</h1><div id="season-print-sub">LMLL · Spring 2026</div></div>
+<!-- v189: our-team panels (shown in regular + advanced views, hidden in oppPit view) -->
+<div id="season-us-panels">
 <div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div>
 <details class="no-print" style="margin-top:8px;font-size:11px;font-family:sans-serif;color:var(--text2);"><summary style="cursor:pointer;color:var(--gold);">📖 Column legend (batting)</summary><div id="season-bat-legend" style="margin-top:6px;line-height:1.55;"></div></details></div>
 <div class="panel"><div class="ptitle">Pitching</div><div class="scroll-x"><table class="tbl" id="season-pit"></table></div>
 <details class="no-print" style="margin-top:8px;font-size:11px;font-family:sans-serif;color:var(--text2);"><summary style="cursor:pointer;color:var(--gold);">📖 Column legend (pitching)</summary><div id="season-pit-legend" style="margin-top:6px;line-height:1.55;"></div></details></div>
+</div>
+<!-- v189: Opp Pit tab — cross-league pitcher table with team filter -->
+<div id="season-opppit-panel" style="display:none;">
+<div class="panel">
+<div class="ptitle">🥎 League Pitching</div>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Every logged opp pitcher across the league. Sortable columns; team filter narrows to one staff.</div>
+<div class="row" style="gap:6px;margin-bottom:6px;align-items:center;">
+  <label style="font-size:11px;color:var(--text2);font-family:sans-serif;">Team:</label>
+  <select id="season-lp-filter" onchange="renderSeasonLeaguePitching()" style="flex:1;font-family:sans-serif;font-size:12px;"></select>
+</div>
+<div id="season-lp-meta" style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;"></div>
+<div class="scroll-x" id="season-lp-body"></div>
+</div>
+</div>
 <div id="season-empty" style="text-align:center;font-size:12px;color:var(--text3);font-family:sans-serif;padding:14px;display:none;">No completed games yet.</div>
 <div id="season-loading" style="text-align:center;font-size:12px;color:var(--text3);font-family:sans-serif;padding:14px;">Loading…</div>
 </div>
@@ -1595,7 +1611,7 @@ async function openSeasonStats(){
   window._seasonGames=games;
   _renderSeasonView();
 }
-// v100: dispatcher — picks regular vs advanced renderer based on A.seasonStatsView
+// v100/v189: dispatcher — picks regular / advanced / oppPit renderer based on A.seasonStatsView
 function _renderSeasonView(){
   var games=window._seasonGames||[];
   if(!games.length)return;
@@ -1603,6 +1619,22 @@ function _renderSeasonView(){
   // Toggle styling
   if($('sv-reg'))$('sv-reg').classList.toggle('active',view==='regular');
   if($('sv-adv'))$('sv-adv').classList.toggle('active',view==='advanced');
+  if($('sv-opppit'))$('sv-opppit').classList.toggle('active',view==='oppPit');
+  // v189: oppPit hides our-team panels (bat/pit + first-pitch + audit)
+  // and shows the cross-league pitching panel instead.
+  var usPanels=$('season-us-panels'),oppPanel=$('season-opppit-panel');
+  var firstPitch=$('season-firstpitch'),audit=$('season-pitchlog-audit');
+  if(view==='oppPit'){
+    if(usPanels)usPanels.style.display='none';
+    if(oppPanel)oppPanel.style.display='block';
+    if(firstPitch)firstPitch.style.display='none';
+    if(audit)audit.style.display='none';
+    renderSeasonLeaguePitching();
+    return;
+  }
+  // Regular / Advanced view: show our-team panels
+  if(usPanels)usPanels.style.display='block';
+  if(oppPanel)oppPanel.style.display='none';
   if(view==='advanced'){
     renderSeasonBatAdvanced(games);renderSeasonPitAdvanced(games);
   }else{
@@ -1611,6 +1643,65 @@ function _renderSeasonView(){
   _renderSeasonLegend(view);
   _renderFirstPitchPanel(games);
   _renderPitchLogAuditPanel(games);
+}
+// v189: render the cross-league pitcher table into the season-stats Opp Pit
+// tab. Same data + sort behavior as the standings-modal League Pitching view
+// (shares _getLeaguePitcherRows + _sortLeaguePitchRows + _lpTh helpers).
+function renderSeasonLeaguePitching(){
+  // Populate team filter (idempotent — preserves selection across renders)
+  var sel=$('season-lp-filter');
+  var teams=OPP_PITCHER_LOG&&OPP_PITCHER_LOG.teams?Object.keys(OPP_PITCHER_LOG.teams).sort():[];
+  if(sel){
+    var prev=sel.value;
+    var opts='<option value="">All teams ('+teams.length+')</option>';
+    teams.forEach(function(t){opts+='<option value="'+esc(t)+'">'+esc(t)+'</option>';});
+    sel.innerHTML=opts;
+    if(prev&&teams.indexOf(prev)>=0)sel.value=prev;
+  }
+  var teamFilter=sel?sel.value:'';
+  var rows=_getLeaguePitcherRows(teamFilter);
+  var meta=$('season-lp-meta'),body=$('season-lp-body');
+  if(!body)return;
+  if(!rows.length){
+    if(meta)meta.textContent='';
+    body.innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">'+(teamFilter?'No pitch-log data for '+esc(teamFilter)+'.':'No opp pitch-log data yet. Use Standings → Update from paste, or paste from a team\'s scout card.')+'</div>';
+    return;
+  }
+  rows=_sortLeaguePitchRows(rows);
+  var teamCount=teamFilter?1:Object.keys(rows.reduce(function(m,r){m[r.team]=1;return m;},{})).length;
+  if(meta)meta.textContent=rows.length+' pitcher'+(rows.length===1?'':'s')+' · '+teamCount+' team'+(teamCount===1?'':'s')+' · click any header to sort';
+  var h='<table class="tbl" style="font-size:11px;"><thead><tr>'
+    +_lpTh('Pitcher','name')
+    +_lpTh('Team','team')
+    +_lpTh('PT','pt')
+    +_lpTh('GP','gp')
+    +_lpTh('GS','gs')
+    +_lpTh('Avg','avg')
+    +_lpTh('Peak','peak')
+    +_lpTh('Last','lastDate')
+    +'</tr></thead><tbody>';
+  rows.forEach(function(r){
+    var nm=r.jersey?'#'+r.jersey+' '+sn(r.name):sn(r.name);
+    var lastStr=r.lastDate?(r.lastDate.slice(5)+' ('+r.lastPC+'p)'):'—';
+    var ptStr=r.hasSeason?r.pt:(r.hasGames?'~'+r.pt:'—');
+    var ptTitle=r.hasSeason?'from season totals':(r.hasGames?'sum of logged per-game outings':'no data');
+    var gsStr=r.gs!=null?r.gs:'—';
+    var avgStr=r.gp>0?r.avg.toFixed(1):'—';
+    var peakStr=r.peak>0?r.peak:'—';
+    h+='<tr style="cursor:pointer;" onclick="openScoutCard(\''+esc(r.team).replace(/\\/g,'\\\\').replace(/\'/g,'\\\'')+'\')">'
+      +'<td>'+esc(nm)+'</td>'
+      +'<td style="color:var(--text2);font-size:10px;">'+esc(r.team)+'</td>'
+      +'<td title="'+esc(ptTitle)+'" style="text-align:right;font-weight:bold;">'+ptStr+'</td>'
+      +'<td style="text-align:right;">'+(r.gp||'—')+'</td>'
+      +'<td style="text-align:right;">'+gsStr+'</td>'
+      +'<td style="text-align:right;color:var(--text2);">'+avgStr+'</td>'
+      +'<td style="text-align:right;color:var(--text2);">'+peakStr+'</td>'
+      +'<td style="text-align:right;color:var(--text2);font-size:10px;white-space:nowrap;">'+lastStr+'</td>'
+      +'</tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.4;">PT = season pitch total. GP = games pitched. GS = starts. Avg = PT/GP. Peak = highest single-outing PC. ~PT = estimated from logged outings (no season totals on file). Tap a row to open that team\'s scout card.</div>';
+  body.innerHTML=h;
 }
 // v184: first-pitch breakdown — trusts ab.pitches[0] across all ABs. If
 // the user manually logged each pitch (the default workflow), the auto-
@@ -2451,32 +2542,9 @@ function renderSeasonBat(games){
   var T={games:games.length,pa:0,ab:0,r:0,h:0,rbi:0,hr:0,bb:0,k:0,sb:0,tb:0,hbp:0,sf:0,bip:0,roe:0};
   rows.forEach(function(s){T.pa+=s.pa;T.ab+=s.ab;T.r+=s.r;T.h+=s.h;T.rbi+=s.rbi;T.hr+=s.hr;T.bb+=s.bb;T.k+=s.k;T.sb+=s.sb;T.tb+=s.tb;T.hbp+=s.hbp;T.sf+=s.sf;T.bip+=s.bip;T.roe+=(s.roe||0);});
   var Tba=T.ab>0?T.h/T.ab:0;var Tobp=(T.ab+T.bb+T.hbp+T.sf)>0?(T.h+T.bb+T.hbp)/(T.ab+T.bb+T.hbp+T.sf):0;var Tslg=T.ab>0?T.tb/T.ab:0;
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TEAM</td><td>'+T.games+'</td><td>'+T.pa+'</td><td>'+T.ab+'</td><td>'+T.r+'</td><td>'+T.h+'</td><td>'+T.rbi+'</td><td>'+T.hr+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td>'+T.sb+'</td><td>'+T.bip+'</td><td>'+T.roe+'</td><td class="hi">'+(T.ab>0?fmt3(Tba):'—')+'</td><td class="hi">'+(T.ab+T.bb+T.hbp+T.sf>0?fmt3(Tobp):'—')+'</td><td class="hi">'+(T.ab>0?fmt3(Tslg):'—')+'</td></tr>';
-  // v169: OPP row — total opp stats, with optional round-band breakdown
-  var opp=_aggregateOppBat(games);
-  var oT=opp.total;
-  var expanded=!!A.statsOppExpanded;
-  var chev=expanded?'▾':'▸';
-  function _oppBatRow(label,s,cls,clickAttr){
-    var indent=cls==='band'?'padding-left:24px;':'';
-    var rowStyle=cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);';
-    if(clickAttr)rowStyle+='cursor:pointer;';
-    var onClick=cls==='total'?'_toggleOppExpand()':(clickAttr||'');
-    return '<tr style="'+rowStyle+'"'+(onClick?' onclick="'+onClick+'"':'')+'>'
-      +'<td style="'+indent+'">'+label+'</td><td>'+(cls==='total'?games.length:'—')+'</td><td>'+s.pa+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td>'+s.sb+'</td><td>'+s.bip+'</td><td>'+s.roe+'</td><td class="hi">'+(s.ab>0?fmt3(s.ba):'—')+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
-  }
-  if(oT.pa>0){
-    h+=_oppBatRow(chev+' OPP TOTAL',oT,'total');
-    if(expanded){
-      ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
-        var s=opp.bands[b];
-        if(s.pa===0)return;
-        var lbl=b==='unknown'?'└─ Unmatched · tap to diagnose ▶':('└─ Round '+b);
-        h+=_oppBatRow(lbl,s,'band',b==='unknown'?'openOppDiagnostic()':null);
-      });
-    }
-  }
-  h+='</tfoot>';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TEAM</td><td>'+T.games+'</td><td>'+T.pa+'</td><td>'+T.ab+'</td><td>'+T.r+'</td><td>'+T.h+'</td><td>'+T.rbi+'</td><td>'+T.hr+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td>'+T.sb+'</td><td>'+T.bip+'</td><td>'+T.roe+'</td><td class="hi">'+(T.ab>0?fmt3(Tba):'—')+'</td><td class="hi">'+(T.ab+T.bb+T.hbp+T.sf>0?fmt3(Tobp):'—')+'</td><td class="hi">'+(T.ab>0?fmt3(Tslg):'—')+'</td></tr></tfoot>';
+  // v189: OPP rows removed — Season Stats tab is now Mussels-only.
+  // Cross-league opp pitching lives in the "Opp Pit" tab.
   $('season-bat').innerHTML=h;
 }
 function renderSeasonPit(games){
@@ -2550,35 +2618,8 @@ function renderSeasonPit(games){
   var Tip=Math.floor(T.ip_outs/3)+'.'+(T.ip_outs%3);
   var Tera=T.ip_outs>0?fmt3(T.er/(T.ip_outs/3)*6):'—';
   var Tbaa=T.abAgainst>0?fmt3(T.hits/T.abAgainst):'—';
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td></tr>';
-  // v169: OPP pitching row(s) — total then optional round-band breakdown
-  var oppP=_aggregateOppPit(games);
-  var oP=oppP.total;
-  var expanded=!!A.statsOppExpanded;
-  var chev=expanded?'▾':'▸';
-  function _oppPitRow(label,s,cls,clickAttr){
-    var indent=cls==='band'?'padding-left:24px;':'';
-    var ipStr=Math.floor(s.ip_outs/3)+'.'+(s.ip_outs%3);
-    var eraStr=s.era!=null?fmt3(s.era):'—';
-    var baaStr=s.abAgainst>0?fmt3(s.baa):'—';
-    var rowStyle=cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);';
-    if(clickAttr)rowStyle+='cursor:pointer;';
-    var onClick=cls==='total'?'_toggleOppExpand()':(clickAttr||'');
-    return '<tr style="'+rowStyle+'"'+(onClick?' onclick="'+onClick+'"':'')+'>'
-      +'<td style="'+indent+'">'+label+'</td><td>'+s.games+'</td><td class="hi">'+ipStr+'</td><td>'+(s.tbf||0)+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baaStr+'</td><td class="hi">'+eraStr+'</td></tr>';
-  }
-  if(oP.games>0||oP.ip_outs>0){
-    h+=_oppPitRow(chev+' OPP TOTAL',oP,'total');
-    if(expanded){
-      ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
-        var s=oppP.bands[b];
-        if(s.games===0&&s.ip_outs===0)return;
-        var lbl=b==='unknown'?'└─ Unmatched · tap to diagnose ▶':('└─ Round '+b);
-        h+=_oppPitRow(lbl,s,'band',b==='unknown'?'openOppDiagnostic()':null);
-      });
-    }
-  }
-  h+='</tfoot>';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td></tr></tfoot>';
+  // v189: OPP rows removed — see "Opp Pit" tab for cross-league pitcher data.
   $('season-pit').innerHTML=h;
 }
 // =============================================================================
@@ -2655,34 +2696,7 @@ function renderSeasonBatAdvanced(games){
     h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pa+'</td><td>'+s.pitchesSeen+'</td><td>'+s.gSw+'</td><td>'+s.bSw+'</td><td>'+s.uSw+'</td><td>'+s.gTk+'</td><td>'+s.bTk+'</td><td class="hi">'+whP+'</td><td class="hi">'+dcP+'</td></tr>';
   });
   h+='</tbody>';
-  // v170: OPP TOTAL + round-band breakdown (advanced). Mirrors the v169 footer
-  // in renderSeasonBat. Click the total row to expand/collapse bands.
-  var opp=_aggregateOppBat(games);
-  var oT=opp.total;
-  var expanded=!!A.statsOppExpanded;
-  var chev=expanded?'▾':'▸';
-  function _oppBatAdvRow(label,s,cls){
-    var indent=cls==='band'?'padding-left:24px;':'';
-    var totalSw=s.gSw+s.bSw+s.uSw;
-    var tagged=s.gSw+s.bSw+s.gTk+s.bTk;
-    var whP=totalSw>0?Math.round((s.whiffs/totalSw)*100)+'%':'—';
-    var dcP=tagged>0?Math.round(((s.gSw+s.gTk)/tagged)*100)+'%':'—';
-    return '<tr style="'+(cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);')+'"'+(cls==='total'?' onclick="_toggleOppExpand()"':'')+'>'
-      +'<td style="'+indent+'">'+label+'</td><td>'+(cls==='total'?games.length:'—')+'</td><td>'+s.pa+'</td><td>'+s.pitchesSeen+'</td><td>'+s.gSw+'</td><td>'+s.bSw+'</td><td>'+s.uSw+'</td><td>'+s.gTk+'</td><td>'+s.bTk+'</td><td class="hi">'+whP+'</td><td class="hi">'+dcP+'</td></tr>';
-  }
-  if(oT.pitchesSeen>0||oT.pa>0){
-    h+='<tfoot>';
-    h+=_oppBatAdvRow(chev+' OPP TOTAL',oT,'total');
-    if(expanded){
-      ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
-        var s=opp.bands[b];
-        if(s.pa===0&&s.pitchesSeen===0)return;
-        var lbl=b==='unknown'?'└─ Unmatched':('└─ Round '+b);
-        h+=_oppBatAdvRow(lbl,s,'band');
-      });
-    }
-    h+='</tfoot>';
-  }
+  // v189: OPP rows removed — Season Stats (advanced) is now Mussels-only.
   $('season-bat').innerHTML=h;
 }
 // Per-pitcher advanced aggregator: walks ABs they pitched, counts pitch-type
@@ -2754,35 +2768,7 @@ function renderSeasonPitAdvanced(games){
     h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+Math.round(s.strikePct*100)+'%</td><td class="hi">'+(s.swings>0?Math.round(s.whiffPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.chasePct*100)+'%':'—')+'</td><td>'+s.zoneSwings+'</td></tr>';
   });
   h+='</tbody>';
-  // v170: OPP TOTAL + round-band breakdown (advanced). St%/Whf%/Ch% are computed
-  // from ab.pitchQualities on opp-pitcher ABs — same logic as our pitchers, just
-  // from the perspective of opp pitcher vs our batter. Untagged opp pitches still
-  // contribute to St%/P/St/Ba but not Whf%/Ch%/Z·Sw.
-  var oppP=_aggregateOppPit(games);
-  var oP=oppP.total;
-  var expanded=!!A.statsOppExpanded;
-  var chev=expanded?'▾':'▸';
-  function _oppPitAdvRow(label,s,cls){
-    var indent=cls==='band'?'padding-left:24px;':'';
-    var stP=s.pitches>0?Math.round((s.strikes/s.pitches)*100)+'%':'—';
-    var whP=s.swings>0?Math.round((s.whiffs/s.swings)*100)+'%':'—';
-    var chP=s.swings>0?Math.round((s.chases/s.swings)*100)+'%':'—';
-    return '<tr style="'+(cls==='total'?'font-weight:bold;background:rgba(184,50,40,.08);cursor:pointer;':'color:var(--text2);background:rgba(184,50,40,.04);')+'"'+(cls==='total'?' onclick="_toggleOppExpand()"':'')+'>'
-      +'<td style="'+indent+'">'+label+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+stP+'</td><td class="hi">'+whP+'</td><td class="hi">'+chP+'</td><td>'+s.zoneSwings+'</td></tr>';
-  }
-  if(oP.pitches>0||oP.games>0){
-    h+='<tfoot>';
-    h+=_oppPitAdvRow(chev+' OPP TOTAL',oP,'total');
-    if(expanded){
-      ['1-3','4-6','7-9','10-12','unknown'].forEach(function(b){
-        var s=oppP.bands[b];
-        if(s.pitches===0&&s.games===0)return;
-        var lbl=b==='unknown'?'└─ Unmatched':('└─ Round '+b);
-        h+=_oppPitAdvRow(lbl,s,'band');
-      });
-    }
-    h+='</tfoot>';
-  }
+  // v189: OPP rows removed — see "Opp Pit" tab for cross-league pitcher data.
   $('season-pit').innerHTML=h;
 }
 // ============================================================================
@@ -9482,7 +9468,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v188';
+var APP_VERSION='v189';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
