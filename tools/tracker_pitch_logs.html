@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pitch-log coverage tracker — LMLL AA</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1200px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px;}
+.box{background:rgba(255,255,255,.04);padding:12px;border-radius:4px;text-align:center;}
+.box .big{font-size:24px;font-weight:bold;color:#c8a96e;}
+.box .label{font-size:11px;color:var(--text2);margin-top:4px;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;}
+.both{background:rgba(42,125,82,.15);color:#36a066;}
+.one{background:rgba(200,169,110,.15);color:#c8a96e;}
+.none{background:rgba(184,50,40,.18);color:#e04535;}
+.us{background:rgba(200,169,110,.06);font-weight:bold;}
+.controls{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;font-size:12px;}
+.controls select,.controls label{font-family:sans-serif;font-size:12px;}
+button{background:#c8a96e;color:#000;border:none;padding:10px 18px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:13px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:8px;padding:8px;border-radius:4px;font-size:12px;font-family:sans-serif;}
+</style>
+</head>
+<body>
+<h1>Pitch-log coverage tracker — LMLL AA</h1>
+
+<div class="note">
+For every played league game, checks <code>OPP_PITCHER_LOG</code> in Firestore to see if you have per-game pitch counts for each team. Tap a row to open that team's scout card.<br>
+Mussels-involved games: only the opponent's data needs to come from the league site (your own pitcher PT is always in your live game log). For non-Mussels games, both teams need a paste.
+</div>
+
+<button id="refresh-btn" onclick="run()">Read Firestore + refresh tracker</button>
+<div id="status">Click the button to load.</div>
+
+<div id="summary"></div>
+
+<div class="controls" id="controls" style="display:none;">
+  <label><input type="checkbox" id="filter-missing"> Show only games with missing data</label>
+  <label>Team:&nbsp;<select id="filter-team"><option value="">All teams</option></select></label>
+  <label><input type="checkbox" id="filter-us-only"> Only Mussels games</label>
+</div>
+
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Played games from the league schedule through May 13, 2026. Update as more
+// games are played. Each entry: {date:'YYYY-MM-DD', home, away, hs, as}.
+const GAMES = [
+  // April 11
+  {date:'2026-04-11', home:'Mud Hens',    away:'Hurricanes',  hs:2, as:4},
+  {date:'2026-04-11', home:'Bulls',       away:'Grasshoppers', hs:9, as:7},
+  {date:'2026-04-11', home:'Thunder',     away:'Iron Pigs',    hs:2, as:4},
+  // April 12
+  {date:'2026-04-12', home:'Tin Caps - sho', away:'Devil Rays',  hs:2, as:4},
+  {date:'2026-04-12', home:'Cannonballers',  away:'Lugnuts',     hs:10, as:0},
+  // April 18
+  {date:'2026-04-18', home:'Iron Pigs',      away:'Bulls',       hs:5, as:10},
+  {date:'2026-04-18', home:'Mighty Mussels', away:'Thunder',     hs:2, as:5},
+  {date:'2026-04-18', home:'Hot Rods',       away:'Mud Hens',    hs:6, as:4},
+  // April 19
+  {date:'2026-04-19', home:'Devil Rays',  away:'Cannonballers', hs:11, as:12},
+  // April 20
+  {date:'2026-04-20', home:'Grasshoppers', away:'Devil Rays',   hs:18, as:5},
+  // April 21
+  {date:'2026-04-21', home:'Thunder',     away:'Hot Rods',     hs:1, as:7},
+  // April 22
+  {date:'2026-04-22', home:'Mud Hens',    away:'Tin Caps - sho', hs:0, as:9},
+  // April 23
+  {date:'2026-04-23', home:'Lugnuts',     away:'Iron Pigs',    hs:9, as:15},
+  {date:'2026-04-23', home:'Cannonballers', away:'Hurricanes', hs:0, as:12},
+  // April 24
+  {date:'2026-04-24', home:'Bulls',       away:'Mighty Mussels', hs:3, as:6},
+  // April 25
+  {date:'2026-04-25', home:'Thunder',     away:'Mud Hens',     hs:14, as:3},
+  {date:'2026-04-25', home:'Hot Rods',    away:'Bulls',        hs:8, as:2},
+  // (Apr 25 Mighty Mussels vs Lugnuts — rained out, not counted)
+  // April 26
+  {date:'2026-04-26', home:'Tin Caps - sho', away:'Cannonballers', hs:3, as:8},
+  // April 27
+  {date:'2026-04-27', home:'Mud Hens',    away:'Cannonballers', hs:0, as:7},
+  // April 28
+  {date:'2026-04-28', home:'Bulls',       away:'Thunder',      hs:6, as:17},
+  // April 29
+  {date:'2026-04-29', home:'Grasshoppers', away:'Tin Caps - sho', hs:2, as:5},
+  // April 30
+  {date:'2026-04-30', home:'Lugnuts',     away:'Hot Rods',     hs:3, as:7},
+  {date:'2026-04-30', home:'Iron Pigs',   away:'Hurricanes',   hs:2, as:2},
+  // May 1
+  {date:'2026-05-01', home:'Devil Rays',  away:'Mighty Mussels', hs:9, as:1},
+  // May 2
+  {date:'2026-05-02', home:'Thunder',     away:'Lugnuts',      hs:14, as:6},
+  {date:'2026-05-02', home:'Mighty Mussels', away:'Hurricanes', hs:3, as:13},
+  {date:'2026-05-02', home:'Hot Rods',    away:'Devil Rays',   hs:12, as:3},
+  {date:'2026-05-02', home:'Cannonballers', away:'Grasshoppers', hs:9, as:3},
+  // May 3
+  {date:'2026-05-03', home:'Tin Caps - sho', away:'Iron Pigs', hs:7, as:0},
+  {date:'2026-05-03', home:'Bulls',       away:'Mud Hens',     hs:7, as:3},
+  // May 4
+  {date:'2026-05-04', home:'Mud Hens',    away:'Grasshoppers', hs:12, as:0},
+  // May 5
+  {date:'2026-05-05', home:'Hurricanes',  away:'Hot Rods',     hs:13, as:10},
+  // May 6
+  {date:'2026-05-06', home:'Iron Pigs',   away:'Devil Rays',   hs:4, as:7},
+  {date:'2026-05-06', home:'Lugnuts',     away:'Bulls',        hs:7, as:3},
+  // May 7
+  {date:'2026-05-07', home:'Iron Pigs',   away:'Cannonballers', hs:4, as:4},
+  {date:'2026-05-07', home:'Mighty Mussels', away:'Tin Caps - sho', hs:4, as:3},
+  // May 8
+  {date:'2026-05-08', home:'Devil Rays',  away:'Thunder',      hs:8, as:9},
+  // May 9
+  {date:'2026-05-09', home:'Cannonballers', away:'Mighty Mussels', hs:6, as:2},
+  {date:'2026-05-09', home:'Grasshoppers', away:'Iron Pigs',   hs:6, as:5},
+  {date:'2026-05-09', home:'Lugnuts',     away:'Mud Hens',     hs:11, as:0},
+  {date:'2026-05-09', home:'Bulls',       away:'Devil Rays',   hs:7, as:8},
+  // May 10
+  {date:'2026-05-10', home:'Thunder',     away:'Hurricanes',   hs:15, as:6},
+  {date:'2026-05-10', home:'Tin Caps - sho', away:'Hot Rods',  hs:0, as:11},
+  // May 11
+  {date:'2026-05-11', home:'Tin Caps - sho', away:'Thunder',   hs:10, as:15},
+  // May 12
+  {date:'2026-05-12', home:'Mud Hens',    away:'Iron Pigs',    hs:7, as:15},
+  // May 13
+  {date:'2026-05-13', home:'Hurricanes',  away:'Bulls',        hs:8, as:7}
+];
+
+let oppPitcherLog={};
+let rosterAdata={};
+
+function hasOutingForDate(team, date){
+  const t=oppPitcherLog.teams&&oppPitcherLog.teams[team];
+  if(!t||!t.pitchers)return false;
+  for(const name in t.pitchers){
+    const outs=(t.pitchers[name]||{}).outings||[];
+    if(outs.some(o=>o.date===date))return true;
+  }
+  return false;
+}
+
+function classify(g){
+  const isUs=(g.home==='Mighty Mussels'||g.away==='Mighty Mussels');
+  // For MM games, our data is always available — only check opp side
+  if(isUs){
+    const opp=g.home==='Mighty Mussels'?g.away:g.home;
+    return {
+      isUs:true,
+      oppHasData:hasOutingForDate(opp, g.date),
+      opp:opp,
+      bucket:hasOutingForDate(opp, g.date)?'both':'us-only'
+    };
+  }
+  // Non-MM games — check both
+  const homeHas=hasOutingForDate(g.home, g.date);
+  const awayHas=hasOutingForDate(g.away, g.date);
+  let bucket='none';
+  if(homeHas&&awayHas)bucket='both';
+  else if(homeHas||awayHas)bucket='one';
+  return {isUs:false,homeHas,awayHas,bucket};
+}
+
+function render(){
+  const filterMissing=document.getElementById('filter-missing').checked;
+  const filterTeam=document.getElementById('filter-team').value;
+  const filterUsOnly=document.getElementById('filter-us-only').checked;
+  let games=GAMES.slice().sort((a,b)=>b.date.localeCompare(a.date));// most recent first
+  // Apply filters
+  if(filterTeam){
+    games=games.filter(g=>g.home===filterTeam||g.away===filterTeam);
+  }
+  if(filterUsOnly){
+    games=games.filter(g=>g.home==='Mighty Mussels'||g.away==='Mighty Mussels');
+  }
+  // Compute classifications and counters
+  let bothCt=0,oneCt=0,noneCt=0,usOnlyCt=0,usMissingCt=0;
+  const rows=[];
+  games.forEach(g=>{
+    const c=classify(g);
+    if(filterMissing&&c.bucket==='both')return;
+    rows.push({g,c});
+    if(c.isUs){
+      if(c.oppHasData)bothCt++;
+      else usMissingCt++;
+    }else{
+      if(c.bucket==='both')bothCt++;
+      else if(c.bucket==='one')oneCt++;
+      else noneCt++;
+    }
+  });
+  // Render summary boxes (computed against ALL games, not filtered)
+  let allBoth=0,allOne=0,allNone=0,allUsMissing=0,allUsOk=0,usGames=0;
+  GAMES.forEach(g=>{
+    const c=classify(g);
+    if(c.isUs){
+      usGames++;
+      if(c.oppHasData)allUsOk++;
+      else allUsMissing++;
+    }else{
+      if(c.bucket==='both')allBoth++;
+      else if(c.bucket==='one')allOne++;
+      else allNone++;
+    }
+  });
+  document.getElementById('summary').innerHTML=
+    '<div class="summary">'
+    +'<div class="box"><div class="big">'+GAMES.length+'</div><div class="label">total games played</div></div>'
+    +'<div class="box"><div class="big" style="color:#36a066;">'+(allBoth+allUsOk)+'</div><div class="label">fully covered</div></div>'
+    +'<div class="box"><div class="big" style="color:#c8a96e;">'+(allOne+allUsMissing)+'</div><div class="label">partial coverage</div></div>'
+    +'<div class="box"><div class="big" style="color:#e04535;">'+allNone+'</div><div class="label">no data</div></div>'
+    +'</div>';
+  // Render table
+  let html='<table><thead><tr><th>Date</th><th>Matchup</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+  rows.forEach(({g,c})=>{
+    const usRow=c.isUs;
+    const dateStr=g.date.slice(5);// MM-DD
+    const matchup=esc(g.away)+' '+g.as+' @ '+esc(g.home)+' '+g.hs;
+    let cellCls='',statusText='',actionText='';
+    if(usRow){
+      cellCls=c.oppHasData?'both':'one';
+      statusText=c.oppHasData?'✓ Have '+esc(c.opp)+' (ours in our log)':'◐ Missing '+esc(c.opp)+' pitch counts';
+      actionText=c.oppHasData?'—':'Open '+esc(c.opp)+' scout card';
+    }else{
+      if(c.bucket==='both'){cellCls='both';statusText='✓ Both teams logged';actionText='—';}
+      else if(c.bucket==='one'){cellCls='one';statusText=(c.homeHas?'✓ '+esc(g.home)+' · ':'◐ ')+(c.awayHas?'✓ '+esc(g.away):(c.homeHas?'◐ missing '+esc(g.away):'missing '+esc(g.away)+' and '+esc(g.home)));actionText='Open scout card for missing side';}
+      else{cellCls='none';statusText='○ Neither team logged';actionText='Open scout cards';}
+    }
+    html+='<tr'+(usRow?' class="us"':'')+'><td>'+dateStr+'</td><td>'+matchup+'</td><td class="'+cellCls+'">'+statusText+'</td><td>'+actionText+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  if(!rows.length)html='<div style="text-align:center;padding:20px;color:var(--text3);">No games match the current filters.</div>';
+  document.getElementById('output').innerHTML=html;
+}
+
+async function run(){
+  const btn=document.getElementById('refresh-btn');
+  const status=document.getElementById('status');
+  btn.disabled=true;status.textContent='Reading appdata/oppPitcherLog…';
+  try{
+    const snap=await db.collection('appdata').doc('oppPitcherLog').get();
+    oppPitcherLog=snap.exists?snap.data():{};
+    // Build team dropdown
+    const teams=['Cannonballers','Thunder','Hurricanes','Hot Rods','Devil Rays','Iron Pigs','Mighty Mussels','Bulls','Tin Caps - sho','Grasshoppers','Lugnuts','Mud Hens'];
+    const sel=document.getElementById('filter-team');
+    if(sel.options.length<=1){
+      teams.forEach(t=>{
+        const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);
+      });
+      document.getElementById('filter-missing').addEventListener('change',render);
+      document.getElementById('filter-team').addEventListener('change',render);
+      document.getElementById('filter-us-only').addEventListener('change',render);
+    }
+    document.getElementById('controls').style.display='flex';
+    render();
+    status.textContent='✓ Loaded. '+GAMES.length+' games · click any filter to drill in.';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+  }
+  btn.disabled=false;
+}
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
