@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fix pitcher counts — e13</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1100px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:11px;}
+td.num{text-align:right;}
+.before{color:#e04535;}
+.after{color:#36a066;font-weight:bold;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+button.danger{background:#e04535;color:#fff;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:8px;padding:10px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+#status.ok{background:rgba(42,125,82,.20);color:#36a066;}
+#status.err{background:rgba(184,50,40,.20);color:#e04535;}
+#status.preview{background:rgba(200,169,110,.10);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Fix e13 pitcher counts — write fresh recount to Firestore</h1>
+
+<p>Walks every AB in <code>games/e13</code> applying the v200/v201/v202 counting rules (X = strike, H = ball + hbp, every foul = strike) and writes the corrected per-pitcher stats back to <code>gdata.hp[]</code>. Bypasses the stale-service-worker problem entirely.</p>
+
+<button id="preview-btn" onclick="doPreview()">1. Preview corrected values</button>
+<button id="apply-btn" onclick="doApply()" class="danger" disabled>2. Write to Firestore</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let prepared=null;
+
+function recalc(g){
+  // Mirrors the v200/v201/v202 recalcPitcherStats from the app, run locally.
+  const ourSide=g.ht==='Mighty Mussels'?'home':'away';
+  const ourList=ourSide==='home'?(g.hp||[]):(g.ap||[]);
+  const oppSide=ourSide==='home'?'away':'home';
+  const oppList=oppSide==='home'?(g.hp||[]):(g.ap||[]);
+  const allP=ourList.concat(oppList);
+  // Reset all counters
+  allP.forEach(p=>{
+    p.total=0;p.sw=0;p.lk=0;p.fo=0;p.ba=0;p.bip=0;p.hbp=0;p.stk=0;
+    p.ip_outs=0;p.hits=0;p.runs_allowed=0;p.er=0;
+    p.bb_allowed=0;p.k_pitched=0;p.hbp_allowed=0;
+  });
+  // Walk every AB
+  (g.abs||[]).forEach(ab=>{
+    if(ab.autoOut)return;
+    // Find pitcher record
+    const pTeam=ab.pitcherTeam||(ab.half==='top'?'home':'away');
+    const list=pTeam==='home'?(g.hp||[]):(g.ap||[]);
+    let p=null;
+    if(ab.pitcher)p=list.find(x=>x.name===ab.pitcher);
+    if(!p){
+      const faName=(g.fa[ab.inn]||{}).P;
+      if(faName)p=list.find(x=>x.name===faName);
+    }
+    if(!p)return;
+    const pSeq=ab.pitches||[];
+    const pcTotal=(ab.pc>0)?ab.pc:pSeq.length;
+    p.total+=pcTotal;
+    if(pSeq.length){
+      pSeq.forEach(c=>{
+        if(c==='S'){p.sw++;p.stk++;}
+        else if(c==='L'){p.lk++;p.stk++;}
+        else if(c==='F'||c==='FT'){p.fo++;p.stk++;}
+        else if(c==='B')p.ba++;
+        else if(c==='X'){p.bip++;p.stk++;}
+        else if(c==='H'){p.hbp++;p.ba++;}
+        else if(c==='Us')p.stk++;
+        // U falls through (in p.total via pcTotal)
+      });
+    }
+    const r=ab.result;
+    const isOut=['K','KL','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
+    if(isOut)p.ip_outs++;
+    if(r==='DP'||r==='GIDP')p.ip_outs++;
+    if(r==='TP')p.ip_outs+=2;
+    if(['1B','2B','3B','HR','LLHR'].indexOf(r)>=0)p.hits++;
+    if(r==='BB')p.bb_allowed++;
+    if(r==='K'||r==='KL')p.k_pitched++;
+    if(r==='HBP')p.hbp_allowed++;
+    p.runs_allowed+=(ab.rbi||0);
+    p.er=p.runs_allowed;
+  });
+  // v98 runs reattribution if present
+  const runsHavePitcherAttr=(g.runs||[]).some(rn=>rn.pitcher);
+  if(runsHavePitcherAttr){
+    allP.forEach(p=>{p.runs_allowed=0;p.er=0;});
+    (g.runs||[]).forEach(rn=>{
+      if(!rn.pitcher)return;
+      const p=allP.find(x=>x.name===rn.pitcher);
+      if(!p)return;
+      p.runs_allowed++;
+      if(!rn.unearned)p.er++;
+    });
+  }
+  // CS outs
+  (g.css||[]).forEach(cs=>{
+    if(cs.pitcher){
+      const list=cs.pitcherTeam==='home'?(g.hp||[]):(g.ap||[]);
+      const p=list.find(x=>x.name===cs.pitcher);
+      if(p){p.ip_outs++;return;}
+    }
+    const sameHalf=(g.abs||[]).filter(a=>a.inn===cs.inn&&a.half===cs.half);
+    const lastAB=sameHalf[sameHalf.length-1];
+    if(lastAB&&lastAB.pitcher){
+      const pTeam=lastAB.pitcherTeam||(lastAB.half==='top'?'home':'away');
+      const list=pTeam==='home'?(g.hp||[]):(g.ap||[]);
+      const p=list.find(x=>x.name===lastAB.pitcher);
+      if(p)p.ip_outs++;
+    }
+  });
+  return g;
+}
+
+async function doPreview(){
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  const applyBtn=document.getElementById('apply-btn');
+  status.className='preview';status.textContent='Reading games/e13…';out.innerHTML='';applyBtn.disabled=true;prepared=null;
+  try{
+    const snap=await db.collection('games').doc('e13').get();
+    if(!snap.exists)throw new Error('games/e13 does not exist');
+    const data=snap.data();
+    const before=JSON.parse(JSON.stringify(data.gdata||{}));
+    const after=recalc(JSON.parse(JSON.stringify(before)));
+    prepared=after;
+    // Build before/after diff for OUR pitchers
+    const ourSide=before.ht==='Mighty Mussels'?'home':'away';
+    const beforeList=ourSide==='home'?(before.hp||[]):(before.ap||[]);
+    const afterList=ourSide==='home'?(after.hp||[]):(after.ap||[]);
+    let html='<h2>Our pitchers — before / after</h2>';
+    html+='<table><thead><tr><th>Pitcher</th><th>Field</th><th class="num before">Before</th><th class="num after">After</th></tr></thead><tbody>';
+    afterList.forEach((pAfter,i)=>{
+      const pBefore=beforeList[i];
+      ['total','stk','ba','sw','lk','fo','bip','hbp','ip_outs','hits','runs_allowed','er','bb_allowed','k_pitched','hbp_allowed'].forEach(field=>{
+        const bv=pBefore?(pBefore[field]||0):0;
+        const av=pAfter[field]||0;
+        if(bv===av)return;// skip unchanged
+        html+='<tr><td>'+pAfter.name+'</td><td>'+field+'</td><td class="num before">'+bv+'</td><td class="num after">'+av+'</td></tr>';
+      });
+    });
+    html+='</tbody></table>';
+    // Also verify post-recount that total === stk + ba (no U pitches in this game)
+    html+='<h2>Sanity check after fix (stk+ba should equal total)</h2>';
+    html+='<table><thead><tr><th>Pitcher</th><th class="num">total</th><th class="num">stk</th><th class="num">ba</th><th class="num">stk+ba</th><th class="num">gap</th></tr></thead><tbody>';
+    afterList.forEach(p=>{
+      const sum=(p.stk||0)+(p.ba||0);
+      const gap=(p.total||0)-sum;
+      html+='<tr><td>'+p.name+'</td><td class="num">'+(p.total||0)+'</td><td class="num">'+(p.stk||0)+'</td><td class="num">'+(p.ba||0)+'</td><td class="num">'+sum+'</td><td class="num '+(gap===0?'after':'before')+'">'+gap+'</td></tr>';
+    });
+    html+='</tbody></table>';
+    out.innerHTML=html;
+    status.className='preview';
+    status.textContent='✓ Preview ready. Review and click Apply.';
+    applyBtn.disabled=false;
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+  }
+}
+
+async function doApply(){
+  const status=document.getElementById('status');
+  if(!prepared){status.className='err';status.textContent='Click Preview first.';return;}
+  const btn=document.getElementById('apply-btn');btn.disabled=true;
+  try{
+    if(!confirm('Write corrected pitcher counts to games/e13?')){btn.disabled=false;return;}
+    status.className='preview';status.textContent='Writing games/e13…';
+    await db.collection('games').doc('e13').set({
+      gdata:prepared,
+      updated:new Date(),
+      fixedAt:new Date().toISOString(),
+      fixNote:'Pitcher stats recounted with v200/v201/v202 rules (X=strike, H=ball+hbp, foul=strike no count cap). Bypasses stale-cache recalc.'
+    },{merge:true});
+    status.className='ok';
+    status.textContent='✓ Wrote games/e13. Reload the scorecard app — Pitchers panel should now show correct stk + ba = total.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+    btn.disabled=false;
+  }
+}
+</script>
+</body>
+</html>
