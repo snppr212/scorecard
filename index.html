@@ -5883,9 +5883,12 @@ $('rbi-btns').innerHTML=rb;
 // doesn't have to remember when force outs / sacs / DPs do or don't credit RBI.
 $('rbi-hint').innerHTML=_rbiHintFor(r,hasRunners);
 // Pre-populate the err-p select so the position picker works when the user opens the error details
+// v195: always show the error details section + populate positions regardless of who's fielding.
+// When opp is fielding (we bat), the position dropdown shows "Opp 1B / Opp 2B / ..." so the
+// user can still tag a fielding error against the opponent. Attribution settles in submitPlay.
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
-if(wf)popErrPos();
-$('play-err-details').style.display=wf?'block':'none';
+popErrPos(wf);
+$('play-err-details').style.display='block';
 // Initial notation display from result code (no fielder picked yet)
 _updatePlayNotationDisplay();
 var dp=r==='DP';$('dp-sec').style.display=dp?'block':'none';
@@ -5901,7 +5904,23 @@ if($('bi-sec'))$('bi-sec').style.display=biShow?'block':'none';
 var _pd=document.querySelector('.play-diamond');
 if(_pd)_pd.classList.toggle('legacy-cf',_isLegacyCFGame());
 om('m-play');}
-function popErrPos(){var s=$('err-p'),fa=G.fa[G.inn]||{};s.innerHTML=getActivePOS().map(p=>'<option value="'+p+'">'+p+(fa[p]?' — '+fa[p]:'')+'</option>').join('');}
+function popErrPos(weField){
+  // v195: when WE'RE fielding, show our fielder names from G.fa.
+  // When opp is fielding (we bat), label as "Opp <pos>" since we don't track
+  // their roster per position. Default weField to true for back-compat.
+  if(weField===undefined)weField=true;
+  var s=$('err-p'),fa=G.fa[G.inn]||{};
+  s.innerHTML=getActivePOS().map(function(p){
+    var label;
+    if(weField){
+      label=p+(fa[p]?' — '+fa[p]:'');
+    }else{
+      var posAbbr=_posToLabel(p);
+      label=p+' — Opp '+(posAbbr||p);
+    }
+    return '<option value="'+p+'">'+label+'</option>';
+  }).join('');
+}
 // ============================================================================
 // PLAY-LOG MODAL — diamond fielder picker, quality buttons, error toggles,
 // and auto-derived notation. State lives in module-level _playXxx vars and
