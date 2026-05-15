@@ -7494,7 +7494,9 @@ var _editAbIdx=-1;
 // On Save, the AB is renumbered + stays in place; recalcPitcherStats fires.
 var _insertAbActive=false;
 function openInsertAB(refIdx, position){
-  if(typeof _voGuard==='function'&&_voGuard())return;
+  // v199: NO _voGuard here. Insert AB is a retroactive-fix workflow same as
+  // Edit AB, so it needs to work in view-only mode (finalized games). Edit
+  // AB has always been allowed in view-only; insert was an oversight.
   position=position||'before';
   var ref=G.abs[refIdx];
   if(!ref){toast('AB not found');return;}
@@ -9820,7 +9822,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v198';
+var APP_VERSION='v199';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
