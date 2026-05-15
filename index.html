@@ -67,6 +67,20 @@ body{display:flex;flex-direction:column;height:100dvh;}
 .tbl .hi{color:var(--gold);font-weight:bold;}
 .tbl .warn{color:var(--red2);}
 .tbl .ok{color:var(--green2);}
+/* v197: freeze the player/team-name (1st) column on Season Stats tables so
+   horizontal scrolling can reveal the wide stat columns on mobile without
+   losing the name. Right-edge shadow signals the column is frozen. */
+#season-bat thead th:first-child,
+#season-bat tbody td:first-child,
+#season-bat tfoot td:first-child,
+#season-pit thead th:first-child,
+#season-pit tbody td:first-child,
+#season-pit tfoot td:first-child,
+#season-lp-body .tbl thead th:first-child,
+#season-lp-body .tbl tbody td:first-child{
+  position:sticky;left:0;background:var(--bg2);z-index:2;
+  box-shadow:2px 0 4px rgba(0,0,0,.25);
+}
 .badge{display:inline-block;padding:2px 5px;border-radius:4px;font-size:10px;font-family:sans-serif;font-weight:bold;}
 .bK,.bKL{background:rgba(184,50,40,.25);color:#e08080;}
 .bBB,.bHBP{background:rgba(42,125,82,.25);color:#80c8a0;}
@@ -9787,7 +9801,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v196';
+var APP_VERSION='v197';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
