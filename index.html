@@ -7464,29 +7464,34 @@ function _renderEditAbPitches(){
   var arr=_editAbPitchesTemp||[];
   var quals=_editAbQualitiesTemp||[];
   var codes=['B','S','L','F','FT','X','H','U','Us'];
+  var codeLabels={B:'B (ball)',S:'S (swing-strike)',L:'L (look-strike)',F:'F (foul)',FT:'FT (foul tip)',X:'X (in play)',H:'H (HBP)',U:'U (unknown)',Us:'Us (unknown strike)'};
   var swingTypes=['S','F','FT','X'];
   var html='';
+  // v192: render each pitch as its own row — easier to read + edit on mobile
+  // than the horizontal wrap. Each row: index # | pitch select | quality tag.
   arr.forEach(function(c,i){
     var optsHtml=codes.map(function(code){
-      return '<option value="'+code+'"'+(code===c?' selected':'')+'>'+code+'</option>';
+      return '<option value="'+code+'"'+(code===c?' selected':'')+'>'+codeLabels[code]+'</option>';
     }).join('');
-    optsHtml+='<option value="__REMOVE__">✕ remove</option>';
-    html+='<span style="display:inline-block;margin-right:6px;margin-bottom:6px;white-space:nowrap;">';
-    html+='<select onchange="_editAbSetPitch('+i+',this.value)" style="padding:4px 6px;font-size:12px;font-family:monospace;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);border-radius:3px;min-width:48px;">'+optsHtml+'</select>';
-    // v191: swing-quality button for S/F/FT/X pitches. Cycle untagged → good → bad → untagged.
+    optsHtml+='<option value="__REMOVE__">✕ remove this pitch</option>';
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+    html+='<span style="font-size:11px;color:var(--text3);min-width:22px;text-align:right;">'+(i+1)+'.</span>';
+    html+='<select onchange="_editAbSetPitch('+i+',this.value)" style="flex:1;padding:6px 8px;font-size:13px;font-family:monospace;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);border-radius:3px;">'+optsHtml+'</select>';
     if(swingTypes.indexOf(c)>=0){
       var q=quals[i]||null;
       var qLabel=q==='good'?'👍':q==='bad'?'👎':'°';
       var qColor=q==='good'?'#36a066':q==='bad'?'#e04535':'var(--text3)';
-      html+='<button onclick="_editAbCycleQuality('+i+')" title="Cycle swing quality (untagged → good → bad)" style="margin-left:2px;padding:2px 6px;font-size:13px;background:transparent;border:1px solid var(--border);border-radius:3px;color:'+qColor+';cursor:pointer;line-height:1;vertical-align:middle;">'+qLabel+'</button>';
+      html+='<button onclick="_editAbCycleQuality('+i+')" title="Tag swing quality (cycle: untagged → good → bad)" style="padding:6px 10px;font-size:16px;background:transparent;border:1px solid var(--border);border-radius:3px;color:'+qColor+';cursor:pointer;line-height:1;min-width:42px;">'+qLabel+'</button>';
+    }else{
+      // Empty placeholder to keep dropdown widths aligned across rows
+      html+='<span style="display:inline-block;min-width:42px;"></span>';
     }
-    html+='</span>';
+    html+='</div>';
   });
-  html+='<button class="btn btn-xs btn-green" onclick="_editAbAddPitch()" style="padding:3px 10px;font-size:11px;">+ pitch</button>';
-  html+='<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.45;">'
+  html+='<div style="margin-top:8px;"><button class="btn btn-sm btn-green" onclick="_editAbAddPitch()" style="width:100%;padding:8px;font-size:13px;">+ Add pitch</button></div>';
+  html+='<div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5;">'
     +'<strong>'+arr.length+'</strong> pitch'+(arr.length===1?'':'es')
-    +' · tap 👍/👎/° to tag good / bad / untagged (S, F, FT, X only)'
-    +'<br><span style="color:var(--text2);">codes:</span> B=ball, S=swing-strike, L=look-strike, F=foul, FT=foul tip, X=in play, H=HBP, U=unknown, Us=unknown strike (BB context)'
+    +' total. 👍 = good swing (in zone) · 👎 = bad swing (out of zone) · ° = untagged. Tag buttons only show for swing-type pitches (S, F, FT, X).'
     +'</div>';
   $('editab-pitches').innerHTML=html;
 }
@@ -9561,7 +9566,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v191';
+var APP_VERSION='v192';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
