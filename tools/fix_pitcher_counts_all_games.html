@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fix pitcher counts — all games</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1200px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:11px;}
+td.num{text-align:right;}
+.before{color:#e04535;}
+.after{color:#36a066;font-weight:bold;}
+.clean{color:#36a066;}
+.dirty{background:rgba(184,50,40,.10);}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+button.danger{background:#e04535;color:#fff;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:8px;padding:10px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+#status.ok{background:rgba(42,125,82,.20);color:#36a066;}
+#status.err{background:rgba(184,50,40,.20);color:#e04535;}
+#status.preview{background:rgba(200,169,110,.10);color:#c8a96e;}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px;}
+.box{background:rgba(255,255,255,.04);padding:12px;border-radius:4px;text-align:center;}
+.box .big{font-size:24px;font-weight:bold;color:#c8a96e;}
+.box .label{font-size:11px;color:var(--text2);margin-top:4px;}
+</style>
+</head>
+<body>
+<h1>Fix pitcher counts across every game</h1>
+
+<p>Reads every finalized game, walks each AB pitch-by-pitch under v200/v201/v202 rules (X=strike, H=ball+hbp, every foul=strike), and reports which games have stale pitcher counts. Apply writes corrected values to all affected games at once.</p>
+
+<button id="scan-btn" onclick="doScan()">1. Scan all games</button>
+<button id="apply-btn" onclick="doApply()" class="danger" disabled>2. Apply fix to all stale games</button>
+<div id="status"></div>
+<div id="summary"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let preparedGames=null;// [{id, fixed, changes:[{name,field,before,after}]}]
+
+// Mirrors v200/v201/v202 recalcPitcherStats logic, run in this tool to bypass
+// stale service-worker code on the user's phone.
+function recalc(g){
+  if(!g||!g.abs)return g;
+  const allP=(g.hp||[]).concat(g.ap||[]);
+  allP.forEach(p=>{
+    p.total=0;p.sw=0;p.lk=0;p.fo=0;p.ba=0;p.bip=0;p.hbp=0;p.stk=0;
+    p.ip_outs=0;p.hits=0;p.runs_allowed=0;p.er=0;
+    p.bb_allowed=0;p.k_pitched=0;p.hbp_allowed=0;
+  });
+  (g.abs||[]).forEach(ab=>{
+    if(ab.autoOut)return;
+    const pTeam=ab.pitcherTeam||(ab.half==='top'?'home':'away');
+    const list=pTeam==='home'?(g.hp||[]):(g.ap||[]);
+    let p=null;
+    if(ab.pitcher)p=list.find(x=>x.name===ab.pitcher);
+    if(!p){
+      const faName=((g.fa||{})[ab.inn]||{}).P;
+      if(faName)p=list.find(x=>x.name===faName);
+    }
+    if(!p)return;
+    const pSeq=ab.pitches||[];
+    const pcTotal=(ab.pc>0)?ab.pc:pSeq.length;
+    p.total+=pcTotal;
+    if(pSeq.length){
+      pSeq.forEach(c=>{
+        if(c==='S'){p.sw++;p.stk++;}
+        else if(c==='L'){p.lk++;p.stk++;}
+        else if(c==='F'||c==='FT'){p.fo++;p.stk++;}
+        else if(c==='B')p.ba++;
+        else if(c==='X'){p.bip++;p.stk++;}
+        else if(c==='H'){p.hbp++;p.ba++;}
+        else if(c==='Us')p.stk++;
+      });
+    }
+    const r=ab.result;
+    const isOut=['K','KL','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
+    if(isOut)p.ip_outs++;
+    if(r==='DP'||r==='GIDP')p.ip_outs++;
+    if(r==='TP')p.ip_outs+=2;
+    if(['1B','2B','3B','HR','LLHR'].indexOf(r)>=0)p.hits++;
+    if(r==='BB')p.bb_allowed++;
+    if(r==='K'||r==='KL')p.k_pitched++;
+    if(r==='HBP')p.hbp_allowed++;
+    p.runs_allowed+=(ab.rbi||0);
+    p.er=p.runs_allowed;
+  });
+  const runsHavePitcherAttr=(g.runs||[]).some(rn=>rn.pitcher);
+  if(runsHavePitcherAttr){
+    allP.forEach(p=>{p.runs_allowed=0;p.er=0;});
+    (g.runs||[]).forEach(rn=>{
+      if(!rn.pitcher)return;
+      const p=allP.find(x=>x.name===rn.pitcher);
+      if(!p)return;
+      p.runs_allowed++;
+      if(!rn.unearned)p.er++;
+    });
+  }
+  (g.css||[]).forEach(cs=>{
+    if(cs.pitcher){
+      const list=cs.pitcherTeam==='home'?(g.hp||[]):(g.ap||[]);
+      const p=list.find(x=>x.name===cs.pitcher);
+      if(p){p.ip_outs++;return;}
+    }
+    const sameHalf=(g.abs||[]).filter(a=>a.inn===cs.inn&&a.half===cs.half);
+    const lastAB=sameHalf[sameHalf.length-1];
+    if(lastAB&&lastAB.pitcher){
+      const pTeam=lastAB.pitcherTeam||(lastAB.half==='top'?'home':'away');
+      const list=pTeam==='home'?(g.hp||[]):(g.ap||[]);
+      const p=list.find(x=>x.name===lastAB.pitcher);
+      if(p)p.ip_outs++;
+    }
+  });
+  return g;
+}
+
+function computeChanges(before, after){
+  const changes=[];
+  const ourList=(before.ht==='Mighty Mussels'?before.hp:before.ap)||[];
+  const afterList=(after.ht==='Mighty Mussels'?after.hp:after.ap)||[];
+  ourList.forEach((pBefore,i)=>{
+    const pAfter=afterList[i];if(!pAfter)return;
+    ['total','stk','ba','sw','lk','fo','bip','hbp','ip_outs','hits','runs_allowed','er','bb_allowed','k_pitched','hbp_allowed'].forEach(f=>{
+      const bv=pBefore[f]||0,av=pAfter[f]||0;
+      if(bv!==av)changes.push({name:pBefore.name,field:f,before:bv,after:av});
+    });
+  });
+  // Also include opp pitchers (less critical but worth knowing)
+  const oppListB=(before.ht==='Mighty Mussels'?before.ap:before.hp)||[];
+  const oppListA=(after.ht==='Mighty Mussels'?after.ap:after.hp)||[];
+  oppListB.forEach((pBefore,i)=>{
+    const pAfter=oppListA[i];if(!pAfter)return;
+    ['total','stk','ba','sw','lk','fo','bip','hbp','ip_outs','hits','runs_allowed','er','bb_allowed','k_pitched','hbp_allowed'].forEach(f=>{
+      const bv=pBefore[f]||0,av=pAfter[f]||0;
+      if(bv!==av)changes.push({name:pBefore.name+' (opp)',field:f,before:bv,after:av});
+    });
+  });
+  return changes;
+}
+
+async function doScan(){
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  const summary=document.getElementById('summary');
+  const applyBtn=document.getElementById('apply-btn');
+  status.className='preview';status.textContent='Reading appdata/roster for schedule…';out.innerHTML='';summary.innerHTML='';applyBtn.disabled=true;preparedGames=null;
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    if(!rosterSnap.exists)throw new Error('appdata/roster does not exist');
+    const A=rosterSnap.data().adata||{};
+    const gameResults=A.gameResults||{};
+    const finalIds=Object.keys(gameResults).filter(k=>gameResults[k]&&gameResults[k].final&&k!=='test-sandbox');
+    status.textContent='Fetching '+finalIds.length+' games…';
+    const games=[];
+    for(let i=0;i<finalIds.length;i++){
+      const id=finalIds[i];
+      status.textContent='Reading game '+(i+1)+' / '+finalIds.length+' ('+id+')…';
+      const snap=await db.collection('games').doc(id).get();
+      if(!snap.exists)continue;
+      const data=snap.data();
+      const gBefore=data.gdata||{};
+      const gAfter=recalc(JSON.parse(JSON.stringify(gBefore)));
+      const changes=computeChanges(gBefore,gAfter);
+      games.push({id:id,before:gBefore,fixed:gAfter,changes:changes});
+    }
+    preparedGames=games;
+    const dirty=games.filter(g=>g.changes.length>0);
+    const clean=games.length-dirty.length;
+    summary.innerHTML='<div class="summary">'
+      +'<div class="box"><div class="big">'+games.length+'</div><div class="label">games scanned</div></div>'
+      +'<div class="box"><div class="big" style="color:'+(dirty.length===0?'#36a066':'#e04535')+';">'+dirty.length+'</div><div class="label">games with stale counts</div></div>'
+      +'<div class="box"><div class="big" style="color:#36a066;">'+clean+'</div><div class="label">already correct</div></div>'
+      +'</div>';
+    if(dirty.length===0){
+      out.innerHTML='<div style="padding:14px;text-align:center;color:#36a066;background:rgba(42,125,82,.10);border-radius:4px;">✓ All games are clean. Pitcher counts reconcile under v200/v201/v202 rules.</div>';
+      status.className='ok';
+      status.textContent='✓ Nothing to fix.';
+      return;
+    }
+    // Per-game details
+    let html='<h2>Games with stale pitcher counts</h2>';
+    dirty.forEach(g=>{
+      const ourSide=g.before.ht==='Mighty Mussels'?'home':'away';
+      const matchup=(g.before.ht||'?')+' v '+(g.before.at||'?');
+      html+='<h2 class="dirty" style="padding:6px 10px;">'+g.id+' — '+matchup+' ('+g.changes.length+' field changes)</h2>';
+      html+='<table><thead><tr><th>Pitcher</th><th>Field</th><th class="num before">Before</th><th class="num after">After</th><th class="num">Δ</th></tr></thead><tbody>';
+      g.changes.forEach(c=>{
+        html+='<tr><td>'+c.name+'</td><td>'+c.field+'</td><td class="num before">'+c.before+'</td><td class="num after">'+c.after+'</td><td class="num">'+(c.after-c.before>0?'+':'')+(c.after-c.before)+'</td></tr>';
+      });
+      html+='</tbody></table>';
+    });
+    out.innerHTML=html;
+    status.className='preview';
+    status.textContent='✓ Scan complete. '+dirty.length+' of '+games.length+' games have stale counts. Click Apply to fix all.';
+    applyBtn.disabled=false;
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+  }
+}
+
+async function doApply(){
+  const status=document.getElementById('status');
+  if(!preparedGames){status.className='err';status.textContent='Click Scan first.';return;}
+  const btn=document.getElementById('apply-btn');btn.disabled=true;
+  try{
+    const dirty=preparedGames.filter(g=>g.changes.length>0);
+    if(!confirm('Write corrected pitcher counts to '+dirty.length+' games?')){btn.disabled=false;return;}
+    const writeLog=[];
+    for(let i=0;i<dirty.length;i++){
+      const g=dirty[i];
+      status.className='preview';status.textContent='Writing '+g.id+' ('+(i+1)+'/'+dirty.length+')…';
+      await db.collection('games').doc(g.id).set({
+        gdata:g.fixed,
+        updated:new Date(),
+        fixedAt:new Date().toISOString(),
+        fixNote:'Pitcher stats recounted under v200/v201/v202 rules. Cross-game batch fix via tools/fix_pitcher_counts_all_games.html'
+      },{merge:true});
+      writeLog.push('✓ '+g.id+' ('+g.changes.length+' changes)');
+    }
+    status.className='ok';
+    status.textContent='✓ Done. '+dirty.length+' games written.\n\n'+writeLog.join('\n')+'\n\nReload the scorecard and the Season Stats / per-game pitcher panels will show correct numbers.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+    btn.disabled=false;
+  }
+}
+</script>
+</body>
+</html>
