@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Diag pitcher counts — e13</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1100px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:11px;}
+td.num{text-align:right;}
+.bad{background:rgba(184,50,40,.20);color:#e04535;font-weight:bold;}
+.ok{color:#36a066;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+#status{margin-top:8px;padding:10px;border-radius:4px;font-size:12px;}
+pre{background:rgba(0,0,0,.3);padding:10px;border-radius:4px;font-size:10px;white-space:pre-wrap;overflow-x:auto;}
+</style>
+</head>
+<body>
+<h1>Diag — Where are the pitcher pitch-count gaps coming from?</h1>
+
+<p>Reads <code>games/e13</code> from Firestore and walks every AB pitch-by-pitch. Counts each pitch code per pitcher and reports the gap vs PC.</p>
+
+<button onclick="run()">Read + diagnose</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const STRIKE_CODES=['S','L','F','FT','X','Us'];
+const BALL_CODES=['B','H'];
+
+async function run(){
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  status.textContent='Reading games/e13…';out.innerHTML='';
+  try{
+    const snap=await db.collection('games').doc('e13').get();
+    if(!snap.exists)throw new Error('games/e13 does not exist');
+    const g=snap.data().gdata||{};
+    const ourSide=g.ht==='Mighty Mussels'?'home':'away';
+    const oppSide=ourSide==='home'?'away':'home';
+    const ourPitchers=ourSide==='home'?(g.hp||[]):(g.ap||[]);
+    let html='<h2>Stored pitcher records (raw from Firestore)</h2>';
+    html+='<table><thead><tr><th>Pitcher</th><th class="num">total</th><th class="num">stk</th><th class="num">ba</th><th class="num">stk+ba</th><th class="num">gap</th><th class="num">sw</th><th class="num">lk</th><th class="num">fo</th><th class="num">bip</th><th class="num">hbp</th></tr></thead><tbody>';
+    ourPitchers.forEach(p=>{
+      const stkBa=(p.stk||0)+(p.ba||0);
+      const gap=(p.total||0)-stkBa;
+      html+='<tr><td>'+esc(p.name)+'</td><td class="num">'+(p.total||0)+'</td><td class="num">'+(p.stk||0)+'</td><td class="num">'+(p.ba||0)+'</td><td class="num">'+stkBa+'</td><td class="num '+(gap===0?'ok':'bad')+'">'+gap+'</td><td class="num">'+(p.sw||0)+'</td><td class="num">'+(p.lk||0)+'</td><td class="num">'+(p.fo||0)+'</td><td class="num">'+(p.bip||0)+'</td><td class="num">'+(p.hbp||0)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+    // Now walk every AB pitch-by-pitch to recount fresh
+    html+='<h2>Recount from AB pitch sequences (ground truth)</h2>';
+    const fresh={};
+    ourPitchers.forEach(p=>{fresh[p.name]={total:0,counts:{},pitches:[]};});
+    let unknownPitcher=0;
+    (g.abs||[]).forEach(ab=>{
+      if(ab.autoOut)return;
+      if(ab.pitcherTeam!==ourSide)return;// only count ABs WE pitched
+      const pname=ab.pitcher;
+      if(!pname||!fresh[pname]){unknownPitcher++;return;}
+      const pseq=ab.pitches||[];
+      const pc=ab.pc||pseq.length;
+      fresh[pname].total+=pc;
+      pseq.forEach(c=>{
+        fresh[pname].counts[c]=(fresh[pname].counts[c]||0)+1;
+        fresh[pname].pitches.push({ab:ab.num,c:c,batter:ab.batter,inn:ab.inn,half:ab.half});
+      });
+    });
+    html+='<table><thead><tr><th>Pitcher</th><th class="num">PC sum</th><th>Pitch code counts</th><th class="num">strikes</th><th class="num">balls</th><th class="num">U(unknown)</th><th class="num">other</th><th class="num">stk+ba+U+other</th><th class="num">gap</th></tr></thead><tbody>';
+    Object.keys(fresh).forEach(name=>{
+      const f=fresh[name];
+      let strikes=0,balls=0,unknown=0,other=0;
+      const codesByCount=[];
+      Object.keys(f.counts).sort().forEach(c=>{
+        const n=f.counts[c];
+        codesByCount.push(c+':'+n);
+        if(STRIKE_CODES.indexOf(c)>=0)strikes+=n;
+        else if(BALL_CODES.indexOf(c)>=0)balls+=n;
+        else if(c==='U')unknown+=n;
+        else other+=n;
+      });
+      const sum=strikes+balls+unknown+other;
+      const gap=f.total-sum;
+      html+='<tr><td>'+esc(name)+'</td><td class="num">'+f.total+'</td><td>'+codesByCount.join(' ')+'</td><td class="num">'+strikes+'</td><td class="num">'+balls+'</td><td class="num '+(unknown>0?'bad':'')+'">'+unknown+'</td><td class="num '+(other>0?'bad':'')+'">'+other+'</td><td class="num">'+sum+'</td><td class="num '+(gap===0?'ok':'bad')+'">'+gap+'</td></tr>';
+    });
+    html+='</tbody></table>';
+    if(unknownPitcher>0){
+      html+='<div class="bad" style="padding:8px;border-radius:4px;margin-bottom:14px;">⚠ '+unknownPitcher+' ABs have a pitcher attribution that doesn\'t match any of your active pitchers. These won\'t roll up into the panel correctly.</div>';
+    }
+    // For each pitcher, list ABs where pc > pseq.length (the gap source)
+    html+='<h2>ABs where pc > pitches.length (gap source per AB)</h2>';
+    html+='<table><thead><tr><th>Pitcher</th><th>AB#</th><th>Inn</th><th>Batter</th><th>Result</th><th class="num">pc</th><th class="num">pitches.length</th><th>pitches</th></tr></thead><tbody>';
+    let mismatches=0;
+    (g.abs||[]).forEach(ab=>{
+      if(ab.autoOut)return;
+      if(ab.pitcherTeam!==ourSide)return;
+      const len=(ab.pitches||[]).length;
+      if((ab.pc||0)!==len){
+        mismatches++;
+        html+='<tr class="bad"><td>'+esc(ab.pitcher||'(none)')+'</td><td>'+ab.num+'</td><td>'+ab.inn+' '+ab.half+'</td><td>'+esc(ab.batter)+'</td><td>'+ab.result+'</td><td class="num">'+(ab.pc||0)+'</td><td class="num">'+len+'</td><td>['+(ab.pitches||[]).join(',')+']</td></tr>';
+      }
+    });
+    if(!mismatches)html+='<tr><td colspan="8" class="ok" style="text-align:center;padding:14px;">✓ All ABs have pc === pitches.length</td></tr>';
+    html+='</tbody></table>';
+    out.innerHTML=html;
+    status.textContent='✓ Done. Top table shows what\'s STORED. Middle table shows what should be there from walking the AB pitch sequences fresh. If they differ, the stored values are stale (need recalc). If both show a gap, look at the bottom table — that\'s where the missing pitches went.';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+    out.innerHTML='<pre>'+(e.stack||'')+'</pre>';
+  }
+}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
