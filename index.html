@@ -638,7 +638,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- B1: Generic prompt modal — replaces native prompt() across the app -->
 <div class="modal-ov" id="m-prompt"><div class="modal"><h3 id="m-prompt-title">Enter</h3><div class="mrow"><label id="m-prompt-label"></label><input type="text" id="m-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();_promptSubmit();}"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="_promptSubmit()">OK</button><button class="btn btn-full" onclick="_promptCancel()">Cancel</button></div></div></div>
 <!-- EDIT-AB MODAL: fix a logged at-bat (wrong batter, wrong result, wrong RBI) -->
-<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution + pitch sequence. Bases-state at the time stays as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res" onchange="_renderEditAbHitDetails()"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="CI">CI</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="PO">PO</option><option value="FF">FF</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><!-- v193: batted-ball details (hit location, trajectory, hardness) — shown only for batted-ball results --><div class="mrow" id="editab-hit-section" style="display:none;"><label>Batted ball</label><div id="editab-hit-details"></div></div><div class="mrow"><label>Pitch sequence</label><div id="editab-pitches"></div></div><div class="mrow"><label>📝 Fix-it note (optional)</label><textarea id="editab-note" rows="2" placeholder="e.g. 'check who threw to first'" style="font-size:12px;width:100%;font-family:inherit;padding:6px;"></textarea></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Forced outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add forced out</button></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><div class="row" style="gap:6px;margin-top:6px;"><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('before')">+ Insert AB before</button><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('after')">+ Insert AB after</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cancelEditAB()">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution + pitch sequence. Bases-state at the time stays as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res" onchange="_renderEditAbHitDetails()"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="CI">CI</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="PO">PO</option><option value="FF">FF</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><!-- v193: batted-ball details (hit location, trajectory, hardness) — shown only for batted-ball results --><div class="mrow" id="editab-hit-section" style="display:none;"><label>Batted ball</label><div id="editab-hit-details"></div></div><div class="mrow"><label>Pitch sequence</label><div id="editab-pitches"></div></div><div class="mrow"><label>📝 Fix-it note (optional)</label><textarea id="editab-note" rows="2" placeholder="e.g. 'check who threw to first'" style="font-size:12px;width:100%;font-family:inherit;padding:6px;"></textarea></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Forced outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add forced out</button></div><!-- v195: errors logged on this AB (view + remove). Add-error happens via the live play picker. --><div class="mrow"><label>Fielding errors on this AB</label><div id="editab-errors" style="font-size:12px;font-family:sans-serif;"></div></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><div class="row" style="gap:6px;margin-top:6px;"><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('before')">+ Insert AB before</button><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('after')">+ Insert AB after</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cancelEditAB()">Cancel</button></div></div></div>
 <!-- v127: add-steal-to-AB picker modal -->
 <div class="modal-ov" id="m-absb"><div class="modal" style="max-width:340px;"><h3>Add steal during this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">LMLL: no steal of home permitted.</div><div class="mrow"><label>Runner</label><select id="absb-runner"></select></div><div class="mrow"><label>Steal</label><select id="absb-bases"><option value="1-2">1st → 2nd</option><option value="2-3">2nd → 3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddSBToAB()">Log steal</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-absb')">Cancel</button></div></div></div>
 <!-- v135: AB delete with state-rewind option. Shown when deleting the LATEST
@@ -6117,7 +6117,15 @@ if((res==='LO'||res==='PO'||res==='FF')&&G.prbi>0&&!hasRunners){toast('RBI requi
 var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 // v98: stamp ab_num on the error so the plays-log renderer + v96 review can
 // link it to the specific AB. The next AB that finAB pushes will get num=G.abc+1.
-if(et&&ep&&wf){var fa=G.fa[G.inn]||{};G.errs.push({player:fa[ep]||'(unknown)',pos:ep,inn:G.inn,half:G.half,type:et,play:not||G.pres,standalone:false,ab_num:G.abc+1});}
+// v195: also log errors when the OPP is fielding (we bat). We don't track
+// the opp's per-position fielders, so the player attribution falls back to
+// a position label ("Opp 2B"). oppErr:true flags it for renderers + stats so
+// the error doesn't count toward our team's defensive error tally.
+if(et&&ep){
+  var fa=G.fa[G.inn]||{};
+  var _errPlayer=wf?(fa[ep]||'(unknown)'):('Opp '+(_posToLabel(ep)||('#'+ep)));
+  G.errs.push({player:_errPlayer,pos:ep,inn:G.inn,half:G.half,type:et,play:not||G.pres,standalone:false,ab_num:G.abc+1,oppErr:!wf});
+}
 if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
 // v137: capture baserunner-interference toggle. Only honored when result is
 // 1B with at least one runner on AND the user picked a base. Fielder defaults
@@ -7520,7 +7528,41 @@ function openEditAB(idx){
   _renderEditAbOuts();
   _renderEditAbAdvances();
   _renderEditAbRuns();
+  _renderEditAbErrors();
   om('m-editab');
+}
+// v195: render the fielding errors attached to the AB currently being edited.
+// Each row shows the error attribution + a ✕ button to remove it. Useful for
+// cleaning up mis-clicked errors (and now-finable bogus attributions from when
+// only OUR fielding errors were being logged — see the wf gate removal above).
+function _renderEditAbErrors(){
+  if(_editAbIdx<0)return;
+  var ab=G.abs[_editAbIdx];if(!ab)return;
+  var errs=(G.errs||[]).filter(function(e){return !e.standalone&&e.ab_num===ab.num;});
+  var typeLabels={F:'Field',T:'Throw',M:'Mental',C:'Catch'};
+  var html=errs.length
+    ? errs.map(function(e){
+        var idx=G.errs.indexOf(e);
+        var typeLabel=typeLabels[e.type]||e.type||'';
+        var oppTag=e.oppErr?' <span style="color:var(--gold);font-size:9px;text-transform:uppercase;letter-spacing:.04em;">OPP</span>':'';
+        var label='E'+e.pos+(typeLabel?'-'+typeLabel:'')+' by '+esc(e.player||'?')+oppTag;
+        return '<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(184,50,40,.12);border-radius:3px;margin-bottom:4px;">'
+          +'<span style="flex:1;color:var(--red2);font-size:11px;">'+label+'</span>'
+          +'<button class="btn btn-xs btn-red" onclick="_removeErrorFromAB('+idx+')" style="padding:2px 6px;" title="Remove this error">✕</button>'
+          +'</div>';
+      }).join('')
+    : '<div style="color:var(--text3);font-style:italic;font-size:11px;">No errors logged on this AB</div>';
+  $('editab-errors').innerHTML=html;
+}
+function _removeErrorFromAB(globalIdx){
+  if(globalIdx<0||!G.errs||!G.errs[globalIdx])return;
+  var e=G.errs[globalIdx];
+  G.errs.splice(globalIdx,1);
+  _renderEditAbErrors();
+  if(typeof sv==='function')sv();
+  if(typeof renderLog==='function')try{renderLog();}catch(_e){}
+  if(typeof renderSC==='function')try{renderSC();}catch(_e){}
+  toast('Error removed: E'+e.pos+(e.player?' by '+e.player:''));
 }
 // v190: pitch-sequence editor inside Edit AB modal. Each existing pitch is
 // rendered as a <select> with all valid pitch codes plus a "remove" option.
@@ -9709,7 +9751,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v194';
+var APP_VERSION='v195';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
