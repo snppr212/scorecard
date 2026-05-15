@@ -29,9 +29,9 @@ button:disabled{opacity:.5;cursor:not-allowed;}
 </style>
 </head>
 <body>
-<h1>Fix pitcher counts across every game</h1>
+<h1>Fix pitcher counts across every game (fully-logged only)</h1>
 
-<p>Reads every finalized game, walks each AB pitch-by-pitch under v200/v201/v202 rules (X=strike, H=ball+hbp, every foul=strike), and reports which games have stale pitcher counts. Apply writes corrected values to all affected games at once.</p>
+<p>Reads every finalized game and applies the v200/v201/v202 recount <strong>only to games where every AB has a complete pitch sequence</strong> (pitches.length === pc on every AB, AND no <code>U</code> codes anywhere). Games with incomplete or U-coded sequences are SKIPPED — those games' stored values come from result-based rules we set up earlier and should not be overwritten.</p>
 
 <button id="scan-btn" onclick="doScan()">1. Scan all games</button>
 <button id="apply-btn" onclick="doApply()" class="danger" disabled>2. Apply fix to all stale games</button>
@@ -169,6 +169,7 @@ async function doScan(){
     const finalIds=Object.keys(gameResults).filter(k=>gameResults[k]&&gameResults[k].final&&k!=='test-sandbox');
     status.textContent='Fetching '+finalIds.length+' games…';
     const games=[];
+    const skipped=[];// games NOT eligible for recount (incomplete sequences / U codes)
     for(let i=0;i<finalIds.length;i++){
       const id=finalIds[i];
       status.textContent='Reading game '+(i+1)+' / '+finalIds.length+' ('+id+')…';
@@ -176,6 +177,24 @@ async function doScan(){
       if(!snap.exists)continue;
       const data=snap.data();
       const gBefore=data.gdata||{};
+      // Eligibility check: every non-autoOut AB must have pitches.length===pc
+      // AND no U codes anywhere. Us is OK (counts as strike). U is NOT OK
+      // (means we deliberately marked a pitch as truly-unknown in a retrofit
+      // game; the stored values came from a different rule set we shouldn't
+      // overwrite).
+      let hasIncompleteAB=false, hasUcode=false, abChecked=0;
+      (gBefore.abs||[]).forEach(ab=>{
+        if(ab.autoOut)return;
+        abChecked++;
+        const len=(ab.pitches||[]).length;
+        if((ab.pc||0)!==len)hasIncompleteAB=true;
+        (ab.pitches||[]).forEach(c=>{if(c==='U')hasUcode=true;});
+      });
+      const eligible=!hasIncompleteAB && !hasUcode && abChecked>0;
+      if(!eligible){
+        skipped.push({id:id,gBefore:gBefore,reason:hasIncompleteAB?'has ABs where pitches.length ≠ pc (retrofit game)':hasUcode?'has U (unknown) codes in pitch sequences':'no ABs'});
+        continue;
+      }
       const gAfter=recalc(JSON.parse(JSON.stringify(gBefore)));
       const changes=computeChanges(gBefore,gAfter);
       games.push({id:id,before:gBefore,fixed:gAfter,changes:changes});
@@ -184,18 +203,29 @@ async function doScan(){
     const dirty=games.filter(g=>g.changes.length>0);
     const clean=games.length-dirty.length;
     summary.innerHTML='<div class="summary">'
-      +'<div class="box"><div class="big">'+games.length+'</div><div class="label">games scanned</div></div>'
-      +'<div class="box"><div class="big" style="color:'+(dirty.length===0?'#36a066':'#e04535')+';">'+dirty.length+'</div><div class="label">games with stale counts</div></div>'
-      +'<div class="box"><div class="big" style="color:#36a066;">'+clean+'</div><div class="label">already correct</div></div>'
+      +'<div class="box"><div class="big">'+(games.length+skipped.length)+'</div><div class="label">games scanned</div></div>'
+      +'<div class="box"><div class="big" style="color:#c8a96e;">'+skipped.length+'</div><div class="label">skipped (incomplete / U-coded)</div></div>'
+      +'<div class="box"><div class="big" style="color:'+(dirty.length===0?'#36a066':'#e04535')+';">'+dirty.length+'</div><div class="label">eligible + stale</div></div>'
+      +'<div class="box"><div class="big" style="color:#36a066;">'+clean+'</div><div class="label">eligible + already correct</div></div>'
       +'</div>';
+    // Show skipped games for transparency
+    if(skipped.length){
+      let skipHtml='<h2>Skipped (left untouched)</h2><table><thead><tr><th>Game</th><th>Matchup</th><th>Reason</th></tr></thead><tbody>';
+      skipped.forEach(s=>{
+        const matchup=(s.gBefore.ht||'?')+' v '+(s.gBefore.at||'?');
+        skipHtml+='<tr><td>'+s.id+'</td><td>'+matchup+'</td><td style="color:var(--text2);">'+s.reason+'</td></tr>';
+      });
+      skipHtml+='</tbody></table>';
+      out.innerHTML=skipHtml;
+    }
     if(dirty.length===0){
-      out.innerHTML='<div style="padding:14px;text-align:center;color:#36a066;background:rgba(42,125,82,.10);border-radius:4px;">✓ All games are clean. Pitcher counts reconcile under v200/v201/v202 rules.</div>';
+      out.innerHTML+='<div style="padding:14px;text-align:center;color:#36a066;background:rgba(42,125,82,.10);border-radius:4px;margin-top:10px;">✓ All eligible games are already correct. Nothing to fix.</div>';
       status.className='ok';
-      status.textContent='✓ Nothing to fix.';
+      status.textContent='✓ Nothing to fix among '+games.length+' eligible games.';
       return;
     }
-    // Per-game details
-    let html='<h2>Games with stale pitcher counts</h2>';
+    // Per-game details (append, don't replace the skipped table)
+    let html='<h2>Eligible games with stale pitcher counts (will be fixed on Apply)</h2>';
     dirty.forEach(g=>{
       const ourSide=g.before.ht==='Mighty Mussels'?'home':'away';
       const matchup=(g.before.ht||'?')+' v '+(g.before.at||'?');
@@ -206,9 +236,9 @@ async function doScan(){
       });
       html+='</tbody></table>';
     });
-    out.innerHTML=html;
+    out.innerHTML+=html;
     status.className='preview';
-    status.textContent='✓ Scan complete. '+dirty.length+' of '+games.length+' games have stale counts. Click Apply to fix all.';
+    status.textContent='✓ Scan complete. '+dirty.length+' of '+games.length+' eligible games have stale counts ('+skipped.length+' skipped). Click Apply to fix the eligible-stale set only.';
     applyBtn.disabled=false;
   }catch(e){
     status.className='err';
