@@ -928,8 +928,9 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="modal-ov" id="m-6run"><div class="modal" style="text-align:center;">
 <h3 style="color:var(--amber2);">🛑 6-Run Limit Reached</h3>
 <div style="font-size:13px;font-family:sans-serif;margin-bottom:6px;" id="sixrun-msg"></div>
-<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">Maximum 6 runs per half-inning. The inning is over.</div>
+<div style="font-size:11px;color:var(--text2);font-family:sans-serif;margin-bottom:14px;">Maximum 6 runs per half-inning, except in the last inning where scoring is unlimited.</div>
 <button class="btn btn-gold btn-full" onclick="cm('m-6run');if(G.outs<3){G.outs=3;showIE();}else renderSC();">Next half-inning →</button>
+<button class="btn btn-full" style="margin-top:8px;border-color:var(--green2);color:var(--green2);" onclick="_overrideRunCap()">📢 This is the last inning — keep scoring</button>
 </div></div>
 
 <script>
@@ -6463,7 +6464,11 @@ else{var np=b+adv;if(np>=3){if(!newBases[2])newBases[2]=G.bases[b];else if(!newB
 else{newBases[np]=G.bases[b];}}}
 G.bases=newBases;return scored;}
 function addR(n){if(n<=0)return;
-var isLast=(G.inn>=G.ti);// no run limit in last inning
+// v196: scheduled last inning OR user-declared last inning (override) → no cap.
+// G.runCapOverride[inn] flips when user taps "📢 This is the last inning" on
+// the m-6run modal. Lets the cap apply for innings 1-(N-1) by default but
+// also handle tournament/time-shortened last-inning declarations.
+var isLast=(G.inn>=G.ti)||!!(G.runCapOverride&&G.runCapOverride[G.inn]);
 var curR=G.half==='top'?(G.inns.a[G.inn-1]||0):(G.inns.h[G.inn-1]||0);
 if(!isLast&&curR>=6){toast('🛑 6-run limit — inning over!',3000);setTimeout(function(){if(G.outs<3){G.outs=3;showIE();}},800);return;}
 if(!isLast)n=Math.min(n,6-curR);
@@ -6670,7 +6675,8 @@ function doManualRun(who,delta){
 // ensures every score-update path triggers it, including doManualRun and
 // any future score-mutating helpers.
 function _check6runCap(){
-  if(G.inn>=(G.ti||6))return;// no cap in last inning
+  if(G.inn>=(G.ti||6))return;// no cap in scheduled last inning
+  if(G.runCapOverride&&G.runCapOverride[G.inn])return;// v196: user declared unlimited
   var curR=G.half==='top'?(G.inns.a[G.inn-1]||0):(G.inns.h[G.inn-1]||0);
   if(curR<6)return;
   // If the inning-end modal is already up (m-innend) or 6-run modal is open, don't double-trigger
@@ -6678,6 +6684,17 @@ function _check6runCap(){
   if($('m-innend')&&$('m-innend').classList.contains('open'))return;
   $('sixrun-msg').textContent=(G.half==='top'?(G.at):(G.ht))+' has scored 6 runs — inning is over.';
   om('m-6run');
+}
+// v196: called from the "📢 This is the last inning" button on m-6run.
+// Flips the per-inning run-cap override + closes the modal so the user can
+// keep logging. Persisted on G so reloads honor it.
+function _overrideRunCap(){
+  if(!G.runCapOverride)G.runCapOverride={};
+  G.runCapOverride[G.inn]=true;
+  sv();
+  cm('m-6run');
+  toast('Run cap lifted for inning '+G.inn+' — unlimited scoring',3000);
+  if(typeof renderSC==='function')renderSC();
 }
 
 // INNINGS CAUGHT TRACKER
@@ -9770,7 +9787,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v195';
+var APP_VERSION='v196';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
