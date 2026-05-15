@@ -7442,8 +7442,9 @@ function openEditAB(idx){
   $('editab-rbi').value=ab.rbi||0;
   $('editab-not').value=ab.not||'';
   if($('editab-note'))$('editab-note').value=ab.fixNote||'';
-  // v190: seed the pitch-sequence editor with the current ab.pitches
+  // v190/v191: seed the pitch-sequence + swing-quality editors
   _editAbPitchesTemp=(ab.pitches||[]).slice();
+  _editAbQualitiesTemp=(ab.pitchQualities||[]).slice();
   _renderEditAbPitches();
   _renderEditAbSteals();
   _renderEditAbOuts();
@@ -7457,33 +7458,65 @@ function openEditAB(idx){
 // types when they know). On save, pitches[] and pc both get updated and
 // recalcPitcherStats rebuilds the per-pitcher counters from the new ABs.
 var _editAbPitchesTemp=null;
+var _editAbQualitiesTemp=null;
 function _renderEditAbPitches(){
   if(_editAbIdx<0)return;
   var arr=_editAbPitchesTemp||[];
+  var quals=_editAbQualitiesTemp||[];
   var codes=['B','S','L','F','FT','X','H','U','Us'];
+  var swingTypes=['S','F','FT','X'];
   var html='';
   arr.forEach(function(c,i){
     var optsHtml=codes.map(function(code){
       return '<option value="'+code+'"'+(code===c?' selected':'')+'>'+code+'</option>';
     }).join('');
     optsHtml+='<option value="__REMOVE__">✕ remove</option>';
-    html+='<select onchange="_editAbSetPitch('+i+',this.value)" style="padding:4px 6px;margin-right:4px;margin-bottom:4px;font-size:12px;font-family:monospace;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);border-radius:3px;min-width:50px;">'+optsHtml+'</select>';
+    html+='<span style="display:inline-block;margin-right:6px;margin-bottom:6px;white-space:nowrap;">';
+    html+='<select onchange="_editAbSetPitch('+i+',this.value)" style="padding:4px 6px;font-size:12px;font-family:monospace;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);border-radius:3px;min-width:48px;">'+optsHtml+'</select>';
+    // v191: swing-quality button for S/F/FT/X pitches. Cycle untagged → good → bad → untagged.
+    if(swingTypes.indexOf(c)>=0){
+      var q=quals[i]||null;
+      var qLabel=q==='good'?'👍':q==='bad'?'👎':'°';
+      var qColor=q==='good'?'#36a066':q==='bad'?'#e04535':'var(--text3)';
+      html+='<button onclick="_editAbCycleQuality('+i+')" title="Cycle swing quality (untagged → good → bad)" style="margin-left:2px;padding:2px 6px;font-size:13px;background:transparent;border:1px solid var(--border);border-radius:3px;color:'+qColor+';cursor:pointer;line-height:1;vertical-align:middle;">'+qLabel+'</button>';
+    }
+    html+='</span>';
   });
   html+='<button class="btn btn-xs btn-green" onclick="_editAbAddPitch()" style="padding:3px 10px;font-size:11px;">+ pitch</button>';
   html+='<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.45;">'
     +'<strong>'+arr.length+'</strong> pitch'+(arr.length===1?'':'es')
-    +' · <span style="color:var(--text2);">codes:</span> B=ball, S=swinging strike, L=looking strike, F=foul, FT=foul tip, X=in play, H=HBP, U=unknown, Us=unknown strike (BB context)'
+    +' · tap 👍/👎/° to tag good / bad / untagged (S, F, FT, X only)'
+    +'<br><span style="color:var(--text2);">codes:</span> B=ball, S=swing-strike, L=look-strike, F=foul, FT=foul tip, X=in play, H=HBP, U=unknown, Us=unknown strike (BB context)'
     +'</div>';
   $('editab-pitches').innerHTML=html;
 }
 function _editAbSetPitch(idx,val){
   if(!_editAbPitchesTemp)return;
-  if(val==='__REMOVE__'){_editAbPitchesTemp.splice(idx,1);}
-  else{_editAbPitchesTemp[idx]=val;}
+  if(val==='__REMOVE__'){
+    _editAbPitchesTemp.splice(idx,1);
+    if(_editAbQualitiesTemp&&_editAbQualitiesTemp.length>idx)_editAbQualitiesTemp.splice(idx,1);
+  }else{
+    _editAbPitchesTemp[idx]=val;
+    // If changed to non-swing type, clear any previously-tagged quality
+    if(['S','F','FT','X'].indexOf(val)<0&&_editAbQualitiesTemp&&_editAbQualitiesTemp[idx]!=null){
+      _editAbQualitiesTemp[idx]=null;
+    }
+  }
+  _renderEditAbPitches();
+}
+function _editAbCycleQuality(idx){
+  if(!_editAbQualitiesTemp)_editAbQualitiesTemp=[];
+  while(_editAbQualitiesTemp.length<=idx)_editAbQualitiesTemp.push(null);
+  var q=_editAbQualitiesTemp[idx];
+  // Cycle: null → good → bad → null
+  if(q==null)_editAbQualitiesTemp[idx]='good';
+  else if(q==='good')_editAbQualitiesTemp[idx]='bad';
+  else _editAbQualitiesTemp[idx]=null;
   _renderEditAbPitches();
 }
 function _editAbAddPitch(){
   if(!_editAbPitchesTemp)_editAbPitchesTemp=[];
+  if(!_editAbQualitiesTemp)_editAbQualitiesTemp=[];
   // Default new pitch: 'U' (unknown). For a BB, B makes more sense; for K, S.
   // Pick based on the current result if user has set it, else 'U'.
   var res=$('editab-res')?$('editab-res').value:'';
@@ -7494,6 +7527,7 @@ function _editAbAddPitch(){
   else if(res==='HBP')def='H';
   else if(['1B','2B','3B','HR','LLHR','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE','CI','AO'].indexOf(res)>=0)def='X';
   _editAbPitchesTemp.push(def);
+  _editAbQualitiesTemp.push(null);
   _renderEditAbPitches();
 }
 // v131: render outs tied to the AB currently being edited.
@@ -7803,12 +7837,16 @@ function confirmEditAB(){
   // v166: AB-level fix-it note
   var newNote=$('editab-note')?($('editab-note').value||'').trim():'';
   if(newNote)ab.fixNote=newNote;else delete ab.fixNote;
-  // v190: write back the edited pitch sequence + sync pc.
+  // v190/v191: write back the edited pitch sequence + qualities + sync pc.
   // recalcPitcherStats below rebuilds per-pitcher counters from the new ABs.
   if(_editAbPitchesTemp!==null){
     ab.pitches=_editAbPitchesTemp.slice();
     ab.pc=_editAbPitchesTemp.length;
+    if(_editAbQualitiesTemp!==null){
+      ab.pitchQualities=_editAbQualitiesTemp.slice();
+    }
     _editAbPitchesTemp=null;
+    _editAbQualitiesTemp=null;
   }
   // A1 FIX: adjust team score and inning total by RBI delta — keeps the box
   // score in sync with the edit. Manual runs (added via "+ Run") are
@@ -9523,7 +9561,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v190';
+var APP_VERSION='v191';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
