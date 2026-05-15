@@ -1261,7 +1261,10 @@ function pNextEligibleDate(name){
   var l=log[log.length-1];var ld=new Date(l.date);
   // Strip time-of-day so we operate on calendar days
   var elig=new Date(ld.getFullYear(),ld.getMonth(),ld.getDate());
-  elig.setDate(elig.getDate()+restD(l.pitches));
+  // v202: LL rule "N calendar days of rest" means sit out N days, eligible
+  // on day N+1. e.g. pitched Thu w/ 45p → 2 days rest → sit Fri+Sat, pitch
+  // Sun. Was missing the +1 here, so eligibility dates showed 1 day too early.
+  elig.setDate(elig.getDate()+restD(l.pitches)+1);
   return elig;
 }
 // Format the eligible date relative to today: "✓", "Today", "Tomorrow", or "Mon Apr 28"
@@ -7284,7 +7287,12 @@ function renderSPT(){var td=new Date();$('sp-body').innerHTML=A.roster.map(funct
   // Compute the actual eligible-to-pitch date, not just yes/no
   var elig=pNextEligibleDate(p.name);
   var availStr=ok?'✓':fmtAvailDate(elig,td);
-  return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+cur+'</td><td class="'+(s.rest>0?'warn':'ok')+'">'+s.rest+'d</td><td class="'+(ok?'ok':'warn')+'" style="font-family:sans-serif;font-size:11px;">'+availStr+'</td><td class="'+(s.over40?'warn':'ok')+'">'+(s.over40?'⚠':'—')+'</td></tr>';}).filter(Boolean).join('')||'<tr><td colspan="5" class="empty">No data</td></tr>';}
+  // v202: Rest column shows the LL-rule rest days required (restDaysReq),
+  // not the days-until-eligible countdown. Aligns with how coaches think
+  // about the rule: "45p = 2 days rest" not "3 days until next eligible".
+  // Shows "—" once the pitcher is past their rest period (back to eligible).
+  var restCellTxt=ok?'—':s.restDaysReq+'d';
+  return '<tr><td>'+esc(sn(p.name))+'</td><td class="hi">'+cur+'</td><td class="'+(ok?'ok':'warn')+'">'+restCellTxt+'</td><td class="'+(ok?'ok':'warn')+'" style="font-family:sans-serif;font-size:11px;">'+availStr+'</td><td class="'+(s.over40?'warn':'ok')+'">'+(s.over40?'⚠':'—')+'</td></tr>';}).filter(Boolean).join('')||'<tr><td colspan="5" class="empty">No data</td></tr>';}
 function addP(who){if(who==='us'){var v=$('hp-inp').value;if(!v)return;var _ic2=getInningsCaught(v);if(_ic2>=4&&!confirm(sn(v)+' has caught '+_ic2+' innings this game.\n\nLL Rule: 4+ innings catching = cannot pitch.\n\nAdd as pitcher anyway?'))return;var rp=A.roster.find(r=>r.name===v);ourP().push({name:rp?rp.name:v,rn:rp?rp.name:null,total:0,sw:0,lk:0,fo:0,ba:0,bip:0,hbp:0,stk:0,ip_outs:0,hits:0,runs_allowed:0,er:0,bb_allowed:0,k_pitched:0,hbp_allowed:0});
 // First-time pitcher add → also sync fa[G.inn].P so the box-score / plays-page
 // pitcher attribution lines up with this active pitcher.
@@ -9821,7 +9829,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v201';
+var APP_VERSION='v202';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
