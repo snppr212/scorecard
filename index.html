@@ -7802,6 +7802,12 @@ function _renderEditAbPitches(){
     +'<strong>'+arr.length+'</strong> pitch'+(arr.length===1?'':'es')
     +' total. 👍 = good swing (in zone) · 👎 = bad swing (out of zone) · ° = untagged. Tag buttons only show for swing-type pitches (S, F, FT, X).'
     +'</div>';
+  html+='<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:10px;color:var(--gold);">📖 Pitch code key</summary>'
+    +'<div style="font-size:10px;color:var(--text2);line-height:1.6;margin-top:6px;padding:6px;background:rgba(0,0,0,.2);border-radius:3px;">'
+    +'<strong>B</strong> = ball · <strong>S</strong> = swinging strike · <strong>L</strong> = looking strike · <strong>F</strong> = foul · <strong>FT</strong> = foul tip · <strong>X</strong> = in play · <strong>H</strong> = HBP'
+    +'<br><strong>U</strong> = unknown pitch (could be anything — used to pad ABs where we have the pc but didn\'t log per-pitch)'
+    +'<br><strong>Us</strong> = unknown strike (we KNOW it was a strike but not which type — used in BB context, since every non-ball pitch in a BB must be a strike)'
+    +'</div></details>';
   $('editab-pitches').innerHTML=html;
 }
 function _editAbSetPitch(idx,val){
@@ -9972,7 +9978,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v208';
+var APP_VERSION='v209';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();

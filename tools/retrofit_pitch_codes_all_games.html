@@ -32,11 +32,28 @@ button:disabled{opacity:.5;cursor:not-allowed;}
 <body>
 <h1>Retrofit pitch codes across every non-fully-logged game</h1>
 
+<h2 style="margin-top:8px;">Pitch code key</h2>
+<table style="font-size:12px;margin-bottom:14px;">
+<thead><tr><th style="text-align:left;">Code</th><th style="text-align:left;">Meaning</th><th style="text-align:left;">Counts as</th></tr></thead>
+<tbody>
+<tr><td><strong>B</strong></td><td>Ball</td><td>ball</td></tr>
+<tr><td><strong>S</strong></td><td>Swinging strike (batter swung &amp; missed)</td><td>strike, swing</td></tr>
+<tr><td><strong>L</strong></td><td>Looking strike (called strike, no swing)</td><td>strike</td></tr>
+<tr><td><strong>F</strong></td><td>Foul (batter contacted, ball went foul)</td><td>strike, swing</td></tr>
+<tr><td><strong>FT</strong></td><td>Foul tip (caught by catcher — can end AB on a 2-strike count)</td><td>strike, swing</td></tr>
+<tr><td><strong>X</strong></td><td>Ball in play (batter put it in play)</td><td>strike, swing</td></tr>
+<tr><td><strong>H</strong></td><td>HBP (pitch hit the batter — off the plate)</td><td>ball + HBP</td></tr>
+<tr><td><strong>U</strong></td><td>Unknown pitch (real pitch but we don't know what type — used for retrofitting non-logged ABs where the pitch could have been B/S/L/F/FT)</td><td>nothing — total only</td></tr>
+<tr><td><strong>Us</strong></td><td>Unknown strike — we KNOW it was a strike (because of BB invariant: all non-ball pitches in a BB must be strikes) but we don't know which type (S/L/F/FT)</td><td>strike only</td></tr>
+</tbody>
+</table>
+
+<h2>Retrofit rules</h2>
 <p>For games NOT marked as pitch-by-pitch logged, walks every AB and rewrites the pitch sequence under these rules (matching the e2 work we did earlier):</p>
-<pre style="background:rgba(0,0,0,.3);padding:8px;border-radius:4px;font-size:12px;">  K  → [U × (N-3), Us, Us, S]
-  KL → [U × (N-3), Us, Us, L]
-  BB → [Us × (N-4), B, B, B, B]
-  HBP → [U × (N-1), H]
+<pre style="background:rgba(0,0,0,.3);padding:8px;border-radius:4px;font-size:12px;">  K  → [U × (N-3), Us, Us, S]              — N-3 unknowns + 2 unknown-strikes + final swinging strike
+  KL → [U × (N-3), Us, Us, L]              — same, but the K-ending pitch was looking
+  BB → [Us × (N-4), B, B, B, B]            — every non-ball MUST be a strike (BB invariant)
+  HBP → [U × (N-1), H]                     — N-1 unknowns + the HBP pitch
   BIP (1B/2B/3B/HR/LLHR/GO/FO/LO/PO/FF/SAC/FC/DP/GIDP/TP/ROE/CI/AO) → [U × (N-1), X]
   N = ab.pc (total pitch count)</pre>
 
