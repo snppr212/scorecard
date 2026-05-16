@@ -1715,11 +1715,10 @@ function _gameLineScoreStats(g){
       });
     });
     if(hasUcode)fullLog=false;
-    // v207: heuristic — real per-pitch logging always has at least one foul
-    // somewhere in the team's batting half. Zero fouls across 50+ pitches
-    // is the dead giveaway of an auto-filled / retro-entered game. Forces
-    // Sw="—" for games where the user only entered AB outcomes + counts.
-    if(totalPitches>=20&&foulCount===0)fullLog=false;
+    // v208: drop the foul heuristic. Now driven by the explicit per-game flag
+    // g.fullPitchLog (set via the Plays-tab toggle). Heuristics were fragile
+    // and got fooled by mixed real/auto-fill ABs.
+    if(!g.fullPitchLog)fullLog=false;
     // E: errors committed by THIS team's fielders (top of inning = home
     // fielding, bottom of inning = away fielding — universally true).
     (g.errs||[]).forEach(function(err){
@@ -1789,7 +1788,7 @@ function renderSeasonLineScores(games){
     h+=row('home');
   });
   h+='</tbody></table>';
-  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.45;">R / H / BIP / Sw describe each team\'s BATTING (H ≤ BIP always). E counts that team\'s fielding errors. P = pitches thrown by their pitchers. Sw shows "—" when the team\'s batting ABs have any partial / U-coded pitch sequences.</div>';
+  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.45;">R / H / BIP / Sw describe each team\'s BATTING (H ≤ BIP always). E counts that team\'s fielding errors. P = pitches thrown by their pitchers. Sw shows a value only when the game is explicitly marked as pitch-by-pitch logged (toggle on the Plays tab); otherwise "—".</div>';
   body.innerHTML=h;
 }
 // v189: render the cross-league pitcher table into the season-stats Opp Pit
@@ -8485,9 +8484,23 @@ function abNotation(ab){
   if(n&&n!==r&&n!==rLabel)return rLabel+' '+n;
   return rLabel;
 }
+// v208: toggle the per-game "pitch-by-pitch logged" flag from the Plays tab.
+// Default false — flip on explicitly only when every pitch in every AB was
+// tapped in real time. Drives the Season Stats line-score Sw column.
+function _toggleFullPitchLog(){
+  G.fullPitchLog=!G.fullPitchLog;
+  if(typeof sv==='function')sv();
+  if(typeof renderLog==='function')renderLog();
+  toast(G.fullPitchLog?'Marked as pitch-by-pitch logged':'Cleared pitch-by-pitch flag',2000);
+}
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
 var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
-var html='';
+// v208: per-game "fully pitch-by-pitch logged" toggle. Drives the Season Stats
+// line-score Sw column. Default off — user explicitly confirms when they
+// tracked each pitch in real time.
+var fpLabel=G.fullPitchLog?'☑ Pitch-by-pitch logged':'☐ Pitch-by-pitch logged';
+var fpColor=G.fullPitchLog?'var(--green2)':'var(--text3)';
+var html='<div style="padding:6px 10px;margin-bottom:8px;background:rgba(255,255,255,.04);border-radius:4px;display:flex;align-items:center;gap:8px;font-size:11px;font-family:sans-serif;cursor:pointer;color:'+fpColor+';" onclick="_toggleFullPitchLog()" title="Mark this game as fully pitch-by-pitch logged — enables swing-count display in Season Stats line score"><span style="font-size:14px;">'+fpLabel.charAt(0)+'</span><span style="flex:1;color:var(--text2);">Pitch-by-pitch logged for the whole game</span><span style="font-size:9px;color:var(--text3);">enables Sw in line score</span></div>';
 // v147: in-game banner — if there are unattributed manual runs anywhere in
 // the log, show a tap-to-fix banner at the top of the Plays panel. Click
 // opens the same review modal used at end-of-game so the user can attribute
@@ -9959,7 +9972,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v207';
+var APP_VERSION='v208';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
