@@ -1727,10 +1727,17 @@ function renderSeasonLineScores(games){
     body.innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">No finalized games yet.</div>';
     return;
   }
-  // Sort by date descending (most recent first) so the user sees latest results up top
+  // v204: parse schedule date strings into real Dates so May > April > March
+  // (lexical compare gave A < M but alphabetic sort had Apr / Aug / Dec / Feb /
+  // Jan / Jul / Jun / Mar / May / Nov / Oct / Sep interleaved — wrong order).
+  function _gameDateMs(g){
+    var s=_gameDateLabel(g);if(!s)return 0;
+    var d=new Date(s);// handles "Apr 11, 2026" and similar formats
+    return isNaN(d.getTime())?0:d.getTime();
+  }
+  // Sort by actual date descending (most recent first)
   var sorted=games.slice().sort(function(a,b){
-    var da=_gameDateLabel(a),db=_gameDateLabel(b);
-    return db.localeCompare(da);
+    return _gameDateMs(b)-_gameDateMs(a);
   });
   var h='<table class="tbl" style="font-size:11px;"><thead><tr>'
     +'<th style="text-align:left;">Team</th>'
@@ -9935,7 +9942,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v204';
+var APP_VERSION='v205';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
