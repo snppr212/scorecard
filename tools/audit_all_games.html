@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Audit every game — what we have</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1400px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+h3{color:#c8a96e;font-size:13px;margin-top:14px;margin-bottom:4px;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:3px 6px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+.game-card{background:rgba(255,255,255,.03);padding:12px;border-radius:6px;margin-bottom:18px;border:1px solid rgba(200,169,110,.2);}
+.flag-mismatch{background:rgba(184,50,40,.15);color:#e04535;font-weight:bold;}
+.flag-ok{color:#36a066;}
+.flag-warn{color:#c8a96e;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+#status{margin-top:8px;padding:10px;border-radius:4px;font-size:13px;}
+.note{background:rgba(255,255,255,.04);padding:8px;border-radius:4px;font-size:11px;margin-bottom:10px;line-height:1.5;}
+</style>
+</head>
+<body>
+<h1>Audit every game — what we actually have</h1>
+
+<div class="note">
+Read-only. Walks every finalized game and reports the raw data so you can see what's trustworthy and what isn't. No assumptions, no fabrication, no writes.
+<br><br>
+Each game shows:
+<ul style="margin:4px 0 0 18px;padding:0;">
+  <li><strong>fullPitchLog flag</strong> — explicit per-game flag (v208). True = user confirmed per-pitch logging.</li>
+  <li><strong>Per-AB stats</strong> — total AB count + result breakdown</li>
+  <li><strong>Per-AB pc consistency</strong> — how many ABs have pitches.length matching pc vs not</li>
+  <li><strong>Pitch-code histogram</strong> — counts of B/S/L/F/FT/X/H/U/Us across all ABs</li>
+  <li><strong>Per-pitcher</strong> — name, stored total (PC), stored IP, count of ABs they're attributed to, sum of pc across those ABs (flagged if mismatch)</li>
+  <li><strong>Per-inning</strong> — for each half, which pitcher(s), AB count, sum of pc</li>
+</ul>
+</div>
+
+<button onclick="run()">Read every game</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+async function run(){
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  status.textContent='Reading appdata/roster…';out.innerHTML='';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    if(!rosterSnap.exists)throw new Error('appdata/roster does not exist');
+    const A=rosterSnap.data().adata||{};
+    const gameResults=A.gameResults||{};
+    const schedule=A.schedule||[];
+    const finalIds=Object.keys(gameResults).filter(k=>gameResults[k]&&gameResults[k].final&&k!=='test-sandbox');
+    status.textContent='Fetching '+finalIds.length+' games…';
+    let html='';
+    for(let i=0;i<finalIds.length;i++){
+      const id=finalIds[i];
+      status.textContent='Auditing '+(i+1)+' / '+finalIds.length+' ('+id+')…';
+      const snap=await db.collection('games').doc(id).get();
+      if(!snap.exists)continue;
+      const g=snap.data().gdata||{};
+      const ev=schedule.find(e=>e.id===id)||{};
+      html+=renderGameCard(id, ev, g);
+    }
+    out.innerHTML=html;
+    status.textContent='✓ Done.';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+  }
+}
+
+function renderGameCard(id, ev, g){
+  const ourSide=g.ht==='Mighty Mussels'?'home':'away';
+  const matchup=(g.at||'?')+' @ '+(g.ht||'?')+' — '+(g.as||0)+'-'+(g.hs||0);
+  const date=ev.date||'(no date)';
+  let html='<div class="game-card">';
+  html+='<h2>'+esc(id)+' · '+esc(date)+' · '+esc(matchup)+'</h2>';
+  // Top-level flags
+  html+='<div style="font-size:12px;margin-bottom:8px;line-height:1.6;">';
+  html+='<strong>fullPitchLog:</strong> <span class="'+(g.fullPitchLog?'flag-ok':'flag-warn')+'">'+(g.fullPitchLog?'TRUE (user confirmed pitch-by-pitch)':'false (not confirmed)')+'</span>';
+  html+=' · <strong>ti:</strong> '+(g.ti||'?');
+  html+=' · <strong>abs:</strong> '+((g.abs||[]).length);
+  html+=' · <strong>autoOut:</strong> '+((g.abs||[]).filter(a=>a.autoOut).length);
+  html+=' · <strong>fa keys:</strong> '+Object.keys(g.fa||{}).join(',');
+  html+='</div>';
+  // AB result breakdown
+  const resCounts={};
+  (g.abs||[]).forEach(ab=>{if(!ab.autoOut){resCounts[ab.result]=(resCounts[ab.result]||0)+1;}});
+  html+='<h3>AB result counts</h3>';
+  html+='<div style="font-family:monospace;font-size:11px;">'+Object.keys(resCounts).sort().map(r=>r+'='+resCounts[r]).join(' · ')+'</div>';
+  // Pitch-code histogram
+  const codeCounts={};
+  let abPitchesMatch=0, abPitchesMismatch=0, abEmpty=0, totalPc=0, totalPitchesLen=0;
+  (g.abs||[]).forEach(ab=>{
+    if(ab.autoOut)return;
+    const pc=ab.pc||0, len=(ab.pitches||[]).length;
+    totalPc+=pc;
+    totalPitchesLen+=len;
+    if(len===0)abEmpty++;
+    else if(len===pc)abPitchesMatch++;
+    else abPitchesMismatch++;
+    (ab.pitches||[]).forEach(c=>{codeCounts[c]=(codeCounts[c]||0)+1;});
+  });
+  html+='<h3>Per-AB pitch sequence consistency</h3>';
+  html+='<div style="font-family:monospace;font-size:11px;">';
+  html+='<span class="flag-ok">'+abPitchesMatch+' ABs</span> with pitches.length === pc'+
+        ' · <span class="'+(abPitchesMismatch>0?'flag-warn':'flag-ok')+'">'+abPitchesMismatch+' ABs</span> with pitches.length ≠ pc'+
+        ' · <span class="'+(abEmpty>0?'flag-warn':'flag-ok')+'">'+abEmpty+' ABs</span> with empty pitches[]'+
+        ' · <strong>Σ pc:</strong> '+totalPc+' · <strong>Σ pitches[].length:</strong> '+totalPitchesLen;
+  html+='</div>';
+  html+='<h3>Pitch-code histogram (across all ABs)</h3>';
+  html+='<div style="font-family:monospace;font-size:11px;">';
+  if(Object.keys(codeCounts).length===0){
+    html+='<em>No pitch codes logged anywhere.</em>';
+  }else{
+    html+=Object.keys(codeCounts).sort().map(c=>c+'='+codeCounts[c]).join(' · ');
+  }
+  html+='</div>';
+  // Per-pitcher
+  const pTeam=ourSide==='home'?'home':'away';
+  const ourPitchers=ourSide==='home'?(g.hp||[]):(g.ap||[]);
+  const oppPitchers=ourSide==='home'?(g.ap||[]):(g.hp||[]);
+  function pitcherTable(label, pitchers, side){
+    let h='<h3>'+label+'</h3>';
+    h+='<table><thead><tr><th>Pitcher</th><th class="num">total (stored)</th><th class="num">ip_outs (stored)</th><th class="num">IP</th><th class="num">ABs faced</th><th class="num">Σ pc on faced ABs</th><th>Match?</th></tr></thead><tbody>';
+    pitchers.forEach(p=>{
+      const facedAbs=(g.abs||[]).filter(ab=>!ab.autoOut && ab.pitcher===p.name);
+      const facedCt=facedAbs.length;
+      const facedPc=facedAbs.reduce((s,ab)=>s+(ab.pc||0),0);
+      const ip=Math.floor((p.ip_outs||0)/3)+'.'+((p.ip_outs||0)%3);
+      const total=p.total||0;
+      const match=facedPc===total;
+      h+='<tr><td>'+esc(p.name)+'</td><td class="num">'+total+'</td><td class="num">'+(p.ip_outs||0)+'</td><td class="num">'+ip+'</td><td class="num">'+facedCt+'</td><td class="num">'+facedPc+'</td><td class="'+(match?'flag-ok':'flag-mismatch')+'">'+(match?'✓ '+total:'✗ '+total+'≠'+facedPc)+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    return h;
+  }
+  html+=pitcherTable('Our pitchers ('+(ourSide==='home'?'hp':'ap')+')', ourPitchers, ourSide);
+  html+=pitcherTable('Opp pitchers ('+(ourSide==='home'?'ap':'hp')+')', oppPitchers, ourSide==='home'?'away':'home');
+  // Per-inning breakdown
+  html+='<h3>Per-inning breakdown</h3>';
+  const innMap={};
+  (g.abs||[]).forEach(ab=>{
+    if(ab.autoOut)return;
+    const k=ab.inn+'-'+ab.half;
+    if(!innMap[k])innMap[k]={inn:ab.inn,half:ab.half,abs:0,pc:0,pitcherCounts:{}};
+    innMap[k].abs++;
+    innMap[k].pc+=(ab.pc||0);
+    const pn=ab.pitcher||'(none)';
+    innMap[k].pitcherCounts[pn]=(innMap[k].pitcherCounts[pn]||0)+(ab.pc||0);
+  });
+  const innKeys=Object.keys(innMap).sort((a,b)=>{
+    const [ia,ha]=a.split('-');const [ib,hb]=b.split('-');
+    if(ia!==ib)return parseInt(ia)-parseInt(ib);
+    return ha==='top'?-1:1;
+  });
+  html+='<table><thead><tr><th>Inn</th><th>Half</th><th class="num">ABs</th><th class="num">Σ pc</th><th>Pitchers (pc per pitcher)</th></tr></thead><tbody>';
+  innKeys.forEach(k=>{
+    const x=innMap[k];
+    const pStr=Object.keys(x.pitcherCounts).map(n=>esc(n)+': '+x.pitcherCounts[n]).join(' · ');
+    html+='<tr><td>'+x.inn+'</td><td>'+x.half+'</td><td class="num">'+x.abs+'</td><td class="num">'+x.pc+'</td><td>'+pStr+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  html+='</div>';
+  return html;
+}
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
