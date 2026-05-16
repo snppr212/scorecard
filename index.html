@@ -8584,10 +8584,14 @@ function mkHalf(abs,label,inn,half){
     // total matches the data.
     var displayCount=Math.max(pcount,ab.pc||0);
     var pitchCell;
-    // v160: AB row pitch counts render as (N) parens. Superscript-# is
-    // reserved for JERSEY NUMBERS only (see abBatterHtml). Pitcher header
-    // uses "(pitches: N)" — see the half-header push below.
-    if(pcount){
+    // v210: when the game isn't marked as pitch-by-pitch logged, the stored
+    // pitches[] codes and pc values are NOT trustworthy at the AB level — they
+    // were auto-filled at AB-result time and the user only has the per-pitcher
+    // pitch totals + AB-level outcomes. Show "(?)" so the user isn't misled by
+    // fake "S S S (3)" displays. Result + pitcher totals stay accurate.
+    if(!G.fullPitchLog){
+      pitchCell='<span style="color:var(--text3);font-style:italic;">(?)</span>';
+    }else if(pcount){
       pitchCell=seq+' <span style="color:var(--text3);">('+displayCount+')</span>';
     }else if(ab.pc>0){
       pitchCell='<span style="color:var(--text3);">('+ab.pc+'p)</span>';
@@ -9978,7 +9982,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v209';
+var APP_VERSION='v210';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
