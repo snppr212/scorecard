@@ -26,24 +26,16 @@ button:disabled{opacity:.5;cursor:not-allowed;}
 <h1>Fix e4 — Thunder game (Apr 18, 2026)</h1>
 
 <div class="note">
-Applies the data you originally shared back on 4/19, plus rule-based pitch retrofit for non-fully-logged games:
+Per-AB pitch counts were not shared for this game, so we scrap them. What we keep is what we actually know:
 <ul style="margin:4px 0 0 18px;padding:0;font-size:12px;">
-  <li>Our 4 pitchers: set total + ip_outs + K + BB + H per your notes</li>
-  <li>Thunder's 4 pitchers: set total + ip_outs (currently 0/0)</li>
-  <li>Re-attribute every bottom-half AB to the correct Thunder pitcher by inning</li>
-  <li>Rewrite ab.pitches[] under retrofit rules:
-    <ul style="margin:2px 0 0 18px;">
-      <li>K  → [Us, Us, Us]</li>
-      <li>KL → [Us, Us, L]</li>
-      <li>BB → [B, B, B, B] + Us padding if pc &gt; 4</li>
-      <li>HBP → [H] + U padding if pc &gt; 1</li>
-      <li>BIP → [X] + U padding if pc &gt; 1</li>
-    </ul>
-  </li>
-  <li>Leave ab.result / ab.batter / ab.bi / ab.inn / ab.half / steals / errors / runs intact</li>
+  <li>AB results (K, BB, HBP, 1B, etc.) — preserved</li>
+  <li>Pitcher assignment by inning (Burnett 1-2, Land 3, Gutmann 4, Stabert 5-6)</li>
+  <li>Per-pitcher totals + IP + K/BB/H per your notes</li>
+  <li>Cleared: ab.pitches[] (empty) and ab.pc (0) on every AB</li>
+  <li>Cleared: per-pitcher pitch-type breakdowns (sw/lk/fo/ba/bip/stk all reset to 0) since we don't have per-pitch data</li>
 </ul>
-runs_allowed / er left alone (derived from g.runs[]).<br>
-p.total values come from your notes (e.g. Brody 35) — these can exceed Σ pc on faced ABs since pc-per-AB stays at the result's minimum. That's the correct signal that we know the per-pitcher total but not the per-AB breakdown.
+Outcome counts (hits, BBs, Ks, HBPs against each pitcher) re-derived from ab.result. runs_allowed / er stay as derived from g.runs[].<br>
+Audit will show <strong>p.total ≠ Σ pc on faced ABs</strong> (Σ pc=0 after clear) — that's the correct signal: we know per-pitcher totals, not per-AB.
 </div>
 
 <h2>Target values</h2>
@@ -99,42 +91,19 @@ const INN_TO_PITCHER = {1:'Felix Burnett', 2:'Felix Burnett', 3:'Jack Land', 4:'
 
 let prepared=null;
 
-const BIP_RESULTS=['1B','2B','3B','HR','LLHR','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE','CI','AO'];
-
-// Rule-based pitch sequence per the user's spec for non-fully-logged games:
-//   K  → [Us, Us, Us]                           — 3 strikes happened, type unknown
-//   KL → [Us, Us, L]                            — 3rd strike was looking (KL says so)
-//   BB → [B, B, B, B] + pad with Us if pc > 4   — BB invariant: every non-ball is a strike
-//   HBP → [H] + pad with U if pc > 1            — HBP is a ball; earlier pitches unknown
-//   BIP → [X] + pad with U if pc > 1            — X is the in-play pitch
-//   Other → null (caller leaves AB alone)
-function buildPitchSeq(result, pc){
-  pc=Math.max(1,pc||1);
-  if(result==='K'){const a=['Us','Us','Us'];return pc>=3?a:a.slice(-pc);}
-  if(result==='KL'){const a=['Us','Us','L'];return pc>=3?a:a.slice(-pc);}
-  if(result==='BB'){
-    const a=['B','B','B','B'];
-    while(a.length<pc)a.unshift('Us');
-    return a;
-  }
-  if(result==='HBP'){
-    const a=['H'];
-    while(a.length<pc)a.unshift('U');
-    return a;
-  }
-  if(BIP_RESULTS.indexOf(result)>=0){
-    const a=['X'];
-    while(a.length<pc)a.unshift('U');
-    return a;
-  }
-  return null;
-}
-
 function buildFix(g){
   const out=JSON.parse(JSON.stringify(g));
-  // Re-attribute bottom-half ABs to correct Thunder pitcher by inning
-  // AND apply rule-based pitch sequences to every AB.
-  let abAttrFixes=0, abPitchRewrites=0;
+  // Make sure all opp pitchers exist in ap[]
+  const apList=out.ap||[];
+  Object.keys(OPP_PITCHERS).forEach(name=>{
+    if(!apList.find(x=>x.name===name)){
+      apList.push({name:name});
+    }
+  });
+  out.ap=apList;
+  // Re-attribute bottom-half ABs to Thunder pitcher by inning, and CLEAR
+  // per-AB pitches[] + pc. We have AB-level RESULTS but not pc per AB.
+  let abAttrFixes=0, abPitchesCleared=0;
   (out.abs||[]).forEach(ab=>{
     if(ab.autoOut)return;
     if(ab.half==='bottom'){
@@ -145,38 +114,22 @@ function buildFix(g){
         abAttrFixes++;
       }
     }
-    // Rule-based pitch sequence — pc stays at the result's minimum (which is
-    // what e4 already has — auto-fills set pc=3/4/1 for K/BB/HBP/BIP).
-    const newSeq=buildPitchSeq(ab.result, ab.pc);
-    if(newSeq){
-      const oldStr=(ab.pitches||[]).join(',');
-      const newStr=newSeq.join(',');
-      if(oldStr!==newStr){
-        ab.pitches=newSeq;
-        ab.pc=newSeq.length;
-        if(ab.pitchQualities)ab.pitchQualities=[];
-        abPitchRewrites++;
-      }
+    if((ab.pitches&&ab.pitches.length)||ab.pc){
+      ab.pitches=[];
+      ab.pc=0;
+      if(ab.pitchQualities)ab.pitchQualities=[];
+      abPitchesCleared++;
     }
   });
-  // Reset pitcher records and let recalcPitcherStats rebuild from the new
-  // pitch sequences + outcomes. Then apply user's explicit pitcher totals
-  // (which may exceed Σ pc on faced ABs since per-AB pc is at minimum).
-  const allP=(out.hp||[]).concat(out.ap||[]);
-  // Make sure all opp pitchers exist in ap[]
-  const apList=out.ap||[];
-  Object.keys(OPP_PITCHERS).forEach(name=>{
-    if(!apList.find(x=>x.name===name)){
-      apList.push({name:name});
-    }
-  });
-  out.ap=apList;
-  // Reset
+  // Reset pitcher per-pitch counters (sw/lk/fo/ba/bip/hbp/stk) to 0 since we
+  // don't know per-pitch breakdowns. baEst/stkEst floors handle aggregate.
+  // Reset outcome counters too, then re-derive from AB results below.
   out.hp.concat(out.ap).forEach(p=>{
     p.total=0;p.sw=0;p.lk=0;p.fo=0;p.ba=0;p.bip=0;p.hbp=0;p.stk=0;
-    p.ip_outs=0;p.hits=0;p.runs_allowed=0;p.er=0;p.bb_allowed=0;p.k_pitched=0;p.hbp_allowed=0;
+    p.ip_outs=0;p.hits=0;p.bb_allowed=0;p.k_pitched=0;p.hbp_allowed=0;
+    // runs_allowed / er stay — derived from g.runs if attributed, else left
   });
-  // Walk ABs and accumulate
+  // Walk ABs to count outcome stats (hits/bb/k/hbp/ip_outs)
   (out.abs||[]).forEach(ab=>{
     if(ab.autoOut)return;
     const pTeam=ab.pitcherTeam||(ab.half==='top'?'home':'away');
@@ -184,16 +137,6 @@ function buildFix(g){
     let p=null;
     if(ab.pitcher)p=list.find(x=>x.name===ab.pitcher);
     if(!p)return;
-    (ab.pitches||[]).forEach(c=>{
-      if(c==='S'){p.sw++;p.stk++;p.total++;}
-      else if(c==='L'){p.lk++;p.stk++;p.total++;}
-      else if(c==='F'||c==='FT'){p.fo++;p.stk++;p.total++;}
-      else if(c==='B'){p.ba++;p.total++;}
-      else if(c==='X'){p.bip++;p.stk++;p.total++;}
-      else if(c==='H'){p.hbp++;p.ba++;p.total++;}
-      else if(c==='Us'){p.stk++;p.total++;}
-      else if(c==='U'){p.total++;}
-    });
     const r=ab.result;
     const isOut=['K','KL','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
     if(isOut)p.ip_outs++;
@@ -203,8 +146,6 @@ function buildFix(g){
     if(r==='BB')p.bb_allowed++;
     if(r==='K'||r==='KL')p.k_pitched++;
     if(r==='HBP')p.hbp_allowed++;
-    p.runs_allowed+=(ab.rbi||0);
-    p.er=p.runs_allowed;
   });
   // Re-derive runs from g.runs if pitcher-attributed
   const runsHavePitcherAttr=(out.runs||[]).some(rn=>rn.pitcher);
@@ -218,9 +159,7 @@ function buildFix(g){
       if(!rn.unearned)p.er++;
     });
   }
-  // Now OVERRIDE p.total + p.ip_outs with user's explicit values for the 8
-  // pitchers we have notes for. The Σ pc from the walks above represents the
-  // minimum implied by results; user's totals are the actual game totals.
+  // OVERRIDE with user's explicit values for the 8 pitchers we have notes for.
   (out.hp||[]).forEach(p=>{
     const t=OUR_PITCHERS[p.name];
     if(t){
@@ -239,7 +178,7 @@ function buildFix(g){
       p.ip_outs=t.ip_outs;
     }
   });
-  return {fixed:out, abAttrFixes, abPitchRewrites};
+  return {fixed:out, abAttrFixes, abPitchesCleared};
 }
 
 async function doPreview(){
@@ -277,12 +216,12 @@ async function doPreview(){
       html+=diffRow('opp', pBefore, p, oppFields);
     });
     html+='</tbody></table>';
-    html+='<h2>AB attribution + pitch sequence rewrites</h2>';
+    html+='<h2>AB attribution + pitch data clearing</h2>';
     html+='<table><tr><td>Bottom-half ABs re-attributed to Thunder pitchers</td><td class="num">'+result.abAttrFixes+'</td></tr>';
-    html+='<tr><td>ABs with pitches[] rewritten under retrofit rules</td><td class="num">'+result.abPitchRewrites+'</td></tr></table>';
+    html+='<tr><td>ABs cleared (pitches[] + pc both reset)</td><td class="num">'+result.abPitchesCleared+'</td></tr></table>';
     out.innerHTML=html;
     status.className='preview';
-    status.textContent='✓ Preview built. '+result.abAttrFixes+' bottom-half ABs re-attributed to Thunder pitchers, '+result.abPitchRewrites+' ABs got new pitch sequences per retrofit rules. Click Apply to write.';
+    status.textContent='✓ Preview built. '+result.abAttrFixes+' bottom-half ABs re-attributed to Thunder pitchers, '+result.abPitchesCleared+' ABs cleared (pitches[] + pc reset). Click Apply to write.';
     applyBtn.disabled=false;
   }catch(e){
     status.className='err';status.textContent='Error: '+e.message;
