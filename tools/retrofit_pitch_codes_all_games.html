@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Retrofit pitch codes — all non-fully-logged games</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1200px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:4px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+.before{color:#e04535;}
+.after{color:#36a066;}
+.skipped{color:var(--text3);font-style:italic;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+button.danger{background:#e04535;color:#fff;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:8px;padding:10px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.preview{background:rgba(200,169,110,.10);color:#c8a96e;}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px;}
+.box{background:rgba(255,255,255,.04);padding:12px;border-radius:4px;text-align:center;}
+.box .big{font-size:24px;font-weight:bold;color:#c8a96e;}
+.box .label{font-size:11px;color:var(--text2);margin-top:4px;}
+.cfg{background:rgba(255,255,255,.04);padding:10px;border-radius:4px;margin-bottom:14px;font-size:12px;}
+.cfg input{width:300px;padding:4px 6px;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);border-radius:3px;font-family:monospace;}
+</style>
+</head>
+<body>
+<h1>Retrofit pitch codes across every non-fully-logged game</h1>
+
+<p>For games NOT marked as pitch-by-pitch logged, walks every AB and rewrites the pitch sequence under these rules (matching the e2 work we did earlier):</p>
+<pre style="background:rgba(0,0,0,.3);padding:8px;border-radius:4px;font-size:12px;">  K  → [U × (N-3), Us, Us, S]
+  KL → [U × (N-3), Us, Us, L]
+  BB → [Us × (N-4), B, B, B, B]
+  HBP → [U × (N-1), H]
+  BIP (1B/2B/3B/HR/LLHR/GO/FO/LO/PO/FF/SAC/FC/DP/GIDP/TP/ROE/CI/AO) → [U × (N-1), X]
+  N = ab.pc (total pitch count)</pre>
+
+<div class="cfg">
+<strong>Skip games (comma-separated event IDs of fully-logged games):</strong><br>
+<input id="skip-list" type="text" value="e10,e12,e13" placeholder="e10,e12,e13">
+<br><span style="color:var(--text3);font-size:10px;">These games will be left alone — their pitch sequences are real per-pitch logs.</span>
+</div>
+
+<button id="scan-btn" onclick="doScan()">1. Scan all games</button>
+<button id="apply-btn" onclick="doApply()" class="danger" disabled>2. Apply retrofit + recalc pitcher stats</button>
+<div id="status"></div>
+<div id="summary"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const BIP_RESULTS=['1B','2B','3B','HR','LLHR','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE','CI','AO'];
+
+// Build the canonical retrofit pitch sequence for an AB given its result+pc.
+// Returns null for results we don't retrofit (autoOut, unknown result, etc.).
+function buildRetrofit(result, pc){
+  if(!pc||pc<=0)return null;
+  const fillU=n=>Array(Math.max(0,n)).fill('U');
+  const fillUs=n=>Array(Math.max(0,n)).fill('Us');
+  if(result==='K')return fillU(pc-3).concat(['Us','Us','S']).slice(-pc);
+  if(result==='KL')return fillU(pc-3).concat(['Us','Us','L']).slice(-pc);
+  if(result==='BB')return fillUs(pc-4).concat(['B','B','B','B']).slice(-pc);
+  if(result==='HBP')return fillU(pc-1).concat(['H']).slice(-pc);
+  if(BIP_RESULTS.indexOf(result)>=0)return fillU(pc-1).concat(['X']).slice(-pc);
+  return null;// CI / unknown / autoOut handled by skip
+}
+
+// Mirrors v200/v201/v202 recalcPitcherStats so we update pitcher records in
+// step with the new pitch sequences.
+function recalcPitcherStats(g){
+  const allP=(g.hp||[]).concat(g.ap||[]);
+  allP.forEach(p=>{
+    p.total=0;p.sw=0;p.lk=0;p.fo=0;p.ba=0;p.bip=0;p.hbp=0;p.stk=0;
+    p.ip_outs=0;p.hits=0;p.runs_allowed=0;p.er=0;
+    p.bb_allowed=0;p.k_pitched=0;p.hbp_allowed=0;
+  });
+  (g.abs||[]).forEach(ab=>{
+    if(ab.autoOut)return;
+    const pTeam=ab.pitcherTeam||(ab.half==='top'?'home':'away');
+    const list=pTeam==='home'?(g.hp||[]):(g.ap||[]);
+    let p=null;
+    if(ab.pitcher)p=list.find(x=>x.name===ab.pitcher);
+    if(!p){
+      const faName=((g.fa||{})[ab.inn]||{}).P;
+      if(faName)p=list.find(x=>x.name===faName);
+    }
+    if(!p)return;
+    const pSeq=ab.pitches||[];
+    const pcTotal=(ab.pc>0)?ab.pc:pSeq.length;
+    p.total+=pcTotal;
+    pSeq.forEach(c=>{
+      if(c==='S'){p.sw++;p.stk++;}
+      else if(c==='L'){p.lk++;p.stk++;}
+      else if(c==='F'||c==='FT'){p.fo++;p.stk++;}
+      else if(c==='B')p.ba++;
+      else if(c==='X'){p.bip++;p.stk++;}
+      else if(c==='H'){p.hbp++;p.ba++;}
+      else if(c==='Us')p.stk++;
+    });
+    const r=ab.result;
+    const isOut=['K','KL','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0;
+    if(isOut)p.ip_outs++;
+    if(r==='DP'||r==='GIDP')p.ip_outs++;
+    if(r==='TP')p.ip_outs+=2;
+    if(['1B','2B','3B','HR','LLHR'].indexOf(r)>=0)p.hits++;
+    if(r==='BB')p.bb_allowed++;
+    if(r==='K'||r==='KL')p.k_pitched++;
+    if(r==='HBP')p.hbp_allowed++;
+    p.runs_allowed+=(ab.rbi||0);
+    p.er=p.runs_allowed;
+  });
+  // Run reattribution
+  const runsHavePitcherAttr=(g.runs||[]).some(rn=>rn.pitcher);
+  if(runsHavePitcherAttr){
+    allP.forEach(p=>{p.runs_allowed=0;p.er=0;});
+    (g.runs||[]).forEach(rn=>{
+      if(!rn.pitcher)return;
+      const p=allP.find(x=>x.name===rn.pitcher);
+      if(!p)return;
+      p.runs_allowed++;
+      if(!rn.unearned)p.er++;
+    });
+  }
+  (g.css||[]).forEach(cs=>{
+    if(cs.pitcher){
+      const list=cs.pitcherTeam==='home'?(g.hp||[]):(g.ap||[]);
+      const p=list.find(x=>x.name===cs.pitcher);
+      if(p){p.ip_outs++;return;}
+    }
+    const sameHalf=(g.abs||[]).filter(a=>a.inn===cs.inn&&a.half===cs.half);
+    const lastAB=sameHalf[sameHalf.length-1];
+    if(lastAB&&lastAB.pitcher){
+      const pTeam=lastAB.pitcherTeam||(lastAB.half==='top'?'home':'away');
+      const list=pTeam==='home'?(g.hp||[]):(g.ap||[]);
+      const p=list.find(x=>x.name===lastAB.pitcher);
+      if(p)p.ip_outs++;
+    }
+  });
+  return g;
+}
+
+let preparedGames=null;
+
+async function doScan(){
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  const summary=document.getElementById('summary');
+  const applyBtn=document.getElementById('apply-btn');
+  status.className='preview';status.textContent='Reading appdata/roster…';out.innerHTML='';summary.innerHTML='';applyBtn.disabled=true;preparedGames=null;
+  try{
+    const skipList=document.getElementById('skip-list').value.split(',').map(s=>s.trim()).filter(Boolean);
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    if(!rosterSnap.exists)throw new Error('appdata/roster does not exist');
+    const A=rosterSnap.data().adata||{};
+    const gameResults=A.gameResults||{};
+    const finalIds=Object.keys(gameResults).filter(k=>gameResults[k]&&gameResults[k].final&&k!=='test-sandbox');
+    status.textContent='Fetching '+finalIds.length+' games…';
+    const games=[];
+    for(let i=0;i<finalIds.length;i++){
+      const id=finalIds[i];
+      status.textContent='Reading game '+(i+1)+' / '+finalIds.length+' ('+id+')…';
+      const snap=await db.collection('games').doc(id).get();
+      if(!snap.exists)continue;
+      const data=snap.data();
+      const gBefore=data.gdata||{};
+      const skip=skipList.indexOf(id)>=0;
+      if(skip){
+        games.push({id:id,skip:true,reason:'in skip list (fully logged)',gBefore:gBefore});
+        continue;
+      }
+      // Build retrofit per AB
+      const gAfter=JSON.parse(JSON.stringify(gBefore));
+      const abChanges=[];
+      (gAfter.abs||[]).forEach(ab=>{
+        if(ab.autoOut)return;
+        const newSeq=buildRetrofit(ab.result, ab.pc);
+        if(!newSeq){return;}
+        const oldSeq=(ab.pitches||[]).slice();
+        const oldStr=oldSeq.join(',');
+        const newStr=newSeq.join(',');
+        if(oldStr!==newStr){
+          abChanges.push({num:ab.num,batter:ab.batter,inn:ab.inn,half:ab.half,result:ab.result,pc:ab.pc,before:oldSeq,after:newSeq});
+          ab.pitches=newSeq;
+        }
+      });
+      // Recompute pitcher stats from the new pitch sequences
+      recalcPitcherStats(gAfter);
+      games.push({id:id,skip:false,gBefore:gBefore,gAfter:gAfter,abChanges:abChanges});
+    }
+    preparedGames=games;
+    const skipped=games.filter(g=>g.skip);
+    const dirty=games.filter(g=>!g.skip&&g.abChanges.length>0);
+    const clean=games.filter(g=>!g.skip&&g.abChanges.length===0);
+    summary.innerHTML='<div class="summary">'
+      +'<div class="box"><div class="big">'+games.length+'</div><div class="label">games scanned</div></div>'
+      +'<div class="box"><div class="big" style="color:#c8a96e;">'+skipped.length+'</div><div class="label">skipped (fully logged)</div></div>'
+      +'<div class="box"><div class="big" style="color:#e04535;">'+dirty.length+'</div><div class="label">need retrofit</div></div>'
+      +'<div class="box"><div class="big" style="color:#36a066;">'+clean.length+'</div><div class="label">already retrofit</div></div>'
+      +'</div>';
+    let html='';
+    if(skipped.length){
+      html+='<h2>Skipped (preserved)</h2><table><thead><tr><th>Game</th><th>Matchup</th><th>Reason</th></tr></thead><tbody>';
+      skipped.forEach(s=>{
+        const matchup=(s.gBefore.ht||'?')+' v '+(s.gBefore.at||'?');
+        html+='<tr><td>'+s.id+'</td><td>'+matchup+'</td><td class="skipped">'+s.reason+'</td></tr>';
+      });
+      html+='</tbody></table>';
+    }
+    if(dirty.length){
+      dirty.forEach(g=>{
+        const matchup=(g.gBefore.ht||'?')+' v '+(g.gBefore.at||'?');
+        html+='<h2>'+g.id+' — '+matchup+' ('+g.abChanges.length+' ABs)</h2>';
+        html+='<table><thead><tr><th>AB#</th><th>Inn</th><th>Batter</th><th>Result</th><th class="num">pc</th><th class="before">Before</th><th class="after">After</th></tr></thead><tbody>';
+        g.abChanges.forEach(c=>{
+          html+='<tr><td>'+c.num+'</td><td>'+c.inn+' '+c.half+'</td><td>'+esc(c.batter)+'</td><td>'+c.result+'</td><td class="num">'+c.pc+'</td><td class="before">['+c.before.join(',')+']</td><td class="after">['+c.after.join(',')+']</td></tr>';
+        });
+        html+='</tbody></table>';
+      });
+    }
+    out.innerHTML=html;
+    status.className='preview';
+    status.textContent='✓ Scan complete. '+dirty.length+' games need retrofit ('+skipped.length+' skipped, '+clean.length+' already done).';
+    applyBtn.disabled=dirty.length===0;
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+  }
+}
+
+async function doApply(){
+  const status=document.getElementById('status');
+  if(!preparedGames){status.className='err';status.textContent='Click Scan first.';return;}
+  const btn=document.getElementById('apply-btn');btn.disabled=true;
+  try{
+    const dirty=preparedGames.filter(g=>!g.skip&&g.abChanges.length>0);
+    if(!confirm('Retrofit pitch codes + recalc pitcher stats for '+dirty.length+' games?')){btn.disabled=false;return;}
+    const log=[];
+    for(let i=0;i<dirty.length;i++){
+      const g=dirty[i];
+      status.className='preview';status.textContent='Writing '+g.id+' ('+(i+1)+'/'+dirty.length+')…';
+      await db.collection('games').doc(g.id).set({
+        gdata:g.gAfter,
+        updated:new Date(),
+        fixedAt:new Date().toISOString(),
+        fixNote:'Retrofit pitch codes to U/Us per the rules for non-fully-logged games + recalc pitcher stats. Tool: tools/retrofit_pitch_codes_all_games.html'
+      },{merge:true});
+      log.push('✓ '+g.id+' ('+g.abChanges.length+' ABs)');
+    }
+    status.className='ok';
+    status.textContent='✓ Done. '+dirty.length+' games rewritten.\n\n'+log.join('\n');
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+    btn.disabled=false;
+  }
+}
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
