@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fix e4 — Thunder game pitcher records + clear per-AB pitch data</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1100px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:11px;}
+.before{color:#e04535;}
+.after{color:#36a066;font-weight:bold;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+button.danger{background:#e04535;color:#fff;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:8px;padding:10px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+#status.ok{background:rgba(42,125,82,.20);color:#36a066;}
+#status.err{background:rgba(184,50,40,.20);color:#e04535;}
+#status.preview{background:rgba(200,169,110,.10);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Fix e4 — Thunder game (Apr 18, 2026)</h1>
+
+<div class="note">
+Applies the data you originally shared back on 4/19:
+<ul style="margin:4px 0 0 18px;padding:0;font-size:12px;">
+  <li>Our 4 pitchers: set total + ip_outs + K + BB + H per your notes</li>
+  <li>Thunder's 4 pitchers: set total + ip_outs (currently 0/0)</li>
+  <li>Re-attribute every bottom-half AB to the correct Thunder pitcher by inning</li>
+  <li>Clear ab.pitches[] and ab.pc on every AB (per-AB pitch counts were never shared)</li>
+  <li>Leave ab.result / ab.batter / ab.bi / ab.inn / ab.half / steals / errors / runs intact</li>
+</ul>
+runs_allowed / er left alone (derived from g.runs[]).
+</div>
+
+<h2>Target values</h2>
+<table>
+<thead><tr><th>Pitcher</th><th>Side</th><th class="num">total</th><th class="num">ip_outs (IP)</th><th class="num">K</th><th class="num">BB</th><th class="num">H</th></tr></thead>
+<tbody>
+<tr><td>Brody Steinberg</td><td>us</td><td>35</td><td>5 (1.2)</td><td>4</td><td>2</td><td>0</td></tr>
+<tr><td>Malcolm McPherson</td><td>us</td><td>22</td><td>2 (0.2)</td><td>1</td><td>3</td><td>1</td></tr>
+<tr><td>Ezra Kalman</td><td>us</td><td>35</td><td>8 (2.2)</td><td>5</td><td>1</td><td>1</td></tr>
+<tr><td>Miles Beck</td><td>us</td><td>33</td><td>3 (1.0)</td><td>3</td><td>2</td><td>3</td></tr>
+<tr><td>Felix Burnett</td><td>opp (inn 1-2)</td><td>24</td><td>6 (2.0)</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Jack Land</td><td>opp (inn 3)</td><td>18</td><td>3 (1.0)</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Jacob Gutmann</td><td>opp (inn 4)</td><td>21</td><td>3 (1.0)</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Duncan Stabert</td><td>opp (inn 5-6)</td><td>34</td><td>6 (2.0)</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+
+<button id="preview-btn" onclick="doPreview()">1. Preview</button>
+<button id="apply-btn" onclick="doApply()" class="danger" disabled>2. Apply to Firestore</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Target values per the user's notes from the original session
+const OUR_PITCHERS = {
+  'Brody Steinberg':   {total:35, ip_outs:5, k_pitched:4, bb_allowed:2, hits:0, hbp_allowed:0},
+  'Malcolm McPherson': {total:22, ip_outs:2, k_pitched:1, bb_allowed:3, hits:1, hbp_allowed:0},
+  'Ezra Kalman':       {total:35, ip_outs:8, k_pitched:5, bb_allowed:1, hits:1, hbp_allowed:0},
+  'Miles Beck':        {total:33, ip_outs:3, k_pitched:3, bb_allowed:2, hits:3, hbp_allowed:0}
+};
+// Opp (Thunder) pitchers: total + ip_outs only. K/BB/H not provided.
+const OPP_PITCHERS = {
+  'Felix Burnett':  {total:24, ip_outs:6},
+  'Jack Land':      {total:18, ip_outs:3},
+  'Jacob Gutmann':  {total:21, ip_outs:3},
+  'Duncan Stabert': {total:34, ip_outs:6}
+};
+// Inning → opp pitcher name
+const INN_TO_PITCHER = {1:'Felix Burnett', 2:'Felix Burnett', 3:'Jack Land', 4:'Jacob Gutmann', 5:'Duncan Stabert', 6:'Duncan Stabert'};
+
+let prepared=null;
+
+function buildFix(g){
+  const out=JSON.parse(JSON.stringify(g));
+  // We were home in e4 (ht='Mighty Mussels'), so hp[] = us, ap[] = Thunder.
+  // Update our pitchers in hp[]
+  (out.hp||[]).forEach(p=>{
+    const t=OUR_PITCHERS[p.name];
+    if(t){
+      p.total=t.total;p.ip_outs=t.ip_outs;p.k_pitched=t.k_pitched;p.bb_allowed=t.bb_allowed;p.hits=t.hits;p.hbp_allowed=t.hbp_allowed;
+      // Reset per-pitch breakdowns since per-pitch data is unknown — the
+      // baEst/stkEst floors handle aggregate display.
+      p.sw=0;p.lk=0;p.fo=0;p.ba=0;p.bip=0;p.hbp=0;p.stk=0;
+    }
+  });
+  // Update opp pitchers in ap[] — add any missing ones, update existing
+  const apList=out.ap||[];
+  Object.keys(OPP_PITCHERS).forEach(name=>{
+    const t=OPP_PITCHERS[name];
+    let p=apList.find(x=>x.name===name);
+    if(!p){
+      p={name:name};apList.push(p);
+    }
+    p.total=t.total;p.ip_outs=t.ip_outs;
+    p.sw=p.sw||0;p.lk=p.lk||0;p.fo=p.fo||0;p.ba=p.ba||0;p.bip=p.bip||0;p.hbp=p.hbp||0;p.stk=p.stk||0;
+    p.k_pitched=p.k_pitched||0;p.bb_allowed=p.bb_allowed||0;p.hits=p.hits||0;p.hbp_allowed=p.hbp_allowed||0;
+    p.runs_allowed=p.runs_allowed||0;p.er=p.er||0;
+  });
+  out.ap=apList;
+  // Re-attribute bottom-half ABs to the correct Thunder pitcher by inning
+  // (top-half ABs already have our pitchers attributed; leave alone).
+  // Clear per-AB pitches[] and pc on every AB.
+  let abFixes=0, abPitchesCleared=0;
+  (out.abs||[]).forEach(ab=>{
+    if(ab.autoOut)return;
+    if(ab.half==='bottom'){
+      const oppP=INN_TO_PITCHER[ab.inn];
+      if(oppP){
+        ab.pitcher=oppP;
+        ab.pitcherTeam='away';// opp is away in this game
+        abFixes++;
+      }
+    }
+    // Clear per-AB pitch data (per-AB pitch counts were never shared by user)
+    if((ab.pitches&&ab.pitches.length)||ab.pc){
+      ab.pitches=[];
+      ab.pc=0;
+      if(ab.pitchQualities)ab.pitchQualities=[];
+      abPitchesCleared++;
+    }
+  });
+  return {fixed:out, abFixes, abPitchesCleared};
+}
+
+async function doPreview(){
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  const applyBtn=document.getElementById('apply-btn');
+  status.className='preview';status.textContent='Reading games/e4…';out.innerHTML='';applyBtn.disabled=true;prepared=null;
+  try{
+    const snap=await db.collection('games').doc('e4').get();
+    if(!snap.exists)throw new Error('games/e4 does not exist');
+    const data=snap.data();
+    const g=data.gdata||{};
+    const result=buildFix(g);
+    prepared=result.fixed;
+    // Build diff
+    let html='<h2>Pitcher record changes</h2>';
+    html+='<table><thead><tr><th>Side</th><th>Pitcher</th><th>Field</th><th class="num before">Before</th><th class="num after">After</th></tr></thead><tbody>';
+    function diffRow(side, pBefore, pAfter, fields){
+      let s='';
+      fields.forEach(f=>{
+        const bv=pBefore?(pBefore[f]||0):0;
+        const av=pAfter[f]||0;
+        if(bv===av)return;
+        s+='<tr><td>'+side+'</td><td>'+pAfter.name+'</td><td>'+f+'</td><td class="num before">'+bv+'</td><td class="num after">'+av+'</td></tr>';
+      });
+      return s;
+    }
+    const ourFields=['total','ip_outs','k_pitched','bb_allowed','hits','sw','lk','fo','ba','bip','stk'];
+    const oppFields=['total','ip_outs'];
+    (result.fixed.hp||[]).forEach((p,i)=>{
+      html+=diffRow('us', (g.hp||[])[i], p, ourFields);
+    });
+    (result.fixed.ap||[]).forEach((p,i)=>{
+      const pBefore=(g.ap||[]).find(x=>x.name===p.name);
+      html+=diffRow('opp', pBefore, p, oppFields);
+    });
+    html+='</tbody></table>';
+    html+='<h2>AB attribution + pitch data clearing</h2>';
+    html+='<table><tr><td>Bottom-half ABs re-attributed to Thunder pitchers</td><td class="num">'+result.abFixes+'</td></tr>';
+    html+='<tr><td>ABs cleared (pitches[] + pc)</td><td class="num">'+result.abPitchesCleared+'</td></tr></table>';
+    out.innerHTML=html;
+    status.className='preview';
+    status.textContent='✓ Preview built. '+result.abFixes+' ABs re-attributed, '+result.abPitchesCleared+' ABs cleared. Click Apply to write.';
+    applyBtn.disabled=false;
+  }catch(e){
+    status.className='err';status.textContent='Error: '+e.message;
+  }
+}
+
+async function doApply(){
+  const status=document.getElementById('status');
+  if(!prepared){status.className='err';status.textContent='Click Preview first.';return;}
+  const btn=document.getElementById('apply-btn');btn.disabled=true;
+  try{
+    if(!confirm('Write corrected e4 data to Firestore? Clears per-AB pitch data + sets pitcher totals.')){btn.disabled=false;return;}
+    status.className='preview';status.textContent='Writing games/e4…';
+    await db.collection('games').doc('e4').set({
+      gdata:prepared,
+      updated:new Date(),
+      fixedAt:new Date().toISOString(),
+      fixNote:'e4 (Thunder) — set pitcher records to user-supplied totals/IP/K/BB/H; re-attributed bottom-half ABs to Thunder pitchers by inning; cleared per-AB pitches[] + pc since per-AB pitch counts were never shared.'
+    },{merge:true});
+    status.className='ok';
+    status.textContent='✓ Wrote games/e4. Reload the scorecard app to see updated stats.';
+  }catch(e){
+    status.className='err';status.textContent='Error: '+e.message;btn.disabled=false;
+  }
+}
+</script>
+</body>
+</html>
