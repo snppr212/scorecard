@@ -1697,7 +1697,7 @@ function _gameLineScoreStats(g){
     var teamName=side==='home'?(g.ht||'?'):(g.at||'?');
     var pitchers=side==='home'?(g.hp||[]):(g.ap||[]);
     var runs=side==='home'?(g.hs||0):(g.as||0);
-    var hits=0,errs=0,pitches=0,bip=0,sw=0,fullLog=true,abChecked=0,hasUcode=false;
+    var hits=0,errs=0,pitches=0,bip=0,sw=0,fullLog=true,abChecked=0,hasUcode=false,foulCount=0,totalPitches=0;
     // Walk THIS team's BATTING ABs once — gives us H, BIP, Sw, and fullLog
     (g.abs||[]).forEach(function(ab){
       if(ab.team!==side)return;// only this team's offense
@@ -1708,11 +1708,18 @@ function _gameLineScoreStats(g){
       var seq=ab.pitches||[];
       if(seq.length!==(ab.pc||0))fullLog=false;
       seq.forEach(function(c){
+        totalPitches++;
         if(c==='U'){hasUcode=true;}
+        if(c==='F'||c==='FT')foulCount++;
         if(SWING_CODES.indexOf(c)>=0)sw++;
       });
     });
     if(hasUcode)fullLog=false;
+    // v207: heuristic — real per-pitch logging always has at least one foul
+    // somewhere in the team's batting half. Zero fouls across 50+ pitches
+    // is the dead giveaway of an auto-filled / retro-entered game. Forces
+    // Sw="—" for games where the user only entered AB outcomes + counts.
+    if(totalPitches>=20&&foulCount===0)fullLog=false;
     // E: errors committed by THIS team's fielders (top of inning = home
     // fielding, bottom of inning = away fielding — universally true).
     (g.errs||[]).forEach(function(err){
@@ -9952,7 +9959,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v206';
+var APP_VERSION='v207';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
