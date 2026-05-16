@@ -377,8 +377,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
 <div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
-<!-- v100/v189: Regular / Advanced / Opp Pit view toggle -->
-<div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div><div class="team-toggle-btn" id="sv-opppit" onclick="setSeasonView('oppPit')">🥎 Opp Pit</div></div>
+<!-- v100/v189/v203: Regular / Advanced / Opp Pit / Line Scores view toggle -->
+<div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div><div class="team-toggle-btn" id="sv-opppit" onclick="setSeasonView('oppPit')">🥎 Opp Pit</div><div class="team-toggle-btn" id="sv-lines" onclick="setSeasonView('lineScores')">📋 Lines</div></div>
 <!-- v182: first-pitch summary panel — strikes vs balls on the FIRST pitch
      of every AB across all final games. Shown for our batters (what opp
      pitchers threw us) and our pitchers (what we threw to opp). -->
@@ -395,6 +395,14 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <details class="no-print" style="margin-top:8px;font-size:11px;font-family:sans-serif;color:var(--text2);"><summary style="cursor:pointer;color:var(--gold);">📖 Column legend (batting)</summary><div id="season-bat-legend" style="margin-top:6px;line-height:1.55;"></div></details></div>
 <div class="panel"><div class="ptitle">Pitching</div><div class="scroll-x"><table class="tbl" id="season-pit"></table></div>
 <details class="no-print" style="margin-top:8px;font-size:11px;font-family:sans-serif;color:var(--text2);"><summary style="cursor:pointer;color:var(--gold);">📖 Column legend (pitching)</summary><div id="season-pit-legend" style="margin-top:6px;line-height:1.55;"></div></details></div>
+</div>
+<!-- v203: Line scores tab — per-game R/H/E/P/BIP/Sw table for both teams -->
+<div id="season-linescores-panel" style="display:none;">
+<div class="panel">
+<div class="ptitle">📋 Line Scores</div>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Per-game R/H/E plus pitches/BIP/swings. Swings show "—" when pitch sequences aren't fully logged for that side.</div>
+<div class="scroll-x" id="season-lines-body"></div>
+</div>
 </div>
 <!-- v189: Opp Pit tab — cross-league pitcher table with team filter -->
 <div id="season-opppit-panel" style="display:none;">
@@ -1638,21 +1646,32 @@ function _renderSeasonView(){
   if($('sv-reg'))$('sv-reg').classList.toggle('active',view==='regular');
   if($('sv-adv'))$('sv-adv').classList.toggle('active',view==='advanced');
   if($('sv-opppit'))$('sv-opppit').classList.toggle('active',view==='oppPit');
-  // v189: oppPit hides our-team panels (bat/pit + first-pitch + audit)
-  // and shows the cross-league pitching panel instead.
-  var usPanels=$('season-us-panels'),oppPanel=$('season-opppit-panel');
+  if($('sv-lines'))$('sv-lines').classList.toggle('active',view==='lineScores');
+  // v189/v203: alternate views hide our-team panels and show their own panel.
+  var usPanels=$('season-us-panels'),oppPanel=$('season-opppit-panel'),linesPanel=$('season-linescores-panel');
   var firstPitch=$('season-firstpitch'),audit=$('season-pitchlog-audit');
   if(view==='oppPit'){
     if(usPanels)usPanels.style.display='none';
     if(oppPanel)oppPanel.style.display='block';
+    if(linesPanel)linesPanel.style.display='none';
     if(firstPitch)firstPitch.style.display='none';
     if(audit)audit.style.display='none';
     renderSeasonLeaguePitching();
     return;
   }
+  if(view==='lineScores'){
+    if(usPanels)usPanels.style.display='none';
+    if(oppPanel)oppPanel.style.display='none';
+    if(linesPanel)linesPanel.style.display='block';
+    if(firstPitch)firstPitch.style.display='none';
+    if(audit)audit.style.display='none';
+    renderSeasonLineScores(games);
+    return;
+  }
   // Regular / Advanced view: show our-team panels
   if(usPanels)usPanels.style.display='block';
   if(oppPanel)oppPanel.style.display='none';
+  if(linesPanel)linesPanel.style.display='none';
   if(view==='advanced'){
     renderSeasonBatAdvanced(games);renderSeasonPitAdvanced(games);
   }else{
@@ -1661,6 +1680,94 @@ function _renderSeasonView(){
   _renderSeasonLegend(view);
   _renderFirstPitchPanel(games);
   _renderPitchLogAuditPanel(games);
+}
+// v203: per-game line scores tab. Walks every finalized game and lays out
+// both teams' totals: R / H / E / P (pitches thrown) / BIP / Sw (swings).
+// Swings shows "—" if any AB on that side has pitches.length !== pc
+// (partial logging — swing count would be unreliable).
+function _gameLineScoreStats(g){
+  var HIT_RESULTS=['1B','2B','3B','HR','LLHR'];
+  var SWING_CODES=['S','F','FT','X'];
+  function teamStats(side){
+    var teamName=side==='home'?(g.ht||'?'):(g.at||'?');
+    var pitchers=side==='home'?(g.hp||[]):(g.ap||[]);
+    var runs=side==='home'?(g.hs||0):(g.as||0);
+    var hits=0,errs=0,pitches=0,bip=0,sw=0,fullLog=true,abChecked=0;
+    (g.abs||[]).forEach(function(ab){
+      if(ab.team===side&&HIT_RESULTS.indexOf(ab.result)>=0)hits++;
+    });
+    // Errors: half=top → home fielding, half=bottom → away fielding
+    (g.errs||[]).forEach(function(err){
+      if(err.standalone)return;// skip standalone (baserunning) errors
+      var fieldingSide=err.half==='top'?'home':'away';
+      if(fieldingSide===side)errs++;
+    });
+    pitchers.forEach(function(p){pitches+=(p.total||0);bip+=(p.bip||0);});
+    // Swings: walk OPP-side ABs (= ABs this side's pitchers threw to)
+    (g.abs||[]).forEach(function(ab){
+      if(ab.team===side)return;// own team's ABs at the plate, not pitched-to
+      if(ab.autoOut)return;
+      abChecked++;
+      var seq=ab.pitches||[];
+      if(seq.length!==(ab.pc||0))fullLog=false;
+      seq.forEach(function(c){if(SWING_CODES.indexOf(c)>=0)sw++;});
+    });
+    return {team:teamName,r:runs,h:hits,e:errs,p:pitches,bip:bip,sw:sw,fullLog:fullLog,abChecked:abChecked};
+  }
+  return {home:teamStats('home'),away:teamStats('away')};
+}
+function _gameDateLabel(g){
+  if(!g||!g.eid)return '';
+  var ev=(A.schedule||[]).find(function(e){return e.id===g.eid;});
+  return ev&&ev.date?ev.date:(g.eid||'');
+}
+function renderSeasonLineScores(games){
+  var body=$('season-lines-body');if(!body)return;
+  if(!games||!games.length){
+    body.innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">No finalized games yet.</div>';
+    return;
+  }
+  // Sort by date descending (most recent first) so the user sees latest results up top
+  var sorted=games.slice().sort(function(a,b){
+    var da=_gameDateLabel(a),db=_gameDateLabel(b);
+    return db.localeCompare(da);
+  });
+  var h='<table class="tbl" style="font-size:11px;"><thead><tr>'
+    +'<th style="text-align:left;">Date</th>'
+    +'<th style="text-align:left;">Team</th>'
+    +'<th class="num" style="text-align:right;">R</th>'
+    +'<th class="num" style="text-align:right;">H</th>'
+    +'<th class="num" style="text-align:right;">E</th>'
+    +'<th class="num" style="text-align:right;">P</th>'
+    +'<th class="num" style="text-align:right;">BIP</th>'
+    +'<th class="num" style="text-align:right;">Sw</th>'
+    +'</tr></thead><tbody>';
+  sorted.forEach(function(g){
+    var stats=_gameLineScoreStats(g);
+    var date=_gameDateLabel(g);
+    var ours=g.ht==='Mighty Mussels'?'home':'away';
+    function row(side,first){
+      var s=stats[side];
+      var rowCls=side===ours?'style="background:rgba(200,169,110,.06);"':'';
+      var dateCell=first?'<td rowspan="2" style="border-right:2px solid var(--border2);vertical-align:middle;font-size:10px;color:var(--text3);">'+esc(date)+'</td>':'';
+      var teamNm=esc(s.team)+(side===ours?' <span style="color:var(--gold);font-size:9px;">(us)</span>':'');
+      var swCell=s.fullLog&&s.abChecked>0?s.sw:'<span style="color:var(--text3);">—</span>';
+      return '<tr '+rowCls+'>'+dateCell
+        +'<td style="font-weight:'+(side===ours?'bold':'normal')+';">'+teamNm+'</td>'
+        +'<td class="num" style="text-align:right;font-weight:bold;color:var(--gold);">'+s.r+'</td>'
+        +'<td class="num" style="text-align:right;">'+s.h+'</td>'
+        +'<td class="num" style="text-align:right;'+(s.e>0?'color:var(--red2);':'')+'">'+s.e+'</td>'
+        +'<td class="num" style="text-align:right;">'+s.p+'</td>'
+        +'<td class="num" style="text-align:right;">'+s.bip+'</td>'
+        +'<td class="num" style="text-align:right;">'+swCell+'</td>'
+        +'</tr>';
+    }
+    h+=row('away',true);
+    h+=row('home',false);
+  });
+  h+='</tbody></table>';
+  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.45;">P = pitches thrown by that team\'s pitchers. BIP = balls in play put up against them. Sw = swings (S/F/FT/X) — only shown when every AB on that side has a complete pitch sequence (pitches.length === pc), otherwise "—".</div>';
+  body.innerHTML=h;
 }
 // v189: render the cross-league pitcher table into the season-stats Opp Pit
 // tab. Same data + sort behavior as the standings-modal League Pitching view
@@ -9829,7 +9936,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v202';
+var APP_VERSION='v203';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
