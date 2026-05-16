@@ -1686,32 +1686,42 @@ function _renderSeasonView(){
 // Swings shows "—" if any AB on that side has pitches.length !== pc
 // (partial logging — swing count would be unreliable).
 function _gameLineScoreStats(g){
+  // v205: H / BIP / Sw all describe a team's BATTING — keeps H ≤ BIP true.
+  // E / P describe their FIELDING/PITCHING. Sw shows '—' when the batting
+  // half has any AB with partial logging OR any U code (since U-padding
+  // makes a non-U-pitch swing count look complete when it isn't).
   var HIT_RESULTS=['1B','2B','3B','HR','LLHR'];
+  var BIP_RESULTS=['1B','2B','3B','HR','LLHR','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE','CI','AO'];
   var SWING_CODES=['S','F','FT','X'];
   function teamStats(side){
     var teamName=side==='home'?(g.ht||'?'):(g.at||'?');
     var pitchers=side==='home'?(g.hp||[]):(g.ap||[]);
     var runs=side==='home'?(g.hs||0):(g.as||0);
-    var hits=0,errs=0,pitches=0,bip=0,sw=0,fullLog=true,abChecked=0;
+    var hits=0,errs=0,pitches=0,bip=0,sw=0,fullLog=true,abChecked=0,hasUcode=false;
+    // Walk THIS team's BATTING ABs once — gives us H, BIP, Sw, and fullLog
     (g.abs||[]).forEach(function(ab){
-      if(ab.team===side&&HIT_RESULTS.indexOf(ab.result)>=0)hits++;
+      if(ab.team!==side)return;// only this team's offense
+      if(ab.autoOut)return;
+      abChecked++;
+      if(HIT_RESULTS.indexOf(ab.result)>=0)hits++;
+      if(BIP_RESULTS.indexOf(ab.result)>=0)bip++;
+      var seq=ab.pitches||[];
+      if(seq.length!==(ab.pc||0))fullLog=false;
+      seq.forEach(function(c){
+        if(c==='U'){hasUcode=true;}
+        if(SWING_CODES.indexOf(c)>=0)sw++;
+      });
     });
-    // Errors: half=top → home fielding, half=bottom → away fielding
+    if(hasUcode)fullLog=false;
+    // E: errors committed by THIS team's fielders (top of inning = home
+    // fielding, bottom of inning = away fielding — universally true).
     (g.errs||[]).forEach(function(err){
-      if(err.standalone)return;// skip standalone (baserunning) errors
+      if(err.standalone)return;
       var fieldingSide=err.half==='top'?'home':'away';
       if(fieldingSide===side)errs++;
     });
-    pitchers.forEach(function(p){pitches+=(p.total||0);bip+=(p.bip||0);});
-    // Swings: walk OPP-side ABs (= ABs this side's pitchers threw to)
-    (g.abs||[]).forEach(function(ab){
-      if(ab.team===side)return;// own team's ABs at the plate, not pitched-to
-      if(ab.autoOut)return;
-      abChecked++;
-      var seq=ab.pitches||[];
-      if(seq.length!==(ab.pc||0))fullLog=false;
-      seq.forEach(function(c){if(SWING_CODES.indexOf(c)>=0)sw++;});
-    });
+    // P: pitches thrown by THIS team's pitchers.
+    pitchers.forEach(function(p){pitches+=(p.total||0);});
     return {team:teamName,r:runs,h:hits,e:errs,p:pitches,bip:bip,sw:sw,fullLog:fullLog,abChecked:abChecked};
   }
   return {home:teamStats('home'),away:teamStats('away')};
@@ -1772,7 +1782,7 @@ function renderSeasonLineScores(games){
     h+=row('home');
   });
   h+='</tbody></table>';
-  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.45;">P = pitches thrown by that team\'s pitchers. BIP = balls in play put up against them. Sw = swings (S/F/FT/X) — only shown when every AB on that side has a complete pitch sequence (pitches.length === pc), otherwise "—".</div>';
+  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.45;">R / H / BIP / Sw describe each team\'s BATTING (H ≤ BIP always). E counts that team\'s fielding errors. P = pitches thrown by their pitchers. Sw shows "—" when the team\'s batting ABs have any partial / U-coded pitch sequences.</div>';
   body.innerHTML=h;
 }
 // v189: render the cross-league pitcher table into the season-stats Opp Pit
@@ -9942,7 +9952,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v205';
+var APP_VERSION='v206';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
