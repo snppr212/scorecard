@@ -1733,7 +1733,6 @@ function renderSeasonLineScores(games){
     return db.localeCompare(da);
   });
   var h='<table class="tbl" style="font-size:11px;"><thead><tr>'
-    +'<th style="text-align:left;">Date</th>'
     +'<th style="text-align:left;">Team</th>'
     +'<th class="num" style="text-align:right;">R</th>'
     +'<th class="num" style="text-align:right;">H</th>'
@@ -1746,14 +1745,14 @@ function renderSeasonLineScores(games){
     var stats=_gameLineScoreStats(g);
     var date=_gameDateLabel(g);
     var ours=g.ht==='Mighty Mussels'?'home':'away';
-    function row(side,first){
+    // Date header row spanning all 7 columns
+    h+='<tr><td colspan="7" style="background:rgba(200,169,110,.10);color:var(--gold);font-weight:bold;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-top:2px solid var(--border2);">'+esc(date)+'</td></tr>';
+    function row(side){
       var s=stats[side];
       var rowCls=side===ours?'style="background:rgba(200,169,110,.06);"':'';
-      var dateCell=first?'<td rowspan="2" style="border-right:2px solid var(--border2);vertical-align:middle;font-size:10px;color:var(--text3);">'+esc(date)+'</td>':'';
-      var teamNm=esc(s.team)+(side===ours?' <span style="color:var(--gold);font-size:9px;">(us)</span>':'');
       var swCell=s.fullLog&&s.abChecked>0?s.sw:'<span style="color:var(--text3);">—</span>';
-      return '<tr '+rowCls+'>'+dateCell
-        +'<td style="font-weight:'+(side===ours?'bold':'normal')+';">'+teamNm+'</td>'
+      return '<tr '+rowCls+'>'
+        +'<td style="font-weight:'+(side===ours?'bold':'normal')+';">'+esc(s.team)+'</td>'
         +'<td class="num" style="text-align:right;font-weight:bold;color:var(--gold);">'+s.r+'</td>'
         +'<td class="num" style="text-align:right;">'+s.h+'</td>'
         +'<td class="num" style="text-align:right;'+(s.e>0?'color:var(--red2);':'')+'">'+s.e+'</td>'
@@ -1762,8 +1761,8 @@ function renderSeasonLineScores(games){
         +'<td class="num" style="text-align:right;">'+swCell+'</td>'
         +'</tr>';
     }
-    h+=row('away',true);
-    h+=row('home',false);
+    h+=row('away');
+    h+=row('home');
   });
   h+='</tbody></table>';
   h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.45;">P = pitches thrown by that team\'s pitchers. BIP = balls in play put up against them. Sw = swings (S/F/FT/X) — only shown when every AB on that side has a complete pitch sequence (pitches.length === pc), otherwise "—".</div>';
@@ -9936,7 +9935,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v203';
+var APP_VERSION='v204';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
