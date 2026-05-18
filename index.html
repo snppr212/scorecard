@@ -1830,15 +1830,19 @@ function renderSeasonLeaguePitching(){
   rows.forEach(function(r){
     var nm=r.jersey?'#'+r.jersey+' '+sn(r.name):sn(r.name);
     var lastStr=r.lastDate?(r.lastDate.slice(5)+' ('+r.lastPC+'p)'):'—';
-    var ptStr=r.hasSeason?r.pt:(r.hasGames?'~'+r.pt:'—');
-    var ptTitle=r.hasSeason?'from season totals':(r.hasGames?'sum of logged per-game outings':'no data');
+    // v211: no tilde — show the data we have (sum of logged outings)
+    var ptStr=r.hasGames||r.hasSeason?r.pt:'—';
+    var ptTitle=r.discrepancy?('⚠ Season total ('+r.seasonPt+') ≠ sum of logged outings ('+r.outingSum+')'):'sum of logged per-game outings';
+    var ptColor=r.discrepancy?'color:#e04535;':'';
+    var ptIcon=r.discrepancy?' ⚠':'';
     var gsStr=r.gs!=null?r.gs:'—';
     var avgStr=r.gp>0?r.avg.toFixed(1):'—';
     var peakStr=r.peak>0?r.peak:'—';
+    var teamLabel=esc(r.team)+' ('+r.teamGames+')';
     h+='<tr style="cursor:pointer;" onclick="openScoutCard(\''+esc(r.team).replace(/\\/g,'\\\\').replace(/\'/g,'\\\'')+'\')">'
       +'<td>'+esc(nm)+'</td>'
-      +'<td style="color:var(--text2);font-size:10px;">'+esc(r.team)+'</td>'
-      +'<td title="'+esc(ptTitle)+'" style="text-align:right;font-weight:bold;">'+ptStr+'</td>'
+      +'<td style="color:var(--text2);font-size:10px;">'+teamLabel+'</td>'
+      +'<td title="'+esc(ptTitle)+'" style="text-align:right;font-weight:bold;'+ptColor+'">'+ptStr+ptIcon+'</td>'
       +'<td style="text-align:right;">'+(r.gp||'—')+'</td>'
       +'<td style="text-align:right;">'+gsStr+'</td>'
       +'<td style="text-align:right;color:var(--text2);">'+avgStr+'</td>'
@@ -1847,7 +1851,7 @@ function renderSeasonLeaguePitching(){
       +'</tr>';
   });
   h+='</tbody></table>';
-  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.4;">PT = season pitch total. GP = games pitched. GS = starts. Avg = PT/GP. Peak = highest single-outing PC. ~PT = estimated from logged outings (no season totals on file). Tap a row to open that team\'s scout card.</div>';
+  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.4;">PT = sum of logged outings. GP = games pitched. GS = starts. Avg = PT/GP. Peak = highest single-outing PC. Number after team name = distinct games we have data for. ⚠ = season total disagrees with outings sum. Click any header to sort. Tap a row to open that team\'s scout card.</div>';
   body.innerHTML=h;
 }
 // v184: first-pitch breakdown — trusts ab.pitches[0] across all ABs. If
@@ -9655,6 +9659,14 @@ function _getLeaguePitcherRows(teamFilter){
     var t=OPP_PITCHER_LOG.teams[team]||{};
     var pitchers=t.pitchers||{};
     var seasonByName=(t.seasonTotals&&t.seasonTotals.pitchers)||{};
+    // v211: count distinct game-dates this team has data for (across all
+    // pitchers). Surfaced in the "Team (N)" display in both league pitching
+    // tables.
+    var teamGameSet={};
+    Object.keys(pitchers).forEach(function(pn){
+      (pitchers[pn].outings||[]).forEach(function(o){if(o&&o.date)teamGameSet[o.date]=1;});
+    });
+    var teamGames=Object.keys(teamGameSet).length;
     // Union of names from per-outing log + season totals (season may list
     // pitchers we haven't logged an outing for, and vice versa).
     var allNames={};
@@ -9667,12 +9679,15 @@ function _getLeaguePitcherRows(teamFilter){
       var outingSum=outs.reduce(function(s,o){return s+(o.pitches||0);},0);
       var peak=outs.reduce(function(m,o){return Math.max(m,o.pitches||0);},0);
       var last=outs.length?outs[outs.length-1]:null;
-      // Prefer season totals for PT/GP when available (more authoritative —
-      // counts ALL outings, including ones we haven't pasted per-game data for).
-      var pt=ssn?ssn.pt:outingSum;
-      var gp=ssn?ssn.gp:outs.length;
+      // v211: always trust the data we actually have (sum of logged outings)
+      // when we have outings. Season totals are only used when no outings are
+      // logged. If both exist and disagree, flag a discrepancy so the user
+      // can investigate (no silent fallback).
+      var pt=outs.length?outingSum:(ssn?ssn.pt:0);
+      var gp=outs.length?outs.length:(ssn?(ssn.gp||0):0);
       var gs=ssn?ssn.gs:null;
       var avg=gp>0?(pt/gp):0;
+      var discrepancy=!!(ssn&&outs.length&&typeof ssn.pt==='number'&&ssn.pt!==outingSum);
       rows.push({
         team:team,name:name,jersey:p.jersey||'',
         pt:pt,gp:gp,gs:gs,avg:avg,peak:peak,
@@ -9680,7 +9695,11 @@ function _getLeaguePitcherRows(teamFilter){
         lastDate:last?last.date:'',
         lastPC:last?last.pitches:0,
         hasSeason:!!ssn,
-        hasGames:outs.length>0
+        hasGames:outs.length>0,
+        teamGames:teamGames,
+        discrepancy:discrepancy,
+        seasonPt:ssn&&typeof ssn.pt==='number'?ssn.pt:null,
+        outingSum:outingSum
       });
     });
   });
@@ -9696,7 +9715,12 @@ function _setLeaguePitchSort(col){
   var s=_leaguePitchSort();
   if(s.col===col)s.dir=s.dir==='desc'?'asc':'desc';
   else{s.col=col;s.dir=(col==='name'||col==='team'||col==='lastDate')?'asc':'desc';}
-  A.leaguePitchSort=s;sv();renderLeaguePitching();
+  A.leaguePitchSort=s;sv();
+  // v211: re-render BOTH views (Season "Opp Pit" tab + standings League Pitching
+  // modal). Each renderer no-ops if its DOM target isn't present, so this is
+  // safe regardless of which view is currently visible.
+  if(typeof renderLeaguePitching==='function')renderLeaguePitching();
+  if(typeof renderSeasonLeaguePitching==='function')renderSeasonLeaguePitching();
 }
 function _sortLeaguePitchRows(rows){
   var s=_leaguePitchSort();
@@ -9759,15 +9783,19 @@ function renderLeaguePitching(){
   rows.forEach(function(r){
     var nm=r.jersey?'#'+r.jersey+' '+sn(r.name):sn(r.name);
     var lastStr=r.lastDate?(r.lastDate.slice(5)+' ('+r.lastPC+'p)'):'—';
-    var ptStr=r.hasSeason?r.pt:(r.hasGames?'~'+r.pt:'—');
-    var ptTitle=r.hasSeason?'from season totals':(r.hasGames?'sum of logged per-game outings (~ = no season totals to cross-check)':'no data');
+    // v211: no tilde — just show the data we have
+    var ptStr=r.hasGames||r.hasSeason?r.pt:'—';
+    var ptTitle=r.discrepancy?('⚠ Season total ('+r.seasonPt+') ≠ sum of logged outings ('+r.outingSum+')'):'sum of logged per-game outings';
+    var ptColor=r.discrepancy?'color:#e04535;':'';
+    var ptIcon=r.discrepancy?' ⚠':'';
     var gsStr=r.gs!=null?r.gs:'—';
     var avgStr=r.gp>0?r.avg.toFixed(1):'—';
     var peakStr=r.peak>0?r.peak:'—';
+    var teamLabel=esc(r.team)+' ('+r.teamGames+')';
     h+='<tr style="cursor:pointer;" onclick="cm(\'m-leaguepitch\');openScoutCard(\''+esc(r.team).replace(/\\/g,'\\\\').replace(/\'/g,'\\\'')+'\')">'
       +'<td>'+esc(nm)+'</td>'
-      +'<td style="color:var(--text2);font-size:10px;">'+esc(r.team)+'</td>'
-      +'<td title="'+esc(ptTitle)+'" style="text-align:right;font-weight:bold;">'+ptStr+'</td>'
+      +'<td style="color:var(--text2);font-size:10px;">'+teamLabel+'</td>'
+      +'<td title="'+esc(ptTitle)+'" style="text-align:right;font-weight:bold;'+ptColor+'">'+ptStr+ptIcon+'</td>'
       +'<td style="text-align:right;">'+(r.gp||'—')+'</td>'
       +'<td style="text-align:right;">'+gsStr+'</td>'
       +'<td style="text-align:right;color:var(--text2);">'+avgStr+'</td>'
@@ -9776,7 +9804,7 @@ function renderLeaguePitching(){
       +'</tr>';
   });
   h+='</tbody></table>';
-  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.4;">PT = total pitches (season). GP = games pitched. GS = starts. Avg = PT / GP. Peak = highest single-outing pitch count we\'ve logged. ~PT = no season totals on file; estimated from sum of logged outings. Tap a row to open that team\'s scout card.</div>';
+  h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.4;">PT = sum of logged outings. GP = games pitched. GS = starts. Avg = PT / GP. Peak = highest single-outing PC. Number after team name = distinct games we have data for. ⚠ = season total disagrees with outings sum. Click any header to sort. Tap a row to open that team\'s scout card.</div>';
   body.innerHTML=h;
 }
 // v109: save season totals for a team. Replaces the previous seasonTotals
