@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Combined fix — case merge + missing games + season totals</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:980px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+.step{background:rgba(255,255,255,.04);padding:10px 14px;border-radius:4px;margin:8px 0;font-size:12px;line-height:1.5;}
+.step strong{color:#c8a96e;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px;font-family:monospace;}
+th,td{padding:3px 7px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:12px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warning{background:rgba(200,169,110,.20);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Combined fix — wrap up the diagnostic</h1>
+
+<div class="note">
+Four operations applied in a single write to <code>appdata/oppPitcherLog</code>:
+</div>
+
+<div class="step">
+<strong>1. Merge Owen Tatlow casing bug (Hurricanes)</strong><br>
+The April pushes used <code>owen tatlow</code> (lowercase); the May push used <code>Owen Tatlow</code> (capitalized). Same person, two records. This step copies the capitalized outings into the lowercase entry, sorts, and deletes the duplicate.
+</div>
+
+<div class="step">
+<strong>2. Lugnuts May 2 @ Thunder — 4 ghost outings</strong><br>
+Push 0-pitch outings for Leo Kesselman, Brian Ferreira, William Gardner, Peter Christopher on 2026-05-02. The league counts these pitcher-game appearances toward GP but the pitch counts were never entered. Fixes the four <code>PT match / GP -1</code> rows.
+</div>
+
+<div class="step">
+<strong>3. Devil Rays May 16 vs Mud Hens (W 10-9)</strong><br>
+5 outings (128 pitches): Aron Briskin 34, Emmanuel Shih 34, Blake Shore 26, Asher Rizvi 16, Cavan Harriger 18. Resolves all 4 Devil Rays mismatches and adds Asher Rizvi's first outing.
+</div>
+
+<div class="step">
+<strong>4. Push season totals for all 11 teams</strong><br>
+Writes <code>teams[team].seasonTotals.pitchers</code>. The v211 League Pitching UI will then surface any remaining mismatches with a red ⚠. After this fix, the only known outstanding mismatches are 3 Hurricanes pitchers (Nash Davis, Rivaan Dhyllon, Seth Gold — one missing outing each).
+</div>
+
+<button id="run-btn" onclick="run()">Apply all 4 fixes → Firestore</button>
+<div id="status"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// === Step 2 + 3 data: missing outings ===
+const NEW_OUTINGS = {
+  'Lugnuts': [
+    // May 2 ghost outings — pitcher appeared, league never posted pitch count
+    {date:'2026-05-02', name:'Leo Kesselman',     pitches:0, ip:0},
+    {date:'2026-05-02', name:'Brian Ferreira',    pitches:0, ip:0},
+    {date:'2026-05-02', name:'William Gardner',   pitches:0, ip:0},
+    {date:'2026-05-02', name:'Peter Christopher', pitches:0, ip:0}
+  ],
+  'Devil Rays': [
+    // May 16 vs Mud Hens (W 10-9)
+    {date:'2026-05-16', name:'Aron Briskin',   pitches:34, ip:0},
+    {date:'2026-05-16', name:'Emmanuel Shih',  pitches:34, ip:0},
+    {date:'2026-05-16', name:'Blake Shore',    pitches:26, ip:0},
+    {date:'2026-05-16', name:'Asher Rizvi',    pitches:16, ip:0},
+    {date:'2026-05-16', name:'Cavan Harriger', pitches:18, ip:0}
+  ]
+};
+
+// === Step 4 data: season totals (same as check_season_totals.html, aggregated) ===
+const SEASON = {
+  'Hurricanes': [
+    {name:'Rivaan Dhyllon',   pt:148, gp:5},
+    {name:'Seth Gold',        pt:87,  gp:3},
+    {name:'William Leonard',  pt:1,   gp:1},
+    {name:'Paxton Eggert',    pt:157, gp:5},
+    {name:'Danny Tantino',    pt:64,  gp:2},
+    {name:'Nash Davis',       pt:118, gp:3},
+    {name:'owen tatlow',      pt:115, gp:4},
+    {name:'Gregory Zervalis', pt:66,  gp:2},
+    {name:'Simon Smith',      pt:46,  gp:1}
+  ],
+  'Mud Hens': [
+    {name:'Lucas Marley',       pt:175, gp:6},
+    {name:'Anthony Christopher',pt:114, gp:4},
+    {name:'Ezra Girson',        pt:182, gp:6},
+    {name:'Gavin Tomback',      pt:149, gp:4},
+    {name:'Garrett Freeland',   pt:203, gp:6},
+    {name:'Peter Huynh',        pt:145, gp:5},
+    {name:'Remy Bull',          pt:83,  gp:3},
+    {name:'Alessio Palermo',    pt:89,  gp:3}
+  ],
+  'Hot Rods': [
+    {name:'Evan Hoffman',      pt:196, gp:8},
+    {name:'Eli Kassutto',      pt:154, gp:7},
+    {name:'Zev Savett',        pt:8,   gp:1},
+    {name:'Andrew Kiczek',     pt:44,  gp:2},
+    {name:'Conley Livingston', pt:52,  gp:2},
+    {name:'Austin Blazic',     pt:127, gp:6},
+    {name:'Barron Ma',         pt:113, gp:3},
+    {name:'Luke Davidson',     pt:81,  gp:3},
+    {name:'Jack Van Dyke',     pt:37,  gp:2}
+  ],
+  'Tin Caps': [
+    {name:'Samuel Fask',         pt:52,  gp:2},
+    {name:'Leo Sanders',         pt:48,  gp:2},
+    {name:'Aiden Kornhauser',    pt:51,  gp:2},
+    {name:'Caleb Lattin',        pt:58,  gp:2},
+    {name:'Ariav Bailes Feeley', pt:31,  gp:1},
+    {name:'Yair Levitt',         pt:103, gp:2}
+  ],
+  'Iron Pigs': [
+    {name:'Gavin Amoroso',  pt:127, gp:4},
+    {name:'Ari Elbaum',     pt:107, gp:3},
+    {name:'Logan Baill',    pt:38,  gp:1},
+    {name:'Jeffrey Blisard',pt:146, gp:5},
+    {name:'Bradley Blisard',pt:58,  gp:3},
+    {name:'Race Mandel',    pt:139, gp:5},
+    {name:'Asi Frechette',  pt:51,  gp:2},
+    {name:'Nolan Roth',     pt:110, gp:3},
+    {name:'Ryder Berman',   pt:37,  gp:1},
+    {name:'Zachary Moyer',  pt:55,  gp:2}
+  ],
+  'Devil Rays': [
+    {name:'Aron Briskin',     pt:149, gp:4},
+    {name:'Beau Abramowitz',  pt:71,  gp:3},
+    {name:'Yasine Berriche',  pt:35,  gp:2},
+    {name:'Emmanuel Shih',    pt:92,  gp:3},
+    {name:'Henry Eureka',     pt:58,  gp:2},
+    {name:'River Adams',      pt:22,  gp:1},
+    {name:'Blake Shore',      pt:82,  gp:3},
+    {name:'Archie Brimacombe',pt:50,  gp:2},
+    {name:'Asher Rizvi',      pt:16,  gp:1},
+    {name:'Cavan Harriger',   pt:140, gp:6},
+    {name:'Cole Engler',      pt:174, gp:6}
+  ],
+  'Thunder': [
+    {name:'Felix Burnett',  pt:154, gp:5, jersey:'0'},
+    {name:'Duncan Stabert', pt:146, gp:5},
+    {name:'William Ickes',  pt:118, gp:4},
+    {name:'Jacob Gutmann',  pt:123, gp:5},
+    {name:'Jack Land',      pt:105, gp:4},
+    {name:'Alexander Cohen',pt:67,  gp:3},
+    {name:'Brady S. Duncan',pt:36,  gp:2},
+    {name:'Henry Livengood',pt:42,  gp:1},
+    {name:'Andre Pendleton',pt:35,  gp:1}
+  ],
+  'Cannonballers': [
+    {name:'Jaylen Nance',      pt:239, gp:9},
+    {name:'Declan Prisinzano', pt:167, gp:5},
+    {name:'Leo Kunkle',        pt:320, gp:8},
+    {name:'Tristan Clark',     pt:96,  gp:5},
+    {name:'Dillon Dhingra',    pt:119, gp:3, jersey:'9'},
+    {name:'Robert McCallion',  pt:240, gp:7},
+    {name:'Graham Lovett',     pt:40,  gp:1}
+  ],
+  'Bulls': [
+    {name:'Theo Reznik-Slater',pt:283, gp:7},
+    {name:'Reece Landis',      pt:25,  gp:1},
+    {name:'William Burke',     pt:176, gp:6},
+    {name:'Eric Rosenthal',    pt:31,  gp:1},
+    {name:'Quinn Strauss',     pt:17,  gp:1},
+    {name:'Penn Leonards',     pt:87,  gp:3},
+    {name:'Lucas Ziemba',      pt:49,  gp:2},
+    {name:'Ralph Agnew',       pt:99,  gp:3},
+    {name:'William Agnew',     pt:96,  gp:3},
+    {name:'Ishaan Guruswamy',  pt:146, gp:5}
+  ],
+  'Grasshoppers': [
+    {name:'William Church',     pt:89,  gp:3},
+    {name:'Campbell Pfister',   pt:20,  gp:1},
+    {name:'Christopher Rieman', pt:72,  gp:2},
+    {name:'Christopher Rieman', pt:38,  gp:1},
+    {name:'Saul Klein',         pt:39,  gp:1},
+    {name:'Jack Alwine',        pt:95,  gp:3},
+    {name:'Grant Monna',        pt:40,  gp:2},
+    {name:'Franklin Bee',       pt:177, gp:5},
+    {name:'Graham Haggerson',   pt:20,  gp:1}
+  ],
+  'Lugnuts': [
+    {name:'Leo Kesselman',     pt:106, gp:4},
+    {name:'Brian Ferreira',    pt:127, gp:5},
+    {name:'William Gardner',   pt:94,  gp:4},
+    {name:'Johnny Richardson', pt:28,  gp:1},
+    {name:'Austin Schroeder',  pt:6,   gp:1},
+    {name:'Peter Christopher', pt:71,  gp:3}
+  ]
+};
+
+function aggregateSeason(team){
+  const arr=SEASON[team]||[];
+  const byName={};
+  arr.forEach(p=>{
+    if(!byName[p.name]){byName[p.name]={pt:p.pt,gp:p.gp,gs:0,jersey:p.jersey||''};}
+    else{byName[p.name].pt+=p.pt;byName[p.name].gp+=p.gp;if(p.jersey&&!byName[p.name].jersey)byName[p.name].jersey=p.jersey;}
+  });
+  return byName;
+}
+
+async function run(){
+  const btn=document.getElementById('run-btn');
+  const status=document.getElementById('status');
+  if(!confirm('Apply all 4 fixes to appdata/oppPitcherLog?')){return;}
+  btn.disabled=true;
+  status.className='warning';status.textContent='Reading current oppPitcherLog…';
+  try{
+    const snap=await db.collection('appdata').doc('oppPitcherLog').get();
+    const docData=snap.exists?(snap.data()||{}):{};
+    const teams=docData.teams||{};
+    const log=[];
+
+    // === Step 1: Owen Tatlow casing merge (Hurricanes) ===
+    const hurr=teams['Hurricanes']||{pitchers:{}};
+    if(!hurr.pitchers)hurr.pitchers={};
+    const upper=hurr.pitchers['Owen Tatlow'];
+    const lower=hurr.pitchers['owen tatlow']||{outings:[],jersey:''};
+    if(upper){
+      const upperOuts=upper.outings||[];
+      const lowerOuts=lower.outings||[];
+      // Merge by date (de-dupe)
+      const byDate={};
+      lowerOuts.forEach(o=>{byDate[o.date]=o;});
+      upperOuts.forEach(o=>{byDate[o.date]=o;}); // upper wins ties (it's the newer push)
+      const merged=Object.values(byDate).sort((a,b)=>a.date.localeCompare(b.date));
+      lower.outings=merged;
+      if(upper.jersey&&!lower.jersey)lower.jersey=upper.jersey;
+      hurr.pitchers['owen tatlow']=lower;
+      delete hurr.pitchers['Owen Tatlow'];
+      log.push('Hurricanes: merged Owen Tatlow → owen tatlow ('+merged.length+' outings, '+merged.reduce((s,o)=>s+(o.pitches||0),0)+' PT)');
+    } else {
+      log.push('Hurricanes: no Owen Tatlow entry to merge (already clean)');
+    }
+    teams['Hurricanes']=hurr;
+
+    // === Step 2 + 3: New outings ===
+    Object.keys(NEW_OUTINGS).forEach(teamName=>{
+      const t=teams[teamName]||{pitchers:{}};
+      if(!t.pitchers)t.pitchers={};
+      let added=0, replaced=0;
+      NEW_OUTINGS[teamName].forEach(o=>{
+        const p=t.pitchers[o.name]||{outings:[],jersey:''};
+        const before=(p.outings||[]).length;
+        p.outings=(p.outings||[]).filter(x=>x.date!==o.date);
+        const after=p.outings.length;
+        if(after<before)replaced++;else added++;
+        p.outings.push({date:o.date,pitches:o.pitches,ip:o.ip||0});
+        p.outings.sort((a,b)=>a.date.localeCompare(b.date));
+        t.pitchers[o.name]=p;
+      });
+      teams[teamName]=t;
+      log.push(teamName+': '+added+' new outings, '+replaced+' replaced');
+    });
+
+    // === Step 4: Season totals ===
+    let totalSeasonPitchers=0;
+    Object.keys(SEASON).forEach(teamName=>{
+      const t=teams[teamName]||{pitchers:{}};
+      if(!t.pitchers)t.pitchers={};
+      const agg=aggregateSeason(teamName);
+      const out={};
+      Object.keys(agg).forEach(n=>{
+        const e=agg[n];
+        out[n]={pt:e.pt,gp:e.gp,gs:e.gs||0};
+        // Carry jersey onto per-outing entry if missing
+        if(e.jersey&&t.pitchers[n]&&!t.pitchers[n].jersey)t.pitchers[n].jersey=e.jersey;
+      });
+      t.seasonTotals={pitchers:out,updated:new Date().toISOString()};
+      teams[teamName]=t;
+      totalSeasonPitchers+=Object.keys(out).length;
+    });
+    log.push('Season totals: '+totalSeasonPitchers+' pitchers across '+Object.keys(SEASON).length+' teams');
+
+    status.textContent='Writing oppPitcherLog…\n\n'+log.join('\n');
+    await db.collection('appdata').doc('oppPitcherLog').set({
+      teams:teams,
+      updated:new Date()
+    },{merge:false});
+
+    // Verify
+    const verify=await db.collection('appdata').doc('oppPitcherLog').get();
+    const vTeams=verify.data().teams||{};
+    const verifyLines=Object.keys(SEASON).sort().map(teamName=>{
+      const vp=(vTeams[teamName]||{}).pitchers||{};
+      const totalOutings=Object.values(vp).reduce((s,p)=>s+((p.outings||[]).length),0);
+      const ssn=((vTeams[teamName]||{}).seasonTotals||{}).pitchers||{};
+      return teamName+' → '+totalOutings+' outings · '+Object.keys(vp).length+' pitchers · '+Object.keys(ssn).length+' season-total entries';
+    });
+
+    status.className='ok';
+    status.innerHTML='✓ All fixes applied.\n\n'+log.join('\n')+'\n\nRead-back:\n'+verifyLines.join('\n')+'\n\nNext: reload scorecard, open League Pitching, and check the ⚠ indicators. Only Hurricanes Nash/Rivaan/Seth should remain mismatched until we find that data.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
