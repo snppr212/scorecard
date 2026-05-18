@@ -191,12 +191,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 #m-play .play-body{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 #m-play .play-action-bar{padding-top:10px;margin-top:10px;border-top:1px solid var(--border);background:var(--bg2);position:sticky;bottom:0;display:flex;flex-direction:column;gap:6px;}
 .play-diamond{display:block;margin:0 auto 6px;max-width:280px;width:100%;height:auto;border-radius:var(--rs);}
-/* v2.17: home-screen field — 2.5:1 viewBox keeps the diamond looking
-   like a baseball diamond (not a flat lozenge). On phones the SVG
-   matches the viewBox aspect exactly (no padding). On wider screens
-   the strip is height-capped at 200px and CSS green fills the sides
-   as outfield grass. */
-#field-svg svg{display:block;width:100%;aspect-ratio:400/160;max-height:200px;margin:0;background:#1e6838;}
+/* v2.18: home-screen field — Design B (Scoreboard) layout, 2:1 viewBox.
+   aspect-ratio matches the new viewBox so on phones the SVG fills
+   edge-to-edge with the diamond properly proportioned. max-height
+   caps the strip on wide screens; CSS green takes the sides. */
+#field-svg svg{display:block;width:100%;aspect-ratio:400/200;max-height:220px;margin:0;background:#1e6838;}
 .play-diamond .fielder{cursor:pointer;}
 .play-diamond .fielder circle{transition:fill .12s,stroke-width .12s;}
 .play-diamond .fielder.pos1 circle{fill:#FFD700;stroke:#D4A017;stroke-width:2.5;}
@@ -4139,60 +4138,56 @@ var legacy=_isLegacyCFGame();
 var legacyHasRCF=legacy&&Object.keys(G.fa||{}).some(function(i){return G.fa[i]&&G.fa[i]['RCF'];});
 // Position label coords — fielders sit BEHIND their bases (smaller y) so
 // the labels never collide with the bases or runners standing on them.
-// v2.17: 2.5:1 viewBox (400x160). Diamond inside at ~1.9:1 — wider than
-// a true square diamond but recognizable as one, not the flat lozenge
-// from v2.16. On phones this aspect matches the rendered area exactly.
-// On wider screens, CSS green fills the outfield-grass on the sides.
+// v2.18: Design B (Scoreboard) — flat geometric field at 2:1 viewBox.
+// Solid colors, no gradients/shadows, gold accent on the mound. Matches
+// the rest of the app's dark/gold UI aesthetic.
 var pc={
-  P:[200,76],
-  C:[200,154],
-  '1B':[295,80],
-  '2B':[250,55],
-  SS:[150,55],
-  '3B':[105,80],
-  LF:[40,14],
-  RF:[360,14],
-  CF:legacy?[legacyHasRCF?155:200,5]:[9999,5],
-  LC:legacy?[9999,5]:[155,5],
-  RC:legacy?[9999,5]:[245,5],
-  'RCF':legacyHasRCF?[245,5]:[9999,5]
+  P:[200,95],
+  C:[200,192],
+  '1B':[310,105],
+  '2B':[255,75],
+  SS:[145,75],
+  '3B':[90,105],
+  LF:[40,18],
+  RF:[360,18],
+  CF:legacy?[legacyHasRCF?150:200,8]:[9999,8],
+  LC:legacy?[9999,8]:[150,8],
+  RC:legacy?[9999,8]:[250,8],
+  'RCF':legacyHasRCF?[250,8]:[9999,8]
 };
 // runner circle positions — sit directly on the base
-var rc=[[315,88],[200,25],[85,88]];
-// canvas — 2.5:1 viewBox keeps the diamond looking like a diamond.
-var s='<svg viewBox="0 0 400 160" xmlns="http://www.w3.org/2000/svg">';
-s+='<defs>';
-s+='<radialGradient id="gd" cx="50%" cy="55%" r="65%"><stop offset="0%" stop-color="#b88a4a"/><stop offset="100%" stop-color="#7a5a30"/></radialGradient>';
-s+='<filter id="sh"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.35"/></filter></defs>';
+var rc=[[330,110],[200,35],[70,110]];
+// canvas — flat scoreboard aesthetic, no defs/gradients/filters needed
+var s='<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">';
 // solid green background (full rectangle)
-s+='<rect width="400" height="160" fill="#1e6838"/>';
-// dirt infield diamond — extends past the bases for a thicker visible skin
-s+='<path d="M 200,148 L 322,88 L 200,22 L 78,88 Z" fill="url(#gd)" filter="url(#sh)"/>';
-// infield grass cutout (smaller — leaves a wide dirt rim around the basepath)
-s+='<path d="M 200,118 L 240,88 L 200,58 L 160,88 Z" fill="#1a6030"/>';
-// pitcher mound (large, visible) + rubber
-s+='<circle cx="200" cy="88" r="11" fill="#a87a45" stroke="#7a5a30" stroke-width="0.8"/>';
-s+='<rect x="195" y="86.7" width="10" height="2.5" rx="0.4" fill="white"/>';
-// home plate dirt circle
-s+='<ellipse cx="200" cy="146" rx="22" ry="8" fill="#7a5a30"/>';
-// batter boxes
-s+='<rect x="173" y="142" width="10" height="12" rx="0.6" fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="0.5"/>';
-s+='<rect x="217" y="142" width="10" height="12" rx="0.6" fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="0.5"/>';
+s+='<rect width="400" height="200" fill="#1e6838"/>';
+// dirt infield diamond (flat tan, sharp polygon)
+s+='<polygon points="200,180 340,110 200,28 60,110" fill="#a87a3e"/>';
+// infield grass cutout (flat, same green as outfield)
+s+='<polygon points="200,148 252,110 200,72 148,110" fill="#1e6838"/>';
 // foul lines
-s+='<line x1="200" y1="148" x2="0" y2="60" stroke="white" stroke-width="0.8" opacity="0.55"/>';
-s+='<line x1="200" y1="148" x2="400" y2="60" stroke="white" stroke-width="0.8" opacity="0.55"/>';
+s+='<line x1="200" y1="178" x2="0" y2="58" stroke="white" stroke-width="1.2" opacity="0.7"/>';
+s+='<line x1="200" y1="178" x2="400" y2="58" stroke="white" stroke-width="1.2" opacity="0.7"/>';
 // base paths (chalk)
-s+='<line x1="200" y1="148" x2="315" y2="88" stroke="rgba(255,255,255,0.4)" stroke-width="0.7"/>';
-s+='<line x1="315" y1="88" x2="200" y2="25" stroke="rgba(255,255,255,0.4)" stroke-width="0.7"/>';
-s+='<line x1="200" y1="25" x2="85" y2="88" stroke="rgba(255,255,255,0.4)" stroke-width="0.7"/>';
-s+='<line x1="85" y1="88" x2="200" y2="148" stroke="rgba(255,255,255,0.4)" stroke-width="0.7"/>';
-// bases (clickable)
-[[315,88],[200,25],[85,88]].forEach(function(b,i){var on=G.bases[i]!==null;
-s+='<rect x="'+(b[0]-5)+'" y="'+(b[1]-5)+'" width="10" height="10" transform="rotate(45 '+b[0]+' '+b[1]+')" fill="'+(on?'#FFD700':'white')+'" stroke="'+(on?'#FFA500':'rgba(200,200,200,0.7)')+'" stroke-width="'+(on?'1':'0.6')+'" style="cursor:pointer;" onclick="runnerM('+(i+1)+')"/>';});
+s+='<line x1="200" y1="178" x2="330" y2="110" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>';
+s+='<line x1="330" y1="110" x2="200" y2="35" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>';
+s+='<line x1="200" y1="35" x2="70" y2="110" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>';
+s+='<line x1="70" y1="110" x2="200" y2="178" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>';
+// pitcher mound (flat circle, gold accent ring + gold rubber)
+s+='<circle cx="200" cy="110" r="14" fill="#7a5a30" stroke="#c8a96e" stroke-width="1"/>';
+s+='<rect x="194" y="108" width="12" height="3" rx="0.5" fill="#c8a96e"/>';
+// home plate dirt
+s+='<ellipse cx="200" cy="172" rx="32" ry="11" fill="#7a5a30"/>';
+// batter boxes
+s+='<rect x="166" y="166" width="11" height="14" rx="0.6" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.6"/>';
+s+='<rect x="223" y="166" width="11" height="14" rx="0.6" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.6"/>';
 // home plate (pentagon) — point DOWN toward catcher
-s+='<polygon points="195,144 205,144 205,147 200,151 195,147" fill="white" stroke="rgba(200,200,200,0.4)" stroke-width="0.3"/>';
+s+='<polygon points="194,168 206,168 206,172 200,177 194,172" fill="white" stroke="rgba(200,200,200,0.4)" stroke-width="0.3"/>';
+// bases (clickable) — gold when a runner is on, white otherwise
+[[330,110],[200,35],[70,110]].forEach(function(b,i){var on=G.bases[i]!==null;
+s+='<rect x="'+(b[0]-5)+'" y="'+(b[1]-5)+'" width="10" height="10" transform="rotate(45 '+b[0]+' '+b[1]+')" fill="'+(on?'#FFD700':'white')+'" stroke="'+(on?'#FFA500':'rgba(200,200,200,0.7)')+'" stroke-width="'+(on?'1':'0.6')+'" style="cursor:pointer;" onclick="runnerM('+(i+1)+')"/>';});
 // fielder labels — show player first name when assigned, fall back to
-// position name as a placeholder. v2.17: box 44x16, font 12.
+// position name as a placeholder. Box 44x16, font 12.
 if(wf){
   var posToShow=legacy?['P','C','1B','2B','3B','SS','LF','CF','RF']:POS.slice();
   if(legacyHasRCF)posToShow.push('RCF');
@@ -4200,10 +4195,10 @@ if(wf){
   var assigned=fa[p];var nm=assigned?fieldFirstName(assigned):'';
   s+='<g><rect x="'+(c[0]-22)+'" y="'+(c[1]-8)+'" width="44" height="16" rx="4" fill="'+(nm?'rgba(13,27,42,0.92)':'rgba(13,27,42,0.55)')+'" stroke="'+(nm?'rgba(200,169,110,0.75)':'rgba(255,255,255,0.18)')+'" stroke-width="0.6"/>';
   s+='<text x="'+c[0]+'" y="'+(c[1]+4)+'" text-anchor="middle" font-size="12" font-family="sans-serif" fill="'+(nm?'#FFD700':'rgba(255,255,255,0.5)')+'" font-weight="bold">'+(nm||p)+'</text></g>';});}
-// runners (large gold circles directly on the base) — drawn last so they
-// sit on top of everything for maximum visibility
+// runners (gold circles directly on the base) — drawn last so they sit on
+// top of everything. Flat — no drop shadow.
 for(var b=0;b<3;b++){if(G.bases[b]){var bc=rc[b];var rn=fieldFirstName(G.bases[b].name)||(G.bases[b].jerseyNum?'#'+G.bases[b].jerseyNum:'?');
-s+='<circle cx="'+bc[0]+'" cy="'+bc[1]+'" r="13" fill="#FFD700" stroke="#D4A017" stroke-width="1.8" filter="url(#sh)" style="cursor:pointer;" onclick="runnerM('+(b+1)+')"/>';
+s+='<circle cx="'+bc[0]+'" cy="'+bc[1]+'" r="14" fill="#FFD700" stroke="#D4A017" stroke-width="1.8" style="cursor:pointer;" onclick="runnerM('+(b+1)+')"/>';
 s+='<text x="'+bc[0]+'" y="'+(bc[1]+4)+'" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#0d1b2a" font-weight="bold" style="pointer-events:none;">'+rn+'</text>';}}
 s+='</svg>';$('field-svg').innerHTML=s;}
 // also expose 4OF in field assignment tab
@@ -10020,7 +10015,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.17';
+var APP_VERSION='v2.18';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
