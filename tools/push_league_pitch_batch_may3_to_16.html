@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Push league pitch batch — May 3-16</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1000px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;font-family:monospace;}
+th,td{padding:4px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warn{background:rgba(200,169,110,.20);color:#c8a96e;}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px;}
+.chip{background:rgba(255,255,255,.04);padding:6px 10px;border-radius:4px;font-size:11px;text-align:center;}
+.chip strong{color:#c8a96e;font-size:14px;display:block;}
+</style>
+</head>
+<body>
+<h1>Push league pitch batch — May 3 through May 16</h1>
+
+<div class="note">
+Big batch: 31 game-team entries across 10 teams = <strong>122 outings</strong>. Idempotent — de-dupes by (team, pitcher, date). Re-runs of already-pushed entries (e.g. Lugnuts May 9, Iron Pigs May 12) will show as "replaced" with no change to data. Our own team games (Tin Caps @ MM May 7, MM @ CB May 9, GH @ MM May 14) are NOT included — those pitch counts live in our own games/ docs.
+</div>
+
+<div class="summary">
+<div class="chip"><strong>10</strong>teams</div>
+<div class="chip"><strong>122</strong>outings</div>
+<div class="chip"><strong>22</strong>games</div>
+</div>
+
+<button id="push-btn" onclick="doPush()">Push 122 outings → Firestore</button>
+<div id="status"></div>
+
+<h2>Breakdown</h2>
+<table id="breakdown-tbl"></table>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// All outings parsed from user's paste. Pitcher → team mapping determined
+// from cross-referencing names with previously confirmed rosters.
+const DATA = {
+  'Grasshoppers': [
+    // May 4 vs Mud Hens (lost 0-12)
+    {date:'2026-05-04', name:'Campbell Pfister',  pitches:20, ip:0},
+    {date:'2026-05-04', name:'Jack Alwine',       pitches:35, ip:0},
+    {date:'2026-05-04', name:'Grant Monna',       pitches:20, ip:0},
+    {date:'2026-05-04', name:'Graham Haggerson',  pitches:20, ip:0},
+    // May 9 vs Iron Pigs (won 6-5) — already pushed; idempotent
+    {date:'2026-05-09', name:'Christopher Rieman',pitches:37, ip:2.0},
+    {date:'2026-05-09', name:'Jack Alwine',       pitches:25, ip:1.0},
+    {date:'2026-05-09', name:'Franklin Bee',      pitches:39, ip:1.0}
+  ],
+  'Mud Hens': [
+    // May 3 @ Bulls (lost 3-7)
+    {date:'2026-05-03', name:'Lucas Marley',          pitches:19, ip:0},
+    {date:'2026-05-03', name:'Anthony Christopher',   pitches:17, ip:0},
+    {date:'2026-05-03', name:'Gavin Tomback',         pitches:44, ip:0},
+    {date:'2026-05-03', name:'Remy Bull',             pitches:27, ip:0},
+    {date:'2026-05-03', name:'Alessio Palermo',       pitches:32, ip:0},
+    // May 4 vs Grasshoppers (won 12-0)
+    {date:'2026-05-04', name:'Ezra Girson',           pitches:25, ip:0},
+    {date:'2026-05-04', name:'Garrett Freeland',      pitches:21, ip:0},
+    {date:'2026-05-04', name:'Peter Huynh',           pitches:33, ip:0},
+    // May 9 @ Lugnuts (lost 0-11)
+    {date:'2026-05-09', name:'Lucas Marley',          pitches:49, ip:0},
+    {date:'2026-05-09', name:'Anthony Christopher',   pitches:48, ip:0},
+    {date:'2026-05-09', name:'Garrett Freeland',      pitches:40, ip:0},
+    // May 12 vs Iron Pigs (lost 7-15) — already pushed; idempotent
+    {date:'2026-05-12', name:'Ezra Girson',           pitches:45, ip:0},
+    {date:'2026-05-12', name:'Gavin Tomback',         pitches:33, ip:0},
+    {date:'2026-05-12', name:'Garrett Freeland',      pitches:48, ip:0},
+    {date:'2026-05-12', name:'Peter Huynh',           pitches:12, ip:0}
+  ],
+  'Bulls': [
+    // May 3 vs Mud Hens (won 7-3)
+    {date:'2026-05-03', name:'William Burke',         pitches:28, ip:0},
+    {date:'2026-05-03', name:'Penn Leonards',         pitches:30, ip:0},
+    {date:'2026-05-03', name:'Ralph Agnew',           pitches:17, ip:0},
+    {date:'2026-05-03', name:'Ishaan Guruswamy',      pitches:25, ip:0},
+    // May 6 @ Lugnuts (lost 3-7) — already pushed; idempotent
+    {date:'2026-05-06', name:'Theo Reznik-Slater',    pitches:37, ip:0},
+    {date:'2026-05-06', name:'William Burke',         pitches:37, ip:0},
+    {date:'2026-05-06', name:'William Agnew',         pitches:35, ip:0},
+    // May 9 vs Devil Rays (lost 7-8)
+    {date:'2026-05-09', name:'Theo Reznik-Slater',    pitches:34, ip:0},
+    {date:'2026-05-09', name:'Reece Landis',          pitches:25, ip:0},
+    {date:'2026-05-09', name:'William Burke',         pitches:37, ip:0},
+    {date:'2026-05-09', name:'Quinn Strauss',         pitches:17, ip:0},
+    {date:'2026-05-09', name:'Ralph Agnew',           pitches:36, ip:0},
+    // May 13 @ Hurricanes (lost 7-8)
+    {date:'2026-05-13', name:'Theo Reznik-Slater',    pitches:37, ip:0},
+    {date:'2026-05-13', name:'William Burke',         pitches:19, ip:0},
+    {date:'2026-05-13', name:'Penn Leonards',         pitches:9,  ip:0},
+    {date:'2026-05-13', name:'Lucas Ziemba',          pitches:21, ip:0},
+    {date:'2026-05-13', name:'Ishaan Guruswamy',      pitches:29, ip:0}
+  ],
+  'Hurricanes': [
+    // May 5 vs Hot Rods (won 13-10)
+    {date:'2026-05-05', name:'Rivaan Dhyllon',        pitches:28, ip:0},
+    {date:'2026-05-05', name:'Paxton Eggert',         pitches:46, ip:0},
+    {date:'2026-05-05', name:'Owen Tatlow',           pitches:42, ip:0},
+    // May 10 @ Thunder (lost 6-15)
+    {date:'2026-05-10', name:'Rivaan Dhyllon',        pitches:48, ip:0},
+    {date:'2026-05-10', name:'Seth Gold',             pitches:32, ip:0},
+    {date:'2026-05-10', name:'Danny Tantino',         pitches:36, ip:0},
+    // May 13 vs Bulls (won 8-7)
+    {date:'2026-05-13', name:'William Leonard',       pitches:1,  ip:0},
+    {date:'2026-05-13', name:'Paxton Eggert',         pitches:41, ip:0},
+    {date:'2026-05-13', name:'Owen Tatlow',           pitches:39, ip:0},
+    {date:'2026-05-13', name:'Simon Smith',           pitches:46, ip:0}
+  ],
+  'Iron Pigs': [
+    // May 6 vs Devil Rays (lost 4-7)
+    {date:'2026-05-06', name:'Gavin Amoroso',         pitches:36, ip:0},
+    {date:'2026-05-06', name:'Bradley Blisard',       pitches:12, ip:0},
+    {date:'2026-05-06', name:'Race Mandel',           pitches:37, ip:0},
+    // May 7 vs Cannonballers (4-4 tie)
+    {date:'2026-05-07', name:'Ari Elbaum',            pitches:38, ip:0},
+    {date:'2026-05-07', name:'Jeffrey Blisard',       pitches:25, ip:0},
+    {date:'2026-05-07', name:'Ryder Berman',          pitches:37, ip:0},
+    // May 9 @ Grasshoppers (lost 5-6)
+    {date:'2026-05-09', name:'Bradley Blisard',       pitches:25, ip:0},
+    {date:'2026-05-09', name:'Race Mandel',           pitches:35, ip:0},
+    {date:'2026-05-09', name:'Nolan Roth',            pitches:36, ip:0},
+    // May 12 @ Mud Hens (won 15-7) — already pushed; idempotent
+    {date:'2026-05-12', name:'Jeffrey Blisard',       pitches:30, ip:0},
+    {date:'2026-05-12', name:'Bradley Blisard',       pitches:21, ip:0},
+    {date:'2026-05-12', name:'Asi Frechette',         pitches:16, ip:0},
+    {date:'2026-05-12', name:'Zachary Moyer',         pitches:18, ip:0}
+  ],
+  'Devil Rays': [
+    // May 6 @ Iron Pigs (won 7-4)
+    {date:'2026-05-06', name:'Aron Briskin',          pitches:33, ip:0},
+    {date:'2026-05-06', name:'Yasine Berriche',       pitches:22, ip:0},
+    {date:'2026-05-06', name:'Emmanuel Shih',         pitches:31, ip:0},
+    {date:'2026-05-06', name:'Cavan Harriger',        pitches:27, ip:0},
+    {date:'2026-05-06', name:'Cole Engler',           pitches:33, ip:0},
+    // May 8 vs Thunder (lost 8-9)
+    {date:'2026-05-08', name:'Henry Eureka',          pitches:39, ip:0},
+    {date:'2026-05-08', name:'Blake Shore',           pitches:31, ip:0},
+    {date:'2026-05-08', name:'Archie Brimacombe',     pitches:30, ip:0},
+    {date:'2026-05-08', name:'Cavan Harriger',        pitches:19, ip:0},
+    {date:'2026-05-08', name:'Cole Engler',           pitches:18, ip:0},
+    // May 9 @ Bulls (won 8-7)
+    {date:'2026-05-09', name:'Aron Briskin',          pitches:43, ip:0},
+    {date:'2026-05-09', name:'Beau Abramowitz',       pitches:26, ip:0},
+    {date:'2026-05-09', name:'Emmanuel Shih',         pitches:27, ip:0},
+    {date:'2026-05-09', name:'Cavan Harriger',        pitches:38, ip:0},
+    {date:'2026-05-09', name:'Cole Engler',           pitches:22, ip:0},
+    // May 15 vs Lugnuts (no score yet)
+    {date:'2026-05-15', name:'Beau Abramowitz',       pitches:21, ip:0},
+    {date:'2026-05-15', name:'Henry Eureka',          pitches:19, ip:0},
+    {date:'2026-05-15', name:'River Adams',           pitches:22, ip:0},
+    {date:'2026-05-15', name:'Cavan Harriger',        pitches:19, ip:0},
+    {date:'2026-05-15', name:'Cole Engler',           pitches:36, ip:0}
+  ],
+  'Cannonballers': [
+    // May 7 @ Iron Pigs (4-4 tie)
+    {date:'2026-05-07', name:'Declan Prisinzano',     pitches:38, ip:0},
+    {date:'2026-05-07', name:'Leo Kunkle',            pitches:30, ip:0},
+    {date:'2026-05-07', name:'Tristan Clark',         pitches:27, ip:0},
+    {date:'2026-05-07', name:'Robert McCallion',      pitches:26, ip:0},
+    // May 9 vs Mighty Mussels (won 6-2)
+    {date:'2026-05-09', name:'Leo Kunkle',            pitches:43, ip:0},
+    {date:'2026-05-09', name:'Dillon Dhingra',        pitches:29, ip:0},
+    {date:'2026-05-09', name:'Robert McCallion',      pitches:30, ip:0},
+    {date:'2026-05-09', name:'Jaylen Nance',          pitches:27, ip:0},
+    // May 14 @ Hot Rods (lost 2-8)
+    {date:'2026-05-14', name:'Leo Kunkle',            pitches:33, ip:0},
+    {date:'2026-05-14', name:'Tristan Clark',         pitches:13, ip:0},
+    {date:'2026-05-14', name:'Dillon Dhingra',        pitches:56, ip:0},
+    {date:'2026-05-14', name:'Robert McCallion',      pitches:4,  ip:0},
+    {date:'2026-05-14', name:'Jaylen Nance',          pitches:35, ip:0},
+    // May 16 vs Thunder (won 9-7)
+    {date:'2026-05-16', name:'Declan Prisinzano',     pitches:21, ip:0},
+    {date:'2026-05-16', name:'Leo Kunkle',            pitches:26, ip:0},
+    {date:'2026-05-16', name:'Robert McCallion',      pitches:63, ip:0},
+    {date:'2026-05-16', name:'Jaylen Nance',          pitches:20, ip:0}
+  ],
+  'Thunder': [
+    // May 8 @ Devil Rays (won 9-8)
+    {date:'2026-05-08', name:'Jacob Gutmann',         pitches:21, ip:1.0},
+    {date:'2026-05-08', name:'Alexander Cohen',       pitches:30, ip:1.0},
+    {date:'2026-05-08', name:'Duncan Stabert',        pitches:35, ip:2.0},
+    {date:'2026-05-08', name:'William Ickes',         pitches:15, ip:1.0},
+    // May 10 vs Hurricanes (won 15-6)
+    {date:'2026-05-10', name:'Felix Burnett',         pitches:48, ip:2.0},
+    {date:'2026-05-10', name:'Jack Land',             pitches:52, ip:1.667},
+    {date:'2026-05-10', name:'Brady S. Duncan',       pitches:14, ip:0.333}
+  ],
+  'Hot Rods': [
+    // May 10 @ Tin Caps (won 11-0)
+    {date:'2026-05-10', name:'Evan Hoffman',          pitches:35, ip:0},
+    {date:'2026-05-10', name:'Eli Kassutto',          pitches:17, ip:0},
+    {date:'2026-05-10', name:'Zev Savett',            pitches:8,  ip:0},
+    // May 14 vs Cannonballers (won 8-2)
+    {date:'2026-05-14', name:'Evan Hoffman',          pitches:35, ip:0},
+    {date:'2026-05-14', name:'Eli Kassutto',          pitches:14, ip:0},
+    {date:'2026-05-14', name:'Conley Livingston',     pitches:17, ip:0},
+    {date:'2026-05-14', name:'Austin Blazic',         pitches:15, ip:0},
+    // May 16 @ Grasshoppers (won 12-4)
+    {date:'2026-05-16', name:'Evan Hoffman',          pitches:23, ip:0},
+    {date:'2026-05-16', name:'Eli Kassutto',          pitches:39, ip:0},
+    {date:'2026-05-16', name:'Austin Blazic',         pitches:30, ip:0}
+  ],
+  'Lugnuts': [
+    // May 9 vs Mud Hens (won 11-0) — already pushed; idempotent
+    {date:'2026-05-09', name:'Leo Kesselman',         pitches:40, ip:0},
+    {date:'2026-05-09', name:'Brian Ferreira',        pitches:35, ip:0},
+    {date:'2026-05-09', name:'William Gardner',       pitches:37, ip:0},
+    // May 15 @ Devil Rays (no score yet)
+    {date:'2026-05-15', name:'Brian Ferreira',        pitches:34, ip:0},
+    {date:'2026-05-15', name:'William Gardner',       pitches:45, ip:0},
+    {date:'2026-05-15', name:'Johnny Richardson',     pitches:28, ip:0}
+  ]
+};
+
+// Render breakdown table
+function renderBreakdown(){
+  let h='<thead><tr><th>Team</th><th class="num">Outings</th><th>Dates covered</th></tr></thead><tbody>';
+  Object.keys(DATA).sort().forEach(team=>{
+    const arr=DATA[team];
+    const dates=Array.from(new Set(arr.map(o=>o.date))).sort();
+    h+='<tr><td>'+team+'</td><td class="num">'+arr.length+'</td><td>'+dates.join(', ')+'</td></tr>';
+  });
+  const total=Object.values(DATA).reduce((s,a)=>s+a.length,0);
+  h+='<tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TOTAL</td><td class="num">'+total+'</td><td></td></tr>';
+  h+='</tbody>';
+  document.getElementById('breakdown-tbl').innerHTML=h;
+}
+renderBreakdown();
+
+async function doPush(){
+  const btn=document.getElementById('push-btn');
+  const status=document.getElementById('status');
+  status.className='';status.textContent='';btn.disabled=true;
+  try{
+    const teamCount=Object.keys(DATA).length;
+    const outingCount=Object.values(DATA).reduce((s,a)=>s+a.length,0);
+    if(!confirm('Push '+outingCount+' outings across '+teamCount+' teams? De-dupes by (team, pitcher, date), so re-runs are safe.')){
+      btn.disabled=false;return;
+    }
+    status.className='warn';status.textContent='Reading current oppPitcherLog…';
+    const snap=await db.collection('appdata').doc('oppPitcherLog').get();
+    const docData=snap.exists?(snap.data()||{}):{};
+    const teams=docData.teams||{};
+    const log=[];
+    Object.keys(DATA).forEach(teamName=>{
+      const outings=DATA[teamName];
+      const t=teams[teamName]||{pitchers:{}};
+      if(!t.pitchers)t.pitchers={};
+      let added=0,replaced=0;
+      outings.forEach(o=>{
+        const p=t.pitchers[o.name]||{outings:[],jersey:''};
+        const before=(p.outings||[]).length;
+        p.outings=(p.outings||[]).filter(x=>x.date!==o.date);
+        const after=p.outings.length;
+        if(after<before)replaced++;else added++;
+        p.outings.push({date:o.date,pitches:o.pitches,ip:o.ip||0});
+        p.outings.sort((a,b)=>a.date.localeCompare(b.date));
+        t.pitchers[o.name]=p;
+      });
+      t.updated=new Date().toISOString();
+      teams[teamName]=t;
+      log.push(teamName+': '+added+' new, '+replaced+' replaced');
+    });
+    status.textContent='Writing oppPitcherLog…\n'+log.join('\n');
+    await db.collection('appdata').doc('oppPitcherLog').set({
+      teams:teams,
+      updated:new Date()
+    },{merge:false});
+    const verify=await db.collection('appdata').doc('oppPitcherLog').get();
+    const vTeams=verify.data().teams||{};
+    const verifyLog=Object.keys(DATA).map(teamName=>{
+      const vp=(vTeams[teamName]||{}).pitchers||{};
+      const totalOutings=Object.values(vp).reduce((s,p)=>s+((p.outings||[]).length),0);
+      return teamName+' → '+totalOutings+' total · '+Object.keys(vp).length+' pitchers';
+    });
+    status.className='ok';
+    status.innerHTML='✓ Pushed.\n\n'+log.join('\n')+'\n\nRead-back:\n'+verifyLog.join('\n')+'\n\nReload the scorecard.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
