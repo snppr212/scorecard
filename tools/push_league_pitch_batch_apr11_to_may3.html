@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Push league pitching — Apr 11 → May 3 (173 outings)</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1000px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:4px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+.summary{display:flex;gap:18px;margin:14px 0;font-size:13px;}
+.summary div{padding:8px 14px;background:rgba(255,255,255,.04);border-radius:4px;}
+.summary strong{color:#c8a96e;font-size:18px;display:block;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px;font-family:monospace;}
+th,td{padding:3px 6px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warn{background:rgba(200,169,110,.20);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Push league pitching — Apr 11 → May 3</h1>
+
+<div class="note">
+Fills the April → early-May gap in <code>appdata/oppPitcherLog</code>. 173 outings across 11 teams (including <strong>Tin Caps</strong>, now tracked). Idempotent — de-dupes by (team, pitcher, date). Opp pitchers from our own games are included so the League Pitchers view is complete (League view reads only from <code>oppPitcherLog</code>, not <code>games/</code>).
+<br><br>
+IP recorded where the league posted it (Thunder, Hurricanes, Grasshoppers, some Cannonballers); ip=0 elsewhere (no impact on League view — it only shows PT/GP/Avg/Peak).
+</div>
+
+<div class="summary">
+  <div><strong>11</strong>teams</div>
+  <div><strong>173</strong>outings</div>
+  <div><strong>~25</strong>games covered</div>
+</div>
+
+<button id="push-btn" onclick="doPush()">Push 173 outings → Firestore</button>
+<div id="status"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Helper: convert MLB-style innings (X.Y = X full + Y outs) to decimal innings
+function ip(full, outs){ return full + (outs||0)/3; }
+
+const DATA = {
+  'Bulls': [
+    {date:'2026-04-11', name:'Theo Reznik-Slater', pitches:30, ip:0},
+    {date:'2026-04-11', name:'William Burke',      pitches:24, ip:0},
+    {date:'2026-04-11', name:'Eric Rosenthal',     pitches:31, ip:0},
+    {date:'2026-04-11', name:'Ishaan Guruswamy',   pitches:39, ip:0},
+    {date:'2026-04-18', name:'Theo Reznik-Slater', pitches:35, ip:0},
+    {date:'2026-04-18', name:'Ralph Agnew',        pitches:46, ip:0},
+    {date:'2026-04-18', name:'William Agnew',      pitches:16, ip:0},
+    {date:'2026-04-18', name:'Ishaan Guruswamy',   pitches:23, ip:0},
+    {date:'2026-04-24', name:'Theo Reznik-Slater', pitches:37, ip:0},
+    {date:'2026-04-24', name:'William Burke',      pitches:31, ip:0},
+    {date:'2026-04-24', name:'Penn Leonards',      pitches:48, ip:0},
+    {date:'2026-04-24', name:'Lucas Ziemba',       pitches:28, ip:0},
+    {date:'2026-04-28', name:'Theo Reznik-Slater', pitches:73, ip:0},
+    {date:'2026-04-28', name:'William Agnew',      pitches:45, ip:0},
+    {date:'2026-04-28', name:'Ishaan Guruswamy',   pitches:30, ip:0}
+  ],
+  'Cannonballers': [
+    {date:'2026-04-12', name:'Leo Kunkle',        pitches:29, ip:ip(1,2)},
+    {date:'2026-04-12', name:'Robert McCallion',  pitches:18, ip:ip(1,0)},
+    {date:'2026-04-12', name:'Jaylen Nance',      pitches:36, ip:ip(2,1)},
+    {date:'2026-04-19', name:'Declan Prisinzano', pitches:33, ip:0},
+    {date:'2026-04-19', name:'Leo Kunkle',        pitches:62, ip:0},
+    {date:'2026-04-19', name:'Tristan Clark',     pitches:38, ip:0},
+    {date:'2026-04-19', name:'Jaylen Nance',      pitches:11, ip:0},
+    {date:'2026-04-23', name:'Tristan Clark',     pitches:6,  ip:0},
+    {date:'2026-04-23', name:'Dillon Dhingra',    pitches:34, ip:0, jersey:'9'},
+    {date:'2026-04-23', name:'Graham Lovett',     pitches:40, ip:0},
+    {date:'2026-04-23', name:'Jaylen Nance',      pitches:38, ip:0},
+    {date:'2026-04-26', name:'Leo Kunkle',        pitches:64, ip:0},
+    {date:'2026-04-26', name:'Robert McCallion',  pitches:62, ip:0},
+    {date:'2026-04-26', name:'Jaylen Nance',      pitches:7,  ip:0},
+    {date:'2026-04-27', name:'Declan Prisinzano', pitches:38, ip:0},
+    {date:'2026-04-27', name:'Tristan Clark',     pitches:12, ip:0},
+    {date:'2026-04-27', name:'Jaylen Nance',      pitches:32, ip:0},
+    {date:'2026-05-02', name:'Declan Prisinzano', pitches:37, ip:0},
+    {date:'2026-05-02', name:'Leo Kunkle',        pitches:33, ip:0},
+    {date:'2026-05-02', name:'Robert McCallion',  pitches:37, ip:0},
+    {date:'2026-05-02', name:'Jaylen Nance',      pitches:33, ip:0}
+  ],
+  'Devil Rays': [
+    {date:'2026-05-01', name:'Aron Briskin',      pitches:39, ip:0},
+    {date:'2026-05-01', name:'Archie Brimacombe', pitches:20, ip:0},
+    {date:'2026-05-01', name:'Cavan Harriger',    pitches:19, ip:0},
+    {date:'2026-05-01', name:'Cole Engler',       pitches:17, ip:0},
+    {date:'2026-05-02', name:'Beau Abramowitz',   pitches:24, ip:0},
+    {date:'2026-05-02', name:'Yasine Berriche',   pitches:13, ip:0},
+    {date:'2026-05-02', name:'Blake Shore',       pitches:25, ip:0},
+    {date:'2026-05-02', name:'Cole Engler',       pitches:48, ip:0}
+  ],
+  'Grasshoppers': [
+    {date:'2026-04-11', name:'Jack Alwine',         pitches:35, ip:ip(1,0)},
+    {date:'2026-04-11', name:'William Church',      pitches:25, ip:ip(1,0)},
+    {date:'2026-04-11', name:'Grant Monna',         pitches:20, ip:ip(1,0)},
+    {date:'2026-04-11', name:'Franklin Bee',        pitches:30, ip:ip(2,0)},
+    {date:'2026-04-20', name:'Christopher Rieman', pitches:38, ip:0},
+    {date:'2026-04-20', name:'Franklin Bee',        pitches:36, ip:0},
+    {date:'2026-04-29', name:'Christopher Rieman', pitches:35, ip:ip(1,0)},
+    {date:'2026-04-29', name:'William Church',      pitches:31, ip:ip(2,0)},
+    {date:'2026-04-29', name:'Franklin Bee',        pitches:38, ip:ip(2,0)},
+    {date:'2026-05-02', name:'Saul Klein',          pitches:39, ip:ip(1,0)},
+    {date:'2026-05-02', name:'William Church',      pitches:33, ip:ip(2,0)},
+    {date:'2026-05-02', name:'Franklin Bee',        pitches:34, ip:ip(2,0)}
+  ],
+  'Hot Rods': [
+    {date:'2026-04-11', name:'Evan Hoffman',     pitches:15, ip:0},
+    {date:'2026-04-11', name:'Conley Livingston',pitches:35, ip:0},
+    {date:'2026-04-11', name:'Barron Ma',        pitches:56, ip:0},
+    {date:'2026-04-11', name:'Jack Van Dyke',    pitches:12, ip:0},
+    {date:'2026-04-18', name:'Evan Hoffman',     pitches:30, ip:0},
+    {date:'2026-04-18', name:'Eli Kassutto',     pitches:17, ip:0},
+    {date:'2026-04-18', name:'Austin Blazic',    pitches:26, ip:0},
+    {date:'2026-04-21', name:'Evan Hoffman',     pitches:20, ip:0},
+    {date:'2026-04-21', name:'Eli Kassutto',     pitches:25, ip:0},
+    {date:'2026-04-21', name:'Austin Blazic',    pitches:17, ip:0},
+    {date:'2026-04-21', name:'Barron Ma',        pitches:22, ip:0},
+    {date:'2026-04-21', name:'Luke Davidson',    pitches:25, ip:0},
+    {date:'2026-04-21', name:'Jack Van Dyke',    pitches:25, ip:0},
+    {date:'2026-04-25', name:'Eli Kassutto',     pitches:20, ip:0},
+    {date:'2026-04-25', name:'Andrew Kiczek',    pitches:18, ip:0},
+    {date:'2026-04-25', name:'Austin Blazic',    pitches:20, ip:0},
+    {date:'2026-04-25', name:'Barron Ma',        pitches:35, ip:0},
+    {date:'2026-04-30', name:'Evan Hoffman',     pitches:5,  ip:0},
+    {date:'2026-04-30', name:'Andrew Kiczek',    pitches:26, ip:0},
+    {date:'2026-04-30', name:'Austin Blazic',    pitches:19, ip:0},
+    {date:'2026-04-30', name:'Luke Davidson',    pitches:23, ip:0},
+    {date:'2026-05-02', name:'Evan Hoffman',     pitches:33, ip:0},
+    {date:'2026-05-02', name:'Eli Kassutto',     pitches:22, ip:0},
+    {date:'2026-05-02', name:'Luke Davidson',    pitches:33, ip:0}
+  ],
+  'Hurricanes': [
+    {date:'2026-04-11', name:'Paxton Eggert',    pitches:24, ip:ip(1,0)},
+    {date:'2026-04-11', name:'Nash Davis',       pitches:40, ip:ip(2,0)},
+    {date:'2026-04-11', name:'owen tatlow',      pitches:14, ip:ip(1,0)},
+    {date:'2026-04-11', name:'Gregory Zervalis', pitches:25, ip:ip(1,0)},
+    {date:'2026-04-23', name:'Rivaan Dhyllon',   pitches:16, ip:ip(1,0)},
+    {date:'2026-04-23', name:'Paxton Eggert',    pitches:27, ip:ip(1,0)},
+    {date:'2026-04-23', name:'Danny Tantino',    pitches:28, ip:ip(1,0)},
+    {date:'2026-04-23', name:'owen tatlow',      pitches:20, ip:ip(1,0)},
+    {date:'2026-04-30', name:'Rivaan Dhyllon',   pitches:27, ip:ip(2,0)},
+    {date:'2026-04-30', name:'Nash Davis',       pitches:40, ip:ip(1,0)},
+    {date:'2026-05-02', name:'Seth Gold',        pitches:35, ip:ip(2,0)},
+    {date:'2026-05-02', name:'Paxton Eggert',    pitches:19, ip:ip(1,0)},
+    {date:'2026-05-02', name:'Gregory Zervalis', pitches:41, ip:ip(2,0)}
+  ],
+  'Iron Pigs': [
+    {date:'2026-04-11', name:'Gavin Amoroso',  pitches:38, ip:0},
+    {date:'2026-04-11', name:'Ari Elbaum',     pitches:38, ip:0},
+    {date:'2026-04-11', name:'Race Mandel',    pitches:25, ip:0},
+    {date:'2026-04-11', name:'Nolan Roth',     pitches:38, ip:0},
+    {date:'2026-04-18', name:'Gavin Amoroso',  pitches:32, ip:0},
+    {date:'2026-04-18', name:'Ari Elbaum',     pitches:31, ip:0},
+    {date:'2026-04-18', name:'Jeffrey Blisard',pitches:34, ip:0},
+    {date:'2026-04-18', name:'Race Mandel',    pitches:17, ip:0},
+    {date:'2026-04-23', name:'Gavin Amoroso',  pitches:21, ip:0},
+    {date:'2026-04-23', name:'Race Mandel',    pitches:25, ip:0},
+    {date:'2026-04-23', name:'Asi Frechette',  pitches:35, ip:0},
+    {date:'2026-04-23', name:'Zachary Moyer',  pitches:37, ip:0},
+    {date:'2026-04-30', name:'Jeffrey Blisard',pitches:20, ip:0},
+    {date:'2026-04-30', name:'Nolan Roth',     pitches:36, ip:0},
+    {date:'2026-05-03', name:'Logan Baill',    pitches:38, ip:0},
+    {date:'2026-05-03', name:'Jeffrey Blisard',pitches:37, ip:0}
+  ],
+  'Lugnuts': [
+    {date:'2026-04-12', name:'Leo Kesselman',   pitches:44, ip:0},
+    {date:'2026-04-12', name:'Brian Ferreira',  pitches:28, ip:0},
+    {date:'2026-04-12', name:'Austin Schroeder',pitches:6,  ip:0},
+    {date:'2026-04-12', name:'Peter Christopher',pitches:22,ip:0},
+    {date:'2026-04-30', name:'Leo Kesselman',   pitches:22, ip:0},
+    {date:'2026-04-30', name:'Brian Ferreira',  pitches:30, ip:0},
+    {date:'2026-04-30', name:'William Gardner', pitches:12, ip:0},
+    {date:'2026-04-30', name:'Peter Christopher',pitches:49,ip:0}
+  ],
+  'Mud Hens': [
+    {date:'2026-04-11', name:'Lucas Marley',     pitches:33, ip:0},
+    {date:'2026-04-11', name:'Ezra Girson',      pitches:11, ip:0},
+    {date:'2026-04-11', name:'Garrett Freeland', pitches:24, ip:0},
+    {date:'2026-04-11', name:'Peter Huynh',      pitches:28, ip:0},
+    {date:'2026-04-11', name:'Alessio Palermo',  pitches:28, ip:0},
+    {date:'2026-04-18', name:'Lucas Marley',     pitches:27, ip:0},
+    {date:'2026-04-18', name:'Ezra Girson',      pitches:25, ip:0},
+    {date:'2026-04-18', name:'Gavin Tomback',    pitches:33, ip:0},
+    {date:'2026-04-18', name:'Peter Huynh',      pitches:24, ip:0},
+    {date:'2026-04-18', name:'Remy Bull',        pitches:18, ip:0},
+    {date:'2026-04-22', name:'Anthony Christopher',pitches:27, ip:0},
+    {date:'2026-04-22', name:'Ezra Girson',      pitches:35, ip:0},
+    {date:'2026-04-22', name:'Garrett Freeland', pitches:28, ip:0},
+    {date:'2026-04-22', name:'Remy Bull',        pitches:38, ip:0},
+    {date:'2026-04-25', name:'Lucas Marley',     pitches:28, ip:0},
+    {date:'2026-04-25', name:'Gavin Tomback',    pitches:39, ip:0},
+    {date:'2026-04-25', name:'Peter Huynh',      pitches:48, ip:0},
+    {date:'2026-04-25', name:'Alessio Palermo',  pitches:29, ip:0},
+    {date:'2026-04-27', name:'Lucas Marley',     pitches:19, ip:0},
+    {date:'2026-04-27', name:'Anthony Christopher',pitches:22, ip:0},
+    {date:'2026-04-27', name:'Ezra Girson',      pitches:41, ip:0},
+    {date:'2026-04-27', name:'Garrett Freeland', pitches:42, ip:0}
+  ],
+  'Thunder': [
+    {date:'2026-04-11', name:'Felix Burnett',  pitches:25, ip:ip(2,0), jersey:'0'},
+    {date:'2026-04-11', name:'Jacob Gutmann',  pitches:21, ip:ip(1,0)},
+    {date:'2026-04-11', name:'Duncan Stabert', pitches:15, ip:ip(2,0)},
+    {date:'2026-04-11', name:'William Ickes',  pitches:16, ip:ip(1,0)},
+    {date:'2026-04-18', name:'Felix Burnett',  pitches:24, ip:ip(2,0), jersey:'0'},
+    {date:'2026-04-18', name:'Jacob Gutmann',  pitches:26, ip:ip(1,1)},
+    {date:'2026-04-18', name:'Jack Land',      pitches:20, ip:ip(1,0)},
+    {date:'2026-04-18', name:'Duncan Stabert', pitches:31, ip:ip(1,2)},
+    {date:'2026-04-21', name:'Felix Burnett',  pitches:23, ip:ip(1,1), jersey:'0'},
+    {date:'2026-04-21', name:'Alexander Cohen',pitches:19, ip:ip(1,0)},
+    {date:'2026-04-21', name:'William Ickes',  pitches:35, ip:ip(2,0)},
+    {date:'2026-04-21', name:'Andre Pendleton',pitches:35, ip:ip(0,2)},
+    {date:'2026-04-25', name:'Jacob Gutmann',  pitches:36, ip:ip(2,0)},
+    {date:'2026-04-25', name:'Jack Land',      pitches:12, ip:0},
+    {date:'2026-04-25', name:'Alexander Cohen',pitches:18, ip:ip(1,0)},
+    {date:'2026-04-25', name:'Brady S. Duncan',pitches:22, ip:ip(1,0)},
+    {date:'2026-04-28', name:'Felix Burnett',  pitches:34, ip:ip(1,0), jersey:'0'},
+    {date:'2026-04-28', name:'Jacob Gutmann',  pitches:19, ip:ip(1,0)},
+    {date:'2026-04-28', name:'Duncan Stabert', pitches:30, ip:ip(1,0)},
+    {date:'2026-04-28', name:'William Ickes',  pitches:52, ip:ip(2,0)},
+    {date:'2026-05-02', name:'Jack Land',      pitches:21, ip:ip(1,0)},
+    {date:'2026-05-02', name:'Duncan Stabert', pitches:35, ip:ip(2,0)},
+    {date:'2026-05-02', name:'Henry Livengood',pitches:42, ip:ip(0,2)}
+  ],
+  'Tin Caps': [
+    {date:'2026-04-12', name:'Samuel Fask',         pitches:18, ip:0},
+    {date:'2026-04-12', name:'Leo Sanders',         pitches:19, ip:0},
+    {date:'2026-04-12', name:'Caleb Lattin',        pitches:38, ip:0},
+    {date:'2026-04-12', name:'Yair Levitt',         pitches:35, ip:0},
+    {date:'2026-04-22', name:'Aiden Kornhauser',    pitches:24, ip:0},
+    {date:'2026-04-22', name:'Caleb Lattin',        pitches:20, ip:0},
+    {date:'2026-04-22', name:'Ariav Bailes Feeley', pitches:31, ip:0},
+    {date:'2026-04-26', name:'Samuel Fask',         pitches:34, ip:0},
+    {date:'2026-04-26', name:'Leo Sanders',         pitches:29, ip:0},
+    {date:'2026-04-26', name:'Aiden Kornhauser',    pitches:27, ip:0},
+    {date:'2026-04-26', name:'Yair Levitt',         pitches:68, ip:0}
+  ]
+};
+
+async function doPush(){
+  const btn=document.getElementById('push-btn');
+  const status=document.getElementById('status');
+  status.className='';status.textContent='';btn.disabled=true;
+  try{
+    const teamCount=Object.keys(DATA).length;
+    const outingCount=Object.values(DATA).reduce((s,a)=>s+a.length,0);
+    if(!confirm('Push '+outingCount+' outings across '+teamCount+' teams? Idempotent — re-pushed entries will replace. Other teams\' data untouched.')){
+      btn.disabled=false;return;
+    }
+    status.className='warn';status.textContent='Reading current oppPitcherLog…';
+    const snap=await db.collection('appdata').doc('oppPitcherLog').get();
+    const docData=snap.exists?(snap.data()||{}):{};
+    const teams=docData.teams||{};
+    const log=[];
+    Object.keys(DATA).forEach(teamName=>{
+      const outings=DATA[teamName];
+      const t=teams[teamName]||{pitchers:{}};
+      if(!t.pitchers)t.pitchers={};
+      let added=0,replaced=0;
+      outings.forEach(o=>{
+        const p=t.pitchers[o.name]||{outings:[],jersey:''};
+        const before=(p.outings||[]).length;
+        p.outings=(p.outings||[]).filter(x=>x.date!==o.date);
+        const after=p.outings.length;
+        if(after<before)replaced++;else added++;
+        p.outings.push({date:o.date,pitches:o.pitches,ip:o.ip||0});
+        p.outings.sort((a,b)=>a.date.localeCompare(b.date));
+        if(o.jersey&&!p.jersey)p.jersey=o.jersey;
+        t.pitchers[o.name]=p;
+      });
+      t.updated=new Date().toISOString();
+      teams[teamName]=t;
+      log.push(teamName+': '+added+' new, '+replaced+' replaced');
+    });
+    status.textContent='Writing oppPitcherLog…\n'+log.join('\n');
+    await db.collection('appdata').doc('oppPitcherLog').set({
+      teams:teams,
+      updated:new Date()
+    },{merge:false});
+    const verify=await db.collection('appdata').doc('oppPitcherLog').get();
+    const vTeams=verify.data().teams||{};
+    const verifyLog=Object.keys(DATA).map(teamName=>{
+      const vp=(vTeams[teamName]||{}).pitchers||{};
+      const totalOutings=Object.values(vp).reduce((s,p)=>s+((p.outings||[]).length),0);
+      return teamName+' → '+totalOutings+' total outings · '+Object.keys(vp).length+' pitchers';
+    });
+    status.className='ok';
+    status.innerHTML='✓ Pushed.\n\n'+log.join('\n')+'\n\nRead-back verification:\n'+verifyLog.join('\n')+'\n\nReload the scorecard.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
