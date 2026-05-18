@@ -191,10 +191,11 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 #m-play .play-body{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 #m-play .play-action-bar{padding-top:10px;margin-top:10px;border-top:1px solid var(--border);background:var(--bg2);position:sticky;bottom:0;display:flex;flex-direction:column;gap:6px;}
 .play-diamond{display:block;margin:0 auto 6px;max-width:280px;width:100%;height:auto;border-radius:var(--rs);}
-/* v2.13: home-screen field — full container width, fixed height, content
-   compressed vertically (preserveAspectRatio="none" on the SVG output).
-   Trades a small visual squish for ~70px of vertical real estate. */
-#field-svg svg{display:block;width:100%;height:180px;margin:0;}
+/* v2.14: home-screen field — stretches edge to edge, capped 160px tall.
+   Content uses non-uniform aspect (preserveAspectRatio="none") so the
+   green fills the whole strip without letterboxing. ViewBox in renderFD
+   is tightened to crop the empty padding above/below labels. */
+#field-svg svg{display:block;width:100%;height:160px;margin:0;}
 .play-diamond .fielder{cursor:pointer;}
 .play-diamond .fielder circle{transition:fill .12s,stroke-width .12s;}
 .play-diamond .fielder.pos1 circle{fill:#FFD700;stroke:#D4A017;stroke-width:2.5;}
@@ -479,7 +480,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div id="tab-atbat">
 <div class="view-only-banner" id="view-only-banner">🏁 Game complete · view only<br><span style="font-size:11px;color:var(--text3);">Use the Plays tab to edit at-bats.</span></div>
 <div class="matchup-bar"><div class="mu-side"><div class="mu-label">Pitcher</div><div class="mu-name" id="mu-p">—</div><div class="mu-detail" id="mu-pd"></div></div><div class="mu-vs">vs</div><div class="mu-side"><div class="mu-label">Batter</div><div class="mu-name" id="mu-b">—</div><div class="mu-detail" id="mu-bd"></div></div></div>
-<div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);padding:8px 0;"><div style="max-width:380px;margin:0 auto;" id="field-svg"></div></div>
+<div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);"><div id="field-svg"></div></div>
 <div class="panel" id="seq-panel"><div class="row-b"><div style="font-size:12px;font-family:monospace;" id="cur-seq"><span style="color:var(--text3);font-family:sans-serif;">No pitches</span></div><div style="display:flex;gap:5px;"><button class="btn btn-xs btn-amber" onclick="undoPitch()">↩ Pitch</button><button class="btn btn-xs btn-red" onclick="undoAB()" id="undo-ab-btn" disabled style="opacity:.4;">↩ AB</button></div></div></div>
 <div class="panel" id="pitch-panel"><div class="ptitle">Log pitch</div><div class="pitch-grid"><button class="pbtn pb-s" onclick="lp('S')">Strike<br><span style="font-size:9px;opacity:.7;">swinging</span></button><button class="pbtn pb-s" onclick="lp('L')">Strike<br><span style="font-size:9px;opacity:.7;">looking</span></button><button class="pbtn pb-f" onclick="lp('F')">Foul</button><button class="pbtn pb-f" onclick="lp('FT')">Foul tip</button><button class="pbtn pb-b" onclick="lp('B')">Ball</button><button class="pbtn pb-sp" onclick="lp('H')">HBP</button></div>
 <!-- v99: swing-quality row (hidden unless A.swingQualityEnabled) -->
@@ -4154,7 +4155,7 @@ var pc={
 // runner circle positions — sit directly on the base
 var rc=[[208,110],[140,70],[72,110]];
 // canvas
-var s='<svg viewBox="0 0 280 185" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">';
+var s='<svg viewBox="16 4 248 175" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">';
 s+='<defs>';
 s+='<radialGradient id="gd" cx="50%" cy="55%" r="65%"><stop offset="0%" stop-color="#b88a4a"/><stop offset="100%" stop-color="#7a5a30"/></radialGradient>';
 s+='<filter id="sh"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.35"/></filter></defs>';
@@ -4193,12 +4194,12 @@ if(wf){
   posToShow.forEach(function(p){var c=pc[p];if(!c||c[0]>900)return;
   var assigned=fa[p];var nm=assigned?fieldFirstName(assigned):'';
   s+='<g><rect x="'+(c[0]-16)+'" y="'+(c[1]-7.5)+'" width="32" height="15" rx="3.5" fill="'+(nm?'rgba(13,27,42,0.92)':'rgba(13,27,42,0.55)')+'" stroke="'+(nm?'rgba(200,169,110,0.75)':'rgba(255,255,255,0.18)')+'" stroke-width="0.6"/>';
-  s+='<text x="'+c[0]+'" y="'+(c[1]+3.2)+'" text-anchor="middle" font-size="8" font-family="sans-serif" fill="'+(nm?'#FFD700':'rgba(255,255,255,0.5)')+'" font-weight="bold">'+(nm||p)+'</text></g>';});}
+  s+='<text x="'+c[0]+'" y="'+(c[1]+4)+'" text-anchor="middle" font-size="11" font-family="sans-serif" fill="'+(nm?'#FFD700':'rgba(255,255,255,0.5)')+'" font-weight="bold">'+(nm||p)+'</text></g>';});}
 // runners (large gold circles directly on the base) — drawn last so they
 // sit on top of everything for maximum visibility
 for(var b=0;b<3;b++){if(G.bases[b]){var bc=rc[b];var rn=fieldFirstName(G.bases[b].name)||(G.bases[b].jerseyNum?'#'+G.bases[b].jerseyNum:'?');
 s+='<circle cx="'+bc[0]+'" cy="'+bc[1]+'" r="13" fill="#FFD700" stroke="#D4A017" stroke-width="1.8" filter="url(#sh)" style="cursor:pointer;" onclick="runnerM('+(b+1)+')"/>';
-s+='<text x="'+bc[0]+'" y="'+(bc[1]+3.2)+'" text-anchor="middle" font-size="8" font-family="sans-serif" fill="#0d1b2a" font-weight="bold" style="pointer-events:none;">'+rn+'</text>';}}
+s+='<text x="'+bc[0]+'" y="'+(bc[1]+4)+'" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#0d1b2a" font-weight="bold" style="pointer-events:none;">'+rn+'</text>';}}
 s+='</svg>';$('field-svg').innerHTML=s;}
 // also expose 4OF in field assignment tab
 // v153: legacy CF games return the 9-fielder list; default returns the
@@ -10014,7 +10015,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.13';
+var APP_VERSION='v2.14';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
