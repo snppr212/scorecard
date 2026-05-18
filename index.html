@@ -191,6 +191,9 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 #m-play .play-body{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 #m-play .play-action-bar{padding-top:10px;margin-top:10px;border-top:1px solid var(--border);background:var(--bg2);position:sticky;bottom:0;display:flex;flex-direction:column;gap:6px;}
 .play-diamond{display:block;margin:0 auto 6px;max-width:280px;width:100%;height:auto;border-radius:var(--rs);}
+/* v2.12: cap the home-screen field graphic so it doesn't dominate the
+   viewport. Width still fills available space; aspect ratio preserved. */
+#field-svg svg{display:block;width:100%;height:auto;max-height:200px;margin:0 auto;}
 .play-diamond .fielder{cursor:pointer;}
 .play-diamond .fielder circle{transition:fill .12s,stroke-width .12s;}
 .play-diamond .fielder.pos1 circle{fill:#FFD700;stroke:#D4A017;stroke-width:2.5;}
