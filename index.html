@@ -191,9 +191,10 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 #m-play .play-body{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
 #m-play .play-action-bar{padding-top:10px;margin-top:10px;border-top:1px solid var(--border);background:var(--bg2);position:sticky;bottom:0;display:flex;flex-direction:column;gap:6px;}
 .play-diamond{display:block;margin:0 auto 6px;max-width:280px;width:100%;height:auto;border-radius:var(--rs);}
-/* v2.12: cap the home-screen field graphic so it doesn't dominate the
-   viewport. Width still fills available space; aspect ratio preserved. */
-#field-svg svg{display:block;width:100%;height:auto;max-height:200px;margin:0 auto;}
+/* v2.13: home-screen field — full container width, fixed height, content
+   compressed vertically (preserveAspectRatio="none" on the SVG output).
+   Trades a small visual squish for ~70px of vertical real estate. */
+#field-svg svg{display:block;width:100%;height:180px;margin:0;}
 .play-diamond .fielder{cursor:pointer;}
 .play-diamond .fielder circle{transition:fill .12s,stroke-width .12s;}
 .play-diamond .fielder.pos1 circle{fill:#FFD700;stroke:#D4A017;stroke-width:2.5;}
@@ -4153,7 +4154,7 @@ var pc={
 // runner circle positions — sit directly on the base
 var rc=[[208,110],[140,70],[72,110]];
 // canvas
-var s='<svg viewBox="0 0 280 185" xmlns="http://www.w3.org/2000/svg">';
+var s='<svg viewBox="0 0 280 185" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">';
 s+='<defs>';
 s+='<radialGradient id="gd" cx="50%" cy="55%" r="65%"><stop offset="0%" stop-color="#b88a4a"/><stop offset="100%" stop-color="#7a5a30"/></radialGradient>';
 s+='<filter id="sh"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.35"/></filter></defs>';
@@ -10013,7 +10014,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v210';
+var APP_VERSION='v2.13';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
