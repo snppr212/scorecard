@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Season totals vs outings — diagnostic + push</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1180px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:20px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+.summary{display:flex;gap:14px;margin:14px 0;font-size:12px;flex-wrap:wrap;}
+.summary div{padding:8px 14px;background:rgba(255,255,255,.04);border-radius:4px;}
+.summary strong{color:#c8a96e;font-size:18px;display:block;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px;font-family:monospace;}
+th,td{padding:3px 7px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+.match{color:#36a066;}
+.warn{color:#e04535;font-weight:bold;}
+.new{color:#c8a96e;font-style:italic;}
+.extra{color:#a87e2e;}
+button{background:#c8a96e;color:#000;border:none;padding:10px 18px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:13px;margin-right:8px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+button.secondary{background:transparent;color:#c8a96e;border:1px solid #c8a96e;}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:12px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warning{background:rgba(200,169,110,.20);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Season totals diagnostic</h1>
+<div class="note">
+Compares the league-site season totals you pasted against the sum of per-outing data we already pushed to <code>appdata/oppPitcherLog</code>.
+<br><br>
+<strong>Legend:</strong>
+<span class="match">✓ match</span> — outing sum matches season total
+·
+<span class="warn">⚠ off</span> — mismatch (shows delta)
+·
+<span class="new">+ new</span> — pitcher in season totals but no outings logged (will be added fresh)
+·
+<span class="extra">?? extra</span> — pitcher has outings but isn't in season totals (probable name typo to investigate)
+<br><br>
+IP is intentionally ignored (the league IP data is incomplete for most teams).
+</div>
+
+<button onclick="runDiag()">Run diagnostic</button>
+<button id="push-btn" class="secondary" onclick="doPush()" disabled>Push season totals → Firestore</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// SEASON TOTALS — keyed by team, each pitcher is {name (canonical full), pt, gp, jersey?}
+const SEASON = {
+  'Hurricanes': [
+    {name:'Rivaan Dhyllon',   pt:148, gp:5},
+    {name:'Seth Gold',        pt:87,  gp:3},
+    {name:'William Leonard',  pt:1,   gp:1},
+    {name:'Paxton Eggert',    pt:157, gp:5},
+    {name:'Danny Tantino',    pt:64,  gp:2},
+    {name:'Nash Davis',       pt:118, gp:3},
+    {name:'owen tatlow',      pt:115, gp:4},
+    {name:'Gregory Zervalis', pt:66,  gp:2},
+    {name:'Simon Smith',      pt:46,  gp:1}
+  ],
+  'Mud Hens': [
+    {name:'Lucas Marley',       pt:175, gp:6},
+    {name:'Anthony Christopher',pt:114, gp:4},
+    {name:'Ezra Girson',        pt:182, gp:6},
+    {name:'Gavin Tomback',      pt:149, gp:4},
+    {name:'Garrett Freeland',   pt:203, gp:6},
+    {name:'Peter Huynh',        pt:145, gp:5},
+    {name:'Remy Bull',          pt:83,  gp:3},
+    {name:'Alessio Palermo',    pt:89,  gp:3}
+  ],
+  'Hot Rods': [
+    {name:'Evan Hoffman',      pt:196, gp:8},
+    {name:'Eli Kassutto',      pt:154, gp:7},
+    {name:'Zev Savett',        pt:8,   gp:1},
+    {name:'Andrew Kiczek',     pt:44,  gp:2},
+    {name:'Conley Livingston', pt:52,  gp:2},
+    {name:'Austin Blazic',     pt:127, gp:6},
+    {name:'Barron Ma',         pt:113, gp:3},
+    {name:'Luke Davidson',     pt:81,  gp:3},
+    {name:'Jack Van Dyke',     pt:37,  gp:2}
+  ],
+  'Tin Caps': [
+    {name:'Samuel Fask',         pt:52,  gp:2},
+    {name:'Leo Sanders',         pt:48,  gp:2},
+    {name:'Aiden Kornhauser',    pt:51,  gp:2},
+    {name:'Caleb Lattin',        pt:58,  gp:2},
+    {name:'Ariav Bailes Feeley', pt:31,  gp:1},
+    {name:'Yair Levitt',         pt:103, gp:2}
+  ],
+  'Iron Pigs': [
+    {name:'Gavin Amoroso',  pt:127, gp:4},
+    {name:'Ari Elbaum',     pt:107, gp:3},
+    {name:'Logan Baill',    pt:38,  gp:1},
+    {name:'Jeffrey Blisard',pt:146, gp:5},
+    {name:'Bradley Blisard',pt:58,  gp:3},
+    {name:'Race Mandel',    pt:139, gp:5},
+    {name:'Asi Frechette',  pt:51,  gp:2},
+    {name:'Nolan Roth',     pt:110, gp:3},
+    {name:'Ryder Berman',   pt:37,  gp:1},
+    {name:'Zachary Moyer',  pt:55,  gp:2}
+  ],
+  'Devil Rays': [
+    {name:'Aron Briskin',     pt:149, gp:4},
+    {name:'Beau Abramowitz',  pt:71,  gp:3},
+    {name:'Yasine Berriche',  pt:35,  gp:2},
+    {name:'Emmanuel Shih',    pt:92,  gp:3},
+    {name:'Henry Eureka',     pt:58,  gp:2},
+    {name:'River Adams',      pt:22,  gp:1},
+    {name:'Blake Shore',      pt:82,  gp:3},
+    {name:'Archie Brimacombe',pt:50,  gp:2},
+    {name:'Asher Rizvi',      pt:16,  gp:1},
+    {name:'Cavan Harriger',   pt:140, gp:6},
+    {name:'Cole Engler',      pt:174, gp:6}
+  ],
+  'Thunder': [
+    {name:'Felix Burnett',  pt:154, gp:5, jersey:'0'},
+    {name:'Duncan Stabert', pt:146, gp:5},
+    {name:'William Ickes',  pt:118, gp:4},
+    {name:'Jacob Gutmann',  pt:123, gp:5},
+    {name:'Jack Land',      pt:105, gp:4},
+    {name:'Alexander Cohen',pt:67,  gp:3},
+    {name:'Brady S. Duncan',pt:36,  gp:2},
+    {name:'Henry Livengood',pt:42,  gp:1},
+    {name:'Andre Pendleton',pt:35,  gp:1}
+  ],
+  'Cannonballers': [
+    {name:'Jaylen Nance',      pt:239, gp:9},
+    {name:'Declan Prisinzano', pt:167, gp:5},
+    {name:'Leo Kunkle',        pt:320, gp:8},
+    {name:'Tristan Clark',     pt:96,  gp:5},
+    {name:'Dillon Dhingra',    pt:119, gp:3, jersey:'9'},
+    {name:'Robert McCallion',  pt:240, gp:7},
+    {name:'Graham Lovett',     pt:40,  gp:1}
+  ],
+  'Bulls': [
+    {name:'Theo Reznik-Slater',pt:283, gp:7},
+    {name:'Reece Landis',      pt:25,  gp:1},
+    {name:'William Burke',     pt:176, gp:6},
+    {name:'Eric Rosenthal',    pt:31,  gp:1},
+    {name:'Quinn Strauss',     pt:17,  gp:1},
+    {name:'Penn Leonards',     pt:87,  gp:3},
+    {name:'Lucas Ziemba',      pt:49,  gp:2},
+    {name:'Ralph Agnew',       pt:99,  gp:3},
+    {name:'William Agnew',     pt:96,  gp:3},
+    {name:'Ishaan Guruswamy',  pt:146, gp:5}
+  ],
+  'Grasshoppers': [
+    {name:'William Church',     pt:89,  gp:3},
+    {name:'Campbell Pfister',   pt:20,  gp:1},
+    {name:'Christopher Rieman', pt:72,  gp:2},  // primary entry
+    {name:'Christopher Rieman', pt:38,  gp:1},  // duplicate (separate roster entry; aggregates)
+    {name:'Saul Klein',         pt:39,  gp:1},
+    {name:'Jack Alwine',        pt:95,  gp:3},
+    {name:'Grant Monna',        pt:40,  gp:2},
+    {name:'Franklin Bee',       pt:177, gp:5},
+    {name:'Graham Haggerson',   pt:20,  gp:1}
+  ],
+  'Lugnuts': [
+    {name:'Leo Kesselman',     pt:106, gp:4},
+    {name:'Brian Ferreira',    pt:127, gp:5},
+    {name:'William Gardner',   pt:94,  gp:4},
+    {name:'Johnny Richardson', pt:28,  gp:1},
+    {name:'Austin Schroeder',  pt:6,   gp:1},
+    {name:'Peter Christopher', pt:71,  gp:3}
+  ]
+};
+
+// Aggregate duplicate names (e.g. Grasshoppers' Christopher R appears twice on the league site)
+function aggregateSeason(team){
+  const arr=SEASON[team]||[];
+  const byName={};
+  arr.forEach(p=>{
+    if(!byName[p.name]){byName[p.name]={name:p.name,pt:p.pt,gp:p.gp,jersey:p.jersey||''};}
+    else{byName[p.name].pt+=p.pt;byName[p.name].gp+=p.gp;if(p.jersey&&!byName[p.name].jersey)byName[p.name].jersey=p.jersey;}
+  });
+  return byName;
+}
+
+// Case-insensitive name match: returns the actual key in oppOut that matches `name`,
+// or null if no match. Handles "owen tatlow" vs "Owen Tatlow" naturally.
+function matchPitcher(oppOut, name){
+  if(oppOut[name])return name;
+  const lower=name.toLowerCase();
+  return Object.keys(oppOut).find(k=>k.toLowerCase()===lower)||null;
+}
+
+let DIAG=null; // captures last diagnostic for the push step
+
+async function runDiag(){
+  const status=document.getElementById('status');
+  const output=document.getElementById('output');
+  status.className='warning';status.textContent='Reading appdata/oppPitcherLog…';
+  output.innerHTML='';
+  try{
+    const snap=await db.collection('appdata').doc('oppPitcherLog').get();
+    const teams=(snap.data()||{}).teams||{};
+    let html='';
+    let totMatch=0, totWarn=0, totNew=0, totExtra=0;
+    const teamCanonical={}; // canonical name → {pt, gp} for push step
+
+    Object.keys(SEASON).sort().forEach(teamName=>{
+      const seasonByName=aggregateSeason(teamName);
+      teamCanonical[teamName]=seasonByName; // capture for push
+      const t=teams[teamName]||{};
+      const oppPit=t.pitchers||{};
+      // Build per-pitcher outing summary from our data
+      const oursByName={};
+      Object.keys(oppPit).forEach(n=>{
+        const outs=oppPit[n].outings||[];
+        oursByName[n]={
+          pt:outs.reduce((s,o)=>s+(o.pitches||0),0),
+          gp:outs.length
+        };
+      });
+      // Union of names (case-insensitive merge: prefer canonical-from-season casing)
+      const allKeys=new Set();
+      Object.keys(seasonByName).forEach(n=>allKeys.add(n));
+      Object.keys(oursByName).forEach(n=>{
+        const matched=matchPitcher(seasonByName, n);
+        if(!matched)allKeys.add(n);
+      });
+
+      let teamMatch=0, teamWarn=0, teamNew=0, teamExtra=0;
+      let rows='';
+      Array.from(allKeys).sort().forEach(name=>{
+        const ssn=seasonByName[name];
+        const ourKey=matchPitcher(oursByName, name);
+        const ours=ourKey?oursByName[ourKey]:null;
+
+        let cls, statusText;
+        if(ssn && ours){
+          const ptDelta=ours.pt-ssn.pt;
+          const gpDelta=ours.gp-ssn.gp;
+          if(ptDelta===0 && gpDelta===0){
+            cls='match';statusText='✓ match';teamMatch++;totMatch++;
+          } else {
+            cls='warn';
+            const parts=[];
+            if(ptDelta!==0)parts.push('PT '+(ptDelta>0?'+':'')+ptDelta);
+            if(gpDelta!==0)parts.push('GP '+(gpDelta>0?'+':'')+gpDelta);
+            statusText='⚠ '+parts.join(', ');
+            teamWarn++;totWarn++;
+          }
+        } else if(ssn && !ours){
+          cls='new';statusText='+ new (season only)';teamNew++;totNew++;
+        } else {
+          cls='extra';statusText='?? extra (outings only — name typo?)';teamExtra++;totExtra++;
+        }
+
+        const ssnPT=ssn?ssn.pt:'—';
+        const ssnGP=ssn?ssn.gp:'—';
+        const ourPT=ours?ours.pt:'—';
+        const ourGP=ours?ours.gp:'—';
+        rows+='<tr>'
+          +'<td>'+esc(name)+'</td>'
+          +'<td class="num">'+ssnPT+'</td>'
+          +'<td class="num">'+ssnGP+'</td>'
+          +'<td class="num">'+ourPT+'</td>'
+          +'<td class="num">'+ourGP+'</td>'
+          +'<td class="'+cls+'">'+statusText+'</td>'
+          +'</tr>';
+      });
+      html+='<h2>'+esc(teamName)+' — '
+        +'<span class="match">'+teamMatch+' ✓</span> · '
+        +'<span class="warn">'+teamWarn+' ⚠</span> · '
+        +'<span class="new">'+teamNew+' new</span> · '
+        +'<span class="extra">'+teamExtra+' extra</span>'
+        +'</h2>';
+      html+='<table><thead><tr><th>Pitcher</th><th class="num">Season PT</th><th class="num">Season GP</th><th class="num">Our PT</th><th class="num">Our GP</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    });
+
+    // Summary at top
+    document.getElementById('output').innerHTML=
+      '<div class="summary">'
+      +'<div><strong class="match">'+totMatch+'</strong>match</div>'
+      +'<div><strong class="warn">'+totWarn+'</strong>mismatch</div>'
+      +'<div><strong class="new">'+totNew+'</strong>new</div>'
+      +'<div><strong class="extra">'+totExtra+'</strong>extra (typo?)</div>'
+      +'</div>'
+      +html;
+    DIAG=teamCanonical;
+    document.getElementById('push-btn').disabled=false;
+    status.className='ok';
+    status.textContent='✓ Diagnostic complete. Review above, then click "Push season totals" to write to Firestore.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n\n'+e.stack:'');
+  }
+}
+
+async function doPush(){
+  if(!DIAG){alert('Run diagnostic first.');return;}
+  const status=document.getElementById('status');
+  const btn=document.getElementById('push-btn');
+  if(!confirm('Push season totals for '+Object.keys(DIAG).length+' teams to appdata/oppPitcherLog? Existing seasonTotals for those teams will be overwritten. Per-outing data is untouched.')){
+    return;
+  }
+  btn.disabled=true;
+  status.className='warning';status.textContent='Reading current oppPitcherLog…';
+  try{
+    const snap=await db.collection('appdata').doc('oppPitcherLog').get();
+    const docData=snap.exists?(snap.data()||{}):{};
+    const teams=docData.teams||{};
+    Object.keys(DIAG).forEach(teamName=>{
+      const t=teams[teamName]||{pitchers:{}};
+      if(!t.pitchers)t.pitchers={};
+      const byName=DIAG[teamName];
+      const pitchersOut={};
+      Object.keys(byName).forEach(n=>{
+        const p=byName[n];
+        pitchersOut[n]={pt:p.pt,gp:p.gp,gs:0}; // gs:0 since we don't track starts here
+      });
+      t.seasonTotals={pitchers:pitchersOut,updated:new Date().toISOString()};
+      // Also stamp jersey on per-outing pitcher entries if season totals carry one
+      Object.keys(byName).forEach(n=>{
+        const j=byName[n].jersey;
+        if(j && t.pitchers[n] && !t.pitchers[n].jersey)t.pitchers[n].jersey=j;
+      });
+      teams[teamName]=t;
+    });
+    status.textContent='Writing oppPitcherLog…';
+    await db.collection('appdata').doc('oppPitcherLog').set({
+      teams:teams,
+      updated:new Date()
+    },{merge:false});
+    status.className='ok';
+    status.textContent='✓ Pushed season totals for '+Object.keys(DIAG).length+' teams. Reload the scorecard to see ⚠ flags on any pitcher whose outings sum doesn\'t match their season total.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message+(e.stack?'\n\n'+e.stack:'');
+  }
+  btn.disabled=false;
+}
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
