@@ -4138,16 +4138,16 @@ var legacy=_isLegacyCFGame();
 var legacyHasRCF=legacy&&Object.keys(G.fa||{}).some(function(i){return G.fa[i]&&G.fa[i]['RCF'];});
 // Position label coords — fielders sit BEHIND their bases (smaller y) so
 // the labels never collide with the bases or runners standing on them.
-// v2.18: Design B (Scoreboard) — flat geometric field at 2:1 viewBox.
-// Solid colors, no gradients/shadows, gold accent on the mound. Matches
-// the rest of the app's dark/gold UI aesthetic.
+// v2.19: 1B/3B labels moved directly above their bases (y=85 instead of
+// 105) so the gold runner circle (r=14) doesn't overlap with the fielder
+// name when a runner is on. Other labels unchanged.
 var pc={
   P:[200,95],
   C:[200,192],
-  '1B':[310,105],
+  '1B':[330,85],
   '2B':[255,75],
   SS:[145,75],
-  '3B':[90,105],
+  '3B':[70,85],
   LF:[40,18],
   RF:[360,18],
   CF:legacy?[legacyHasRCF?150:200,8]:[9999,8],
@@ -10015,7 +10015,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.18';
+var APP_VERSION='v2.19';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
