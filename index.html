@@ -665,7 +665,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- B1: Generic prompt modal — replaces native prompt() across the app -->
 <div class="modal-ov" id="m-prompt"><div class="modal"><h3 id="m-prompt-title">Enter</h3><div class="mrow"><label id="m-prompt-label"></label><input type="text" id="m-prompt-input" onkeydown="if(event.key==='Enter'){event.preventDefault();_promptSubmit();}"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="_promptSubmit()">OK</button><button class="btn btn-full" onclick="_promptCancel()">Cancel</button></div></div></div>
 <!-- EDIT-AB MODAL: fix a logged at-bat (wrong batter, wrong result, wrong RBI) -->
-<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution + pitch sequence. Bases-state at the time stays as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res" onchange="_renderEditAbHitDetails()"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="CI">CI</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="PO">PO</option><option value="FF">FF</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><!-- v198: which pitcher faced this AB. Lets the user retroactively fix a mid-inning pitching change that was logged at the wrong AB. --><div class="mrow"><label>Pitcher</label><select id="editab-pitcher"><option value="">— unset (fall back to inning P) —</option></select></div><!-- v193: batted-ball details (hit location, trajectory, hardness) — shown only for batted-ball results --><div class="mrow" id="editab-hit-section" style="display:none;"><label>Batted ball</label><div id="editab-hit-details"></div></div><div class="mrow"><label>Pitch sequence</label><div id="editab-pitches"></div></div><div class="mrow"><label>📝 Fix-it note (optional)</label><textarea id="editab-note" rows="2" placeholder="e.g. 'check who threw to first'" style="font-size:12px;width:100%;font-family:inherit;padding:6px;"></textarea></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Forced outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add forced out</button></div><!-- v195: errors logged on this AB (view + remove). Add-error happens via the live play picker. --><div class="mrow"><label>Fielding errors on this AB</label><div id="editab-errors" style="font-size:12px;font-family:sans-serif;"></div></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><div class="row" style="gap:6px;margin-top:6px;"><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('before')">+ Insert AB before</button><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('after')">+ Insert AB after</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cancelEditAB()">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution + pitch sequence. Bases-state at the time stays as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res" onchange="_renderEditAbHitDetails()"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="CI">CI</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="PO">PO</option><option value="FF">FF</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><!-- v198: which pitcher faced this AB. Lets the user retroactively fix a mid-inning pitching change that was logged at the wrong AB. --><div class="mrow"><label>Pitcher</label><select id="editab-pitcher"><option value="">— unset (fall back to inning P) —</option></select></div><!-- v193: batted-ball details (hit location, trajectory, hardness) — shown only for batted-ball results --><div class="mrow" id="editab-hit-section" style="display:none;"><label>Batted ball</label><div id="editab-hit-details"></div></div><div class="mrow"><label>Pitch sequence</label><div id="editab-pitches"></div></div><div class="mrow"><label>📝 Fix-it note (optional)</label><textarea id="editab-note" rows="2" placeholder="e.g. 'check who threw to first'" style="font-size:12px;width:100%;font-family:inherit;padding:6px;"></textarea></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add out</button></div><!-- v195: errors logged on this AB (view + remove). Add-error happens via the live play picker. --><div class="mrow"><label>Fielding errors on this AB</label><div id="editab-errors" style="font-size:12px;font-family:sans-serif;"></div></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><div class="row" style="gap:6px;margin-top:6px;"><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('before')">+ Insert AB before</button><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('after')">+ Insert AB after</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cancelEditAB()">Cancel</button></div></div></div>
 <!-- v127: add-steal-to-AB picker modal -->
 <div class="modal-ov" id="m-absb"><div class="modal" style="max-width:340px;"><h3>Add steal during this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">LMLL: no steal of home permitted.</div><div class="mrow"><label>Runner</label><select id="absb-runner"></select></div><div class="mrow"><label>Steal</label><select id="absb-bases"><option value="1-2">1st → 2nd</option><option value="2-3">2nd → 3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddSBToAB()">Log steal</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-absb')">Cancel</button></div></div></div>
 <!-- v135: AB delete with state-rewind option. Shown when deleting the LATEST
@@ -681,7 +681,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <button class="btn btn-full" onclick="cm('m-delab')">Cancel</button>
 </div></div>
 <!-- v131: add-forced-out-to-AB picker modal — backfill an out on a past play (FC/DP/GIDP/TP) -->
-<div class="modal-ov" id="m-about"><div class="modal" style="max-width:340px;"><h3>Add forced out on this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Pick the runner who was forced out and where they were thrown out.</div><div class="mrow"><label>Runner</label><select id="about-runner"></select></div><div class="mrow"><label>Out at</label><select id="about-at"><option value="2">2nd</option><option value="3">3rd</option><option value="4">home</option><option value="1">1st</option></select></div><div class="mact"><button class="btn btn-red btn-full" onclick="confirmAddOutToAB()">Log out</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-about')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-about"><div class="modal" style="max-width:340px;"><h3>Add out on this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Pick the runner, where they were out, and how. Force-outs that end the inning (3rd out) auto-suppress runs per baseball rules.</div><div class="mrow"><label>Runner</label><select id="about-runner"></select></div><div class="mrow"><label>Out at</label><select id="about-at"><option value="2">2nd</option><option value="3">3rd</option><option value="4">home</option><option value="1">1st</option></select></div><div class="mrow"><label>How</label><select id="about-type"><option value="force">Forced out</option><option value="tag">Tagged out</option><option value="other">Other (caught off, interference, etc.)</option></select></div><div class="mact"><button class="btn btn-red btn-full" onclick="confirmAddOutToAB()">Log out</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-about')">Cancel</button></div></div></div>
 <!-- v141: add-advance-to-AB picker modal — backfill a non-out runner advance on a past play -->
 <div class="modal-ov" id="m-abadv"><div class="modal" style="max-width:340px;"><h3>Add advance on this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Adds a "↳ X to Yth" sub-line under the AB. Doesn't change the score — use "+ Add run scored" for runners who scored.</div><div class="mrow"><label>Runner</label><select id="abadv-runner"></select></div><div class="mrow"><label>From</label><select id="abadv-from"><option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mrow"><label>To</label><select id="abadv-to"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddAdvanceToAB()">Log advance</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-abadv')">Cancel</button></div></div></div>
 <!-- v141: add-run-scored-to-AB picker modal — backfill a runner who scored on a past play -->
@@ -870,7 +870,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
   <h3>🏆 League Standings</h3>
   <div id="standings-meta" style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;"></div>
   <div id="standings-body" style="max-height:60vh;overflow-y:auto;"></div>
-  <div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-sm" style="flex:1;" onclick="cm('m-standings');openLeaguePitching()">🥎 League Pitching</button><button class="btn btn-sm" style="flex:1;" onclick="openPasteLineup('standings')">📋 Update</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-standings')">Close</button></div>
+  <div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-sm" style="flex:1;" onclick="cm('m-standings');openLeaguePitching()">🥎 League Pitching</button><button class="btn btn-sm" style="flex:1;" onclick="cm('m-standings');openPasteLineup('standings')">📋 Update</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-standings')">Close</button></div>
 </div></div>
 
 <!-- v187: cross-league pitching stats modal — sortable table of every logged
@@ -7912,29 +7912,51 @@ function _renderEditAbHitDetails(){
 function _editAbSetHitLoc(v){_editAbHitLocTemp=v||null;_renderEditAbHitDetails();}
 function _editAbSetTrajectory(v){_editAbTrajectoryTemp=v||null;_renderEditAbHitDetails();}
 function _editAbSetHardness(v){_editAbHardnessTemp=v||null;_renderEditAbHitDetails();}
+// v2.20: count total outs in an inning by summing batter-out results, the
+// outs-on-AB array, and any auto-outs. Used to detect when adding a force-out
+// makes the inning reach 3 outs (which voids any runs on that AB per baseball
+// rules — a force-out 3rd out kills the run, even if the runner crossed home
+// before the put-out).
+function _inningOutCount(inn,half){
+  var c=0;
+  (G.abs||[]).forEach(function(ab){
+    if(ab.inn!==inn||ab.half!==half)return;
+    var r=ab.result;
+    if(['K','KL','GO','FO','LO','PO','FF','SAC','FC'].indexOf(r)>=0)c+=1;
+    else if(r==='DP'||r==='GIDP')c+=2;
+    else if(r==='TP')c+=3;
+    if(ab.outOnAB&&ab.outOnAB.length)c+=ab.outOnAB.length;
+    if(ab.autoOut)c+=1;
+  });
+  return c;
+}
 // v131: render outs tied to the AB currently being edited.
+// v2.20: render the out type alongside (force / tag / other).
 function _renderEditAbOuts(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
   var outs=ab.outOnAB||[];
+  function typeLabel(t){if(t==='tag')return 'tagged out';if(t==='other')return 'out';return 'forced out';}
   var html=outs.length
-    ? outs.map(function(o,i){var label;if(o.reason==='interference'){label=esc(o.name||'?')+' — hit by ball'+(o.fielder?' (PO '+o.fielder+')':'');}else{var atLabel=o.atBase>=4?'home':['','1st','2nd','3rd'][o.atBase]||'?';label=esc(o.name||'?')+' out at '+atLabel;}return '<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(184,50,40,.12);border-radius:3px;margin-bottom:4px;"><span style="flex:1;color:var(--red2);">'+label+'</span><button class="btn btn-xs btn-red" onclick="_removeOutFromAB('+i+')" style="padding:2px 6px;">✕</button></div>';}).join('')
-    : '<div style="color:var(--text3);font-style:italic;font-size:11px;">No forced outs logged on this AB</div>';
+    ? outs.map(function(o,i){var label;if(o.reason==='interference'){label=esc(o.name||'?')+' — hit by ball'+(o.fielder?' (PO '+o.fielder+')':'');}else{var atLabel=o.atBase>=4?'home':['','1st','2nd','3rd'][o.atBase]||'?';var t=o.outType||'force';var verb=t==='tag'?'tagged out':(t==='other'?'out':'forced out');label=esc(o.name||'?')+' '+verb+' at '+atLabel;}return '<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(184,50,40,.12);border-radius:3px;margin-bottom:4px;"><span style="flex:1;color:var(--red2);">'+label+'</span><button class="btn btn-xs btn-red" onclick="_removeOutFromAB('+i+')" style="padding:2px 6px;">✕</button></div>';}).join('')
+    : '<div style="color:var(--text3);font-style:italic;font-size:11px;">No outs logged on this AB</div>';
   $('editab-outs').innerHTML=html;
 }
 // v131: open the small add-out picker. Runner pool = the BATTING team's
-// lineup (forced outs happen to runners who were on base when this batter came up).
+// lineup (outs on this AB happen to runners who were on base when this batter came up).
 function openAddOutToAB(){
   if(_editAbIdx<0)return;
   var ab=G.abs[_editAbIdx];if(!ab)return;
   var lu=ab.team==='home'?G.hlu:G.alu;
   var opts=lu.map(function(p,i){var nm=p.name||'(slot '+(i+1)+')';return '<option value="'+i+'">'+(i+1)+'. '+esc(nm)+(p.jersey?' #'+p.jersey:'')+'</option>';}).join('');
   $('about-runner').innerHTML=opts;
-  // Default to the slot just before the batter (most likely the runner forced out)
+  // Default to the slot just before the batter (most likely the runner out)
   $('about-runner').value=Math.max(0,(ab.bi||0)-1);
   // Default "out at" = home for FC plays, 2nd for DP plays
   if(ab.result==='FC')$('about-at').value='4';
   else $('about-at').value='2';
+  // Default type = force (most common)
+  if($('about-type'))$('about-type').value='force';
   om('m-about');
 }
 function confirmAddOutToAB(){
@@ -7942,14 +7964,39 @@ function confirmAddOutToAB(){
   var ab=G.abs[_editAbIdx];if(!ab){cm('m-about');return;}
   var bi=parseInt($('about-runner').value);
   var atBase=parseInt($('about-at').value);
+  var outType=($('about-type')&&$('about-type').value)||'force';
   var lu=ab.team==='home'?G.hlu:G.alu;
   var runner=lu[bi];if(!runner){toast('Pick a runner');return;}
   if(!ab.outOnAB)ab.outOnAB=[];
-  ab.outOnAB.push({name:runner.name||'?',fromBase:Math.max(1,atBase-1),atBase:atBase});
+  ab.outOnAB.push({name:runner.name||'?',fromBase:Math.max(1,atBase-1),atBase:atBase,outType:outType});
+  // v2.20: if this force-out is the 3rd out of the inning, baseball rules say
+  // no runs from this play count. Auto-suppress any runs the user already
+  // logged on this AB.
+  var outsInInning=_inningOutCount(ab.inn,ab.half);
+  if(outsInInning>=3 && outType==='force' && ab.pscored && ab.pscored.length>0){
+    var removed=ab.pscored.length;
+    ab.pscored.forEach(function(runEntry){
+      var rbi=(typeof runEntry==='object')?runEntry.bi:null;
+      if(ab.team==='home'){G.hs=Math.max(0,(G.hs||0)-1);if(G.inns&&G.inns.h)G.inns.h[ab.inn-1]=Math.max(0,(G.inns.h[ab.inn-1]||0)-1);}
+      else{G.as=Math.max(0,(G.as||0)-1);if(G.inns&&G.inns.a)G.inns.a[ab.inn-1]=Math.max(0,(G.inns.a[ab.inn-1]||0)-1);}
+      if(G.runs&&rbi!=null){
+        for(var ri=G.runs.length-1;ri>=0;ri--){
+          var rn=G.runs[ri];
+          if(rn.ab_num===ab.num&&rn.team===ab.team&&rn.bi===rbi){G.runs.splice(ri,1);break;}
+        }
+      }
+    });
+    delete ab.pscored;
+    // Also zero out RBIs since the 3rd-out force-out voids them
+    if(ab.rbi)ab.rbi=0;
+    toast('3rd-out force — voided '+removed+' run'+(removed===1?'':'s')+' + RBIs');
+  }
   sv();
   cm('m-about');
   _renderEditAbOuts();
+  if(typeof _renderEditAbRuns==='function')_renderEditAbRuns();
   if(typeof renderSC==='function')renderSC();
+  if(typeof renderSB==='function')renderSB();
   toast('Out logged on AB #'+ab.num);
 }
 function _removeOutFromAB(idx){
@@ -10015,7 +10062,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.19';
+var APP_VERSION='v2.20';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
