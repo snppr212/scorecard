@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sync schedule — add missing season-end events</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:840px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:4px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+.new{color:#36a066;}
+.exists{color:rgba(226,221,212,.6);}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:12px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+#status.ok{background:rgba(42,125,82,.20);color:#36a066;}
+#status.err{background:rgba(184,50,40,.20);color:#e04535;}
+#status.preview{background:rgba(200,169,110,.10);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Sync schedule — Spring 2026 final stretch</h1>
+
+<div class="note">
+Checks <code>appdata/roster.adata.schedule</code> for end-of-season events and adds any missing ones (e16/e17/e18). Idempotent — won't duplicate entries that already exist. Won't overwrite scores/results on existing events.
+</div>
+
+<h2>Events this tool will check / add</h2>
+<table>
+<thead><tr><th>id</th><th>Date</th><th>Type</th><th>Title</th><th>Location</th></tr></thead>
+<tbody>
+<tr><td>e16</td><td>May 21, 2026</td><td>practice</td><td>Practice</td><td>McMoran Park Field 2</td></tr>
+<tr><td>e17</td><td>May 27, 2026</td><td><strong>GAME</strong></td><td>vs Hot Rods (home)</td><td>McMoran Park Field 1</td></tr>
+<tr><td>e18</td><td>May 28, 2026</td><td>practice</td><td>Practice</td><td>Friends' Central School</td></tr>
+</tbody>
+</table>
+
+<button id="preview-btn" onclick="doPreview()">1. Preview diff</button>
+<button id="apply-btn" onclick="doApply()" disabled>2. Add missing events</button>
+<div id="status"></div>
+<div id="preview-data"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const TO_ADD=[
+  {id:'e16',type:'practice',date:'May 21, 2026',time:'5:45 pm',title:'Practice',loc:'McMoran Park Field 2'},
+  {id:'e17',type:'game',date:'May 27, 2026',time:'5:45 pm',title:'vs Hot Rods',opponent:'Hot Rods',loc:'McMoran Park Field 1',ha:'home'},
+  {id:'e18',type:'practice',date:'May 28, 2026',time:'5:45 pm',title:'Practice',loc:"Friends' Central School"}
+];
+
+let prepared=null;
+
+async function doPreview(){
+  const btn=document.getElementById('preview-btn');
+  const applyBtn=document.getElementById('apply-btn');
+  const status=document.getElementById('status');
+  const dataDiv=document.getElementById('preview-data');
+  btn.disabled=true;applyBtn.disabled=true;prepared=null;
+  status.className='preview';status.textContent='Reading appdata/roster…';dataDiv.innerHTML='';
+  try{
+    const snap=await db.collection('appdata').doc('roster').get();
+    if(!snap.exists)throw new Error('appdata/roster does not exist');
+    const data=snap.data()||{};
+    const A=data.adata||{};
+    const sched=A.schedule||[];
+    const existingIds={};sched.forEach(e=>{existingIds[e.id]=e;});
+    const additions=[];
+    const skips=[];
+    TO_ADD.forEach(ev=>{
+      if(existingIds[ev.id])skips.push({ev,existing:existingIds[ev.id]});
+      else additions.push(ev);
+    });
+    let html='<h2>Current schedule on Firestore ('+sched.length+' events)</h2>';
+    html+='<table><thead><tr><th>id</th><th>Date</th><th>Title</th></tr></thead><tbody>';
+    sched.forEach(e=>{html+='<tr><td>'+esc(e.id)+'</td><td>'+esc(e.date)+'</td><td>'+esc(e.title)+'</td></tr>';});
+    html+='</tbody></table>';
+    if(additions.length>0){
+      html+='<h2 class="new">Will add ('+additions.length+')</h2>';
+      html+='<table><thead><tr><th>id</th><th>Date</th><th>Type</th><th>Title</th></tr></thead><tbody>';
+      additions.forEach(e=>{html+='<tr class="new"><td>'+esc(e.id)+'</td><td>'+esc(e.date)+'</td><td>'+esc(e.type)+'</td><td>'+esc(e.title)+'</td></tr>';});
+      html+='</tbody></table>';
+    }
+    if(skips.length>0){
+      html+='<h2 class="exists">Already exists — skipping ('+skips.length+')</h2>';
+      html+='<table><thead><tr><th>id</th><th>Existing date</th><th>Existing title</th></tr></thead><tbody>';
+      skips.forEach(s=>{html+='<tr class="exists"><td>'+esc(s.ev.id)+'</td><td>'+esc(s.existing.date)+'</td><td>'+esc(s.existing.title)+'</td></tr>';});
+      html+='</tbody></table>';
+    }
+    dataDiv.innerHTML=html;
+    // Prepare merged schedule, append in chronological order via date sort.
+    // Keep existing events as-is, append new ones at the end (the app sorts
+    // when rendering anyway).
+    const merged=sched.slice();
+    additions.forEach(e=>merged.push(e));
+    prepared={A:A,merged:merged,additions:additions.length};
+    status.className='preview';
+    if(additions.length===0){
+      status.textContent='✓ Schedule already up to date. Nothing to add.';
+    } else {
+      status.textContent='✓ Ready to add '+additions.length+' event'+(additions.length===1?'':'s')+'. Click "Add missing events" to write.';
+      applyBtn.disabled=false;
+    }
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+  }
+  btn.disabled=false;
+}
+
+async function doApply(){
+  const applyBtn=document.getElementById('apply-btn');
+  const status=document.getElementById('status');
+  if(!prepared||prepared.additions===0){status.className='err';status.textContent='Nothing to apply. Run Preview first.';return;}
+  applyBtn.disabled=true;
+  try{
+    if(!confirm('Add '+prepared.additions+' event(s) to appdata/roster.adata.schedule?')){
+      applyBtn.disabled=false;return;
+    }
+    status.className='preview';status.textContent='Writing appdata/roster…';
+    const A=prepared.A;
+    A.schedule=prepared.merged;
+    await db.collection('appdata').doc('roster').set({adata:A,updated:new Date()},{merge:false});
+    status.className='ok';
+    status.textContent='✓ Schedule updated. '+prepared.additions+' new event(s) added.\n\nReload the scorecard app — the new events should appear on the schedule.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+    applyBtn.disabled=false;
+  }
+}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
