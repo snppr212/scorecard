@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Push standings — through May 26 (DR/TC update)</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:820px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:5px 8px;border:1px solid rgba(255,255,255,.10);text-align:right;}
+th:first-child,td:first-child{text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;text-align:center;}
+tr.updated{background:rgba(42,125,82,.12);}
+tr.updated td:first-child{color:#36a066;font-weight:bold;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:12px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warn{background:rgba(200,169,110,.20);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Push standings — through May 26</h1>
+
+<div class="note">
+Uses the league-site standings you pasted, with the <strong>May 26 Devil Rays 9 - Tin Caps 3</strong> result applied:
+<ul style="margin:6px 0 0 18px;padding:0;">
+  <li><strong>Devil Rays</strong>: 10G→11G, 6W→7W, 73F→82F, 75A→78A → <strong>.636 / SD 4</strong></li>
+  <li><strong>Tin Caps</strong>: 9G→10G, 5L→6L, 45F→48F, 47A→56A → <strong>.400 / SD -8</strong></li>
+</ul>
+After sort-by-pct-then-SD, Tin Caps moves below Bulls' .400 tier on tiebreaker but still ties.
+</div>
+
+<h2>Standings after the update (sorted)</h2>
+<table>
+<thead><tr><th>Team</th><th>G</th><th>W</th><th>L</th><th>T</th><th>F</th><th>A</th><th>%</th><th>SD</th></tr></thead>
+<tbody id="preview-rows"></tbody>
+</table>
+
+<button id="push-btn" onclick="doPush()">Push to Firestore</button>
+<div id="status"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Standings from the league site, with May 26 Devil Rays 9 - Tin Caps 3 applied
+const ROWS=[
+  {team:'Hot Rods',         g:10, w:8, l:2, t:0, rf:85,  ra:38, pct:0.800, sd:47,  updated:false},
+  {team:'Cannonballers',    g:10, w:7, l:2, t:1, rf:67,  ra:50, pct:0.750, sd:17,  updated:false},
+  {team:'Thunder',          g:11, w:8, l:3, t:0, rf:112, ra:68, pct:0.727, sd:44,  updated:false},
+  {team:'Hurricanes',       g:9,  w:6, l:2, t:1, rf:66,  ra:47, pct:0.722, sd:19,  updated:false},
+  {team:'Devil Rays',       g:11, w:7, l:4, t:0, rf:82,  ra:78, pct:0.636, sd:4,   updated:true},
+  {team:'Mighty Mussels',   g:10, w:6, l:4, t:0, rf:49,  ra:62, pct:0.600, sd:-13, updated:false},
+  {team:'Tin Caps - sho',   g:10, w:4, l:6, t:0, rf:48,  ra:56, pct:0.400, sd:-8,  updated:true},
+  {team:'Bulls',            g:10, w:4, l:6, t:0, rf:60,  ra:72, pct:0.400, sd:-12, updated:false},
+  {team:'Iron Pigs',        g:11, w:3, l:6, t:2, rf:63,  ra:72, pct:0.364, sd:-9,  updated:false},
+  {team:'Lugnuts',          g:8,  w:2, l:6, t:0, rf:39,  ra:62, pct:0.250, sd:-23, updated:false},
+  {team:'Grasshoppers',     g:9,  w:2, l:7, t:0, rf:51,  ra:72, pct:0.222, sd:-21, updated:false},
+  {team:'Mud Hens',         g:11, w:1, l:10,t:0, rf:49,  ra:94, pct:0.091, sd:-45, updated:false}
+];
+
+// Sort by pct desc, then SD desc (matches app's _saveLeagueStandings)
+ROWS.sort((a,b)=>b.pct-a.pct||b.sd-a.sd);
+
+// Render preview
+function renderPreview(){
+  const tbody=document.getElementById('preview-rows');
+  tbody.innerHTML=ROWS.map(r=>{
+    const cls=r.updated?'class="updated"':'';
+    return '<tr '+cls+'>'
+      +'<td>'+esc(r.team)+(r.updated?' *':'')+'</td>'
+      +'<td>'+r.g+'</td>'
+      +'<td>'+r.w+'</td>'
+      +'<td>'+r.l+'</td>'
+      +'<td>'+r.t+'</td>'
+      +'<td>'+r.rf+'</td>'
+      +'<td>'+r.ra+'</td>'
+      +'<td>'+r.pct.toFixed(3)+'</td>'
+      +'<td>'+(r.sd>0?'+':'')+r.sd+'</td>'
+    +'</tr>';
+  }).join('');
+}
+renderPreview();
+
+async function doPush(){
+  const btn=document.getElementById('push-btn');
+  const status=document.getElementById('status');
+  status.className='';status.textContent='';btn.disabled=true;
+  try{
+    if(!confirm('Overwrite appdata/leagueStandings with these 12 rows?')){btn.disabled=false;return;}
+    status.className='warn';status.textContent='Writing appdata/leagueStandings…';
+    const teams=ROWS.map(r=>{const o={};Object.keys(r).forEach(k=>{if(k!=='updated')o[k]=r[k];});return o;});
+    await db.collection('appdata').doc('leagueStandings').set({
+      teams:teams,
+      updated:new Date()
+    },{merge:false});
+    status.className='ok';
+    status.textContent='✓ Pushed '+teams.length+' teams.\n\nReload the scorecard, open the 🏆 League Standings modal — Devil Rays should now show 11G / 7-4 and Tin Caps 10G / 4-6.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+  }
+  btn.disabled=false;
+}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
