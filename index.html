@@ -1796,27 +1796,83 @@ function renderSeasonLineScores(games){
   h+='<div style="padding:6px 2px;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.45;">R / H / BIP / Sw describe each team\'s BATTING (H ≤ BIP always). E counts that team\'s fielding errors. P = pitches thrown by their pitchers. Sw shows a value only when the game is explicitly marked as pitch-by-pitch logged (toggle on the Plays tab); otherwise "—".</div>';
   body.innerHTML=h;
 }
+// v2.21: build Mighty Mussels pitcher rows from A.pitchLog (per-outing
+// log of every MM pitcher across all our games). Returns rows in the
+// same shape as _getLeaguePitcherRows so the Opp Pit sort + render flow
+// can treat us as just another team.
+function _getMMPitcherRows(){
+  var rows=[];
+  var pl=(A&&A.pitchLog)||{};
+  // Count distinct game-dates we've pitched in (= MM games played)
+  var allDates={};
+  Object.keys(pl).forEach(function(n){
+    (pl[n]||[]).forEach(function(e){if(e&&e.date)allDates[e.date]=1;});
+  });
+  var teamGames=Object.keys(allDates).length;
+  Object.keys(pl).forEach(function(name){
+    var entries=(pl[name]||[]).slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+    if(!entries.length)return;
+    var pt=entries.reduce(function(s,e){return s+(e.pitches||0);},0);
+    var gp=entries.length;
+    var peak=entries.reduce(function(m,e){return Math.max(m,e.pitches||0);},0);
+    var last=entries[entries.length-1];
+    var avg=gp>0?pt/gp:0;
+    var rosterEntry=(A&&A.roster||[]).find(function(r){return r.name===name;});
+    var jersey=rosterEntry?(rosterEntry.jersey||''):'';
+    rows.push({
+      team:'Mighty Mussels',name:name,jersey:jersey,
+      pt:pt,gp:gp,gs:null,avg:avg,peak:peak,
+      outings:entries.length,
+      lastDate:last.date||'',
+      lastPC:last.pitches||0,
+      hasSeason:false,hasGames:true,
+      teamGames:teamGames,
+      discrepancy:false,
+      seasonPt:null,outingSum:pt
+    });
+  });
+  return rows;
+}
 // v189: render the cross-league pitcher table into the season-stats Opp Pit
 // tab. Same data + sort behavior as the standings-modal League Pitching view
 // (shares _getLeaguePitcherRows + _sortLeaguePitchRows + _lpTh helpers).
+// v2.21: dropdown now has 3 scopes — All 12 (incl MM), Other 11 (opps only),
+// or a single team (any of 12). MM rows come from _getMMPitcherRows().
 function renderSeasonLeaguePitching(){
   // Populate team filter (idempotent — preserves selection across renders)
   var sel=$('season-lp-filter');
   var teams=OPP_PITCHER_LOG&&OPP_PITCHER_LOG.teams?Object.keys(OPP_PITCHER_LOG.teams).sort():[];
   if(sel){
     var prev=sel.value;
-    var opts='<option value="">All teams ('+teams.length+')</option>';
+    var opts='<option value="__all12__">All 12 teams (incl. us)</option>';
+    opts+='<option value="">Other '+teams.length+' (no Mighty Mussels)</option>';
+    opts+='<option value="__sep__" disabled>──────────</option>';
+    opts+='<option value="Mighty Mussels">Mighty Mussels</option>';
     teams.forEach(function(t){opts+='<option value="'+esc(t)+'">'+esc(t)+'</option>';});
     sel.innerHTML=opts;
-    if(prev&&teams.indexOf(prev)>=0)sel.value=prev;
+    var validValues={'__all12__':1,'':1,'Mighty Mussels':1};
+    teams.forEach(function(t){validValues[t]=1;});
+    if(prev&&validValues[prev])sel.value=prev;
   }
   var teamFilter=sel?sel.value:'';
-  var rows=_getLeaguePitcherRows(teamFilter);
+  var rows;
+  if(teamFilter==='__all12__'){
+    rows=_getLeaguePitcherRows('').concat(_getMMPitcherRows());
+  } else if(teamFilter==='Mighty Mussels'){
+    rows=_getMMPitcherRows();
+  } else {
+    rows=_getLeaguePitcherRows(teamFilter);
+  }
   var meta=$('season-lp-meta'),body=$('season-lp-body');
   if(!body)return;
   if(!rows.length){
     if(meta)meta.textContent='';
-    body.innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">'+(teamFilter?'No pitch-log data for '+esc(teamFilter)+'.':'No opp pitch-log data yet. Use Standings → Update from paste, or paste from a team\'s scout card.')+'</div>';
+    var emptyMsg;
+    if(teamFilter==='Mighty Mussels')emptyMsg='No Mighty Mussels pitching data logged yet.';
+    else if(teamFilter==='__all12__')emptyMsg='No pitching data anywhere yet.';
+    else if(teamFilter)emptyMsg='No pitch-log data for '+esc(teamFilter)+'.';
+    else emptyMsg='No opp pitch-log data yet. Use Standings → Update from paste, or paste from a team\'s scout card.';
+    body.innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">'+emptyMsg+'</div>';
     return;
   }
   rows=_sortLeaguePitchRows(rows);
@@ -10062,7 +10118,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.20';
+var APP_VERSION='v2.21';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
