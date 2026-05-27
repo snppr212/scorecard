@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Push May 26 — Bulls @ Grasshoppers (6-3)</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:820px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:4px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;font-family:monospace;}
+th,td{padding:4px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+tr.changed{background:rgba(42,125,82,.12);}
+tr.changed td:first-child{color:#36a066;font-weight:bold;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:12px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warn{background:rgba(200,169,110,.20);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Push May 26 — Bulls @ Grasshoppers (W 6-3)</h1>
+
+<div class="note">
+Three writes in one click:
+<ol style="margin:6px 0 0 18px;padding:0;">
+  <li><strong>Bulls outings</strong> → William Burke (70 pitches), William Agnew (49 pitches) added to <code>oppPitcherLog.teams.Bulls.pitchers.*.outings</code> for 2026-05-26.</li>
+  <li><strong>Bulls season totals</strong> bumped: Burke 176/6 → 246/7 · Agnew 96/3 → 145/4.</li>
+  <li><strong>Standings</strong> updated: Bulls 4-6 → 5-6 (66F/75A, SD -9), Grasshoppers 2-7 → 2-8 (54F/78A, SD -24).</li>
+</ol>
+</div>
+
+<h2>Outings to push</h2>
+<table>
+<thead><tr><th>Date</th><th>Pitcher</th><th class="num">PT</th></tr></thead>
+<tbody>
+<tr><td>2026-05-26</td><td>William Burke</td><td class="num">70</td></tr>
+<tr><td>2026-05-26</td><td>William Agnew</td><td class="num">49</td></tr>
+</tbody>
+</table>
+
+<h2>New standings (sorted)</h2>
+<table>
+<thead><tr><th>Team</th><th class="num">G</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">F</th><th class="num">A</th><th class="num">%</th><th class="num">SD</th></tr></thead>
+<tbody id="preview-rows"></tbody>
+</table>
+
+<button id="push-btn" onclick="doPush()">Push all 3 changes → Firestore</button>
+<div id="status"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const OUTINGS=[
+  {date:'2026-05-26', name:'William Burke', pitches:70, ip:0},
+  {date:'2026-05-26', name:'William Agnew', pitches:49, ip:0}
+];
+
+// Bulls season-total deltas: pitcher → +PT, +GP
+const BULLS_SEASON_DELTA={
+  'William Burke':{pt:70,gp:1},
+  'William Agnew':{pt:49,gp:1}
+};
+
+// Updated standings with the May 26 Bulls/GH result baked in (and DR/TC from earlier)
+const STANDINGS=[
+  {team:'Hot Rods',         g:10, w:8, l:2, t:0, rf:85,  ra:38, pct:0.800, sd:47},
+  {team:'Cannonballers',    g:10, w:7, l:2, t:1, rf:67,  ra:50, pct:0.750, sd:17},
+  {team:'Thunder',          g:11, w:8, l:3, t:0, rf:112, ra:68, pct:0.727, sd:44},
+  {team:'Hurricanes',       g:9,  w:6, l:2, t:1, rf:66,  ra:47, pct:0.722, sd:19},
+  {team:'Devil Rays',       g:11, w:7, l:4, t:0, rf:82,  ra:78, pct:0.636, sd:4},
+  {team:'Mighty Mussels',   g:10, w:6, l:4, t:0, rf:49,  ra:62, pct:0.600, sd:-13},
+  {team:'Bulls',            g:11, w:5, l:6, t:0, rf:66,  ra:75, pct:0.455, sd:-9},
+  {team:'Tin Caps - sho',   g:10, w:4, l:6, t:0, rf:48,  ra:56, pct:0.400, sd:-8},
+  {team:'Iron Pigs',        g:11, w:3, l:6, t:2, rf:63,  ra:72, pct:0.364, sd:-9},
+  {team:'Lugnuts',          g:8,  w:2, l:6, t:0, rf:39,  ra:62, pct:0.250, sd:-23},
+  {team:'Grasshoppers',     g:10, w:2, l:8, t:0, rf:54,  ra:78, pct:0.200, sd:-24},
+  {team:'Mud Hens',         g:11, w:1, l:10,t:0, rf:49,  ra:94, pct:0.091, sd:-45}
+];
+STANDINGS.sort((a,b)=>b.pct-a.pct||b.sd-a.sd);
+const CHANGED=new Set(['Bulls','Grasshoppers']);
+
+function renderPreview(){
+  document.getElementById('preview-rows').innerHTML=STANDINGS.map(r=>{
+    const cls=CHANGED.has(r.team)?' class="changed"':'';
+    return '<tr'+cls+'>'
+      +'<td>'+esc(r.team)+(CHANGED.has(r.team)?' *':'')+'</td>'
+      +'<td class="num">'+r.g+'</td>'
+      +'<td class="num">'+r.w+'</td>'
+      +'<td class="num">'+r.l+'</td>'
+      +'<td class="num">'+r.t+'</td>'
+      +'<td class="num">'+r.rf+'</td>'
+      +'<td class="num">'+r.ra+'</td>'
+      +'<td class="num">'+r.pct.toFixed(3)+'</td>'
+      +'<td class="num">'+(r.sd>0?'+':'')+r.sd+'</td>'
+    +'</tr>';
+  }).join('');
+}
+renderPreview();
+
+async function doPush(){
+  const btn=document.getElementById('push-btn');
+  const status=document.getElementById('status');
+  status.className='';status.textContent='';btn.disabled=true;
+  try{
+    if(!confirm('Push Bulls outings + season-total bumps + standings update?')){btn.disabled=false;return;}
+    const log=[];
+
+    // === Write 1: oppPitcherLog (outings + season totals for Bulls) ===
+    status.className='warn';status.textContent='Reading oppPitcherLog…';
+    const oppSnap=await db.collection('appdata').doc('oppPitcherLog').get();
+    const oppDoc=oppSnap.exists?(oppSnap.data()||{}):{};
+    const teams=oppDoc.teams||{};
+    const bulls=teams['Bulls']||{pitchers:{}};
+    if(!bulls.pitchers)bulls.pitchers={};
+    let added=0,replaced=0;
+    OUTINGS.forEach(o=>{
+      const p=bulls.pitchers[o.name]||{outings:[],jersey:''};
+      const before=(p.outings||[]).length;
+      p.outings=(p.outings||[]).filter(x=>x.date!==o.date);
+      const after=p.outings.length;
+      if(after<before)replaced++;else added++;
+      p.outings.push({date:o.date,pitches:o.pitches,ip:o.ip||0});
+      p.outings.sort((a,b)=>a.date.localeCompare(b.date));
+      bulls.pitchers[o.name]=p;
+    });
+    // Bump Bulls season totals for the two pitchers
+    if(!bulls.seasonTotals)bulls.seasonTotals={pitchers:{}};
+    if(!bulls.seasonTotals.pitchers)bulls.seasonTotals.pitchers={};
+    Object.keys(BULLS_SEASON_DELTA).forEach(name=>{
+      const d=BULLS_SEASON_DELTA[name];
+      const cur=bulls.seasonTotals.pitchers[name]||{pt:0,gp:0,gs:0};
+      bulls.seasonTotals.pitchers[name]={pt:(cur.pt||0)+d.pt,gp:(cur.gp||0)+d.gp,gs:cur.gs||0};
+    });
+    bulls.seasonTotals.updated=new Date().toISOString();
+    bulls.updated=new Date().toISOString();
+    teams['Bulls']=bulls;
+    log.push('Bulls: '+added+' new outings, '+replaced+' replaced · Burke/Agnew season totals bumped');
+
+    status.textContent='Writing oppPitcherLog…';
+    await db.collection('appdata').doc('oppPitcherLog').set({teams:teams,updated:new Date()},{merge:false});
+
+    // === Write 2: leagueStandings ===
+    status.textContent='Writing leagueStandings…';
+    await db.collection('appdata').doc('leagueStandings').set({teams:STANDINGS,updated:new Date()},{merge:false});
+    log.push('Standings: 12 teams written (Bulls 5-6, Grasshoppers 2-8 updated)');
+
+    status.className='ok';
+    status.textContent='✓ All three writes done.\n\n'+log.join('\n')+'\n\nReload the scorecard. League Pitching will show Burke/Agnew with updated totals; Standings modal will show the new ordering.';
+  }catch(e){
+    status.className='err';
+    status.textContent='Error: '+e.message;
+  }
+  btn.disabled=false;
+}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
