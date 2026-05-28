@@ -5806,6 +5806,32 @@ function abPitcher(ab){
   if(faName){var p2=list.find(function(x){return x.name===faName;});if(p2)return p2;}
   return null;
 }
+// v2.26: re-attribute each run to the pitcher who was on the mound when that
+// runner REACHED base (inherited-runner rule), not whoever was pitching when
+// they crossed the plate. Mutates G.runs[].pitcher in place. Idempotent — safe
+// to run on every recalc. Matches the proven all-games fix tool logic.
+function _reattributeInheritedRuns(){
+  if(!G.runs||!G.runs.length)return;
+  var ON_BASE={'1B':1,'2B':1,'3B':1,'HR':1,'LLHR':1,'BB':1,'HBP':1,'ROE':1,'FC':1,'CI':1};
+  function hr(h){return h==='top'?0:1;}
+  var abs=(G.abs||[]).slice().sort(function(a,b){return (a.inn-b.inn)||(hr(a.half)-hr(b.half))||(a.num-b.num);});
+  var halfEvents={},lastByHalf={};
+  abs.forEach(function(ab){
+    var k=ab.inn+'-'+ab.half;
+    var pit=ab.pitcher;
+    if(!pit&&lastByHalf[k])pit=lastByHalf[k];
+    if(pit)lastByHalf[k]=pit;
+    if(!halfEvents[k])halfEvents[k]=[];
+    if(ON_BASE[ab.result])halfEvents[k].push({bi:ab.bi,team:ab.team,pitcher:pit,consumed:false});
+  });
+  var runsSorted=G.runs.slice().sort(function(a,b){return (a.inn-b.inn)||(hr(a.half)-hr(b.half))||((a.ab_num||0)-(b.ab_num||0));});
+  runsSorted.forEach(function(run){
+    if(run.manual)return;
+    var events=halfEvents[run.inn+'-'+run.half]||[];
+    var ev=events.find(function(e){return !e.consumed&&e.bi===run.bi&&e.team===run.team;});
+    if(ev){ev.consumed=true;run.pitcher=ev.pitcher;}
+  });
+}
 // Rebuild pitcher stats from the AB list — use after retroactive pitcher changes
 function recalcPitcherStats(){
   var allP=G.hp.concat(G.ap);
@@ -5859,6 +5885,8 @@ function recalcPitcherStats(){
   // override runs_allowed/er with the run-level truth so the post-game error-RBI
   // review's unearned adjustments survive a recalc. Legacy games without
   // pitcher stamps fall back to the AB-rbi sum above.
+  // v2.26: fix inherited-runner attribution before tallying R/ER.
+  _reattributeInheritedRuns();
   var runsHavePitcherAttr=(G.runs||[]).some(function(rn){return rn.pitcher;});
   if(runsHavePitcherAttr){
     allP.forEach(function(p){p.runs_allowed=0;p.er=0;});
@@ -9514,6 +9542,10 @@ function _clearTransientGameState(g){
 }
 function confirmEndGame(){
   cm('m-endgame');
+  // v2.26: recompute pitcher stats at finalization so the saved game reflects
+  // inherited-runner attribution (logRun stamps the live pitcher; this corrects
+  // it). recalcPitcherStats calls _reattributeInheritedRuns internally.
+  if(typeof recalcPitcherStats==='function')recalcPitcherStats();
   // save final result, mark as complete
   if(G.eid){
     if(!A.gameResults[G.eid])A.gameResults[G.eid]={};
@@ -10149,7 +10181,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.25';
+var APP_VERSION='v2.26';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
