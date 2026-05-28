@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>e13 run-logic diagnostic (inherited runners + 3rd-out)</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1200px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:3px 6px;border:1px solid rgba(255,255,255,.10);text-align:left;vertical-align:top;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+#status{margin-top:10px;font-size:12px;color:#c8a96e;}
+.flag{color:#e04535;font-weight:bold;}
+pre{white-space:pre-wrap;font-size:10px;background:rgba(0,0,0,.25);padding:8px;border-radius:4px;}
+</style>
+</head>
+<body>
+<h1>e13 run-logic diagnostic</h1>
+<div class="note">
+Dumps the Grasshoppers game (e13) play-by-play with base states, pitcher, and run attribution so we can see (1) where inherited-runner runs are mischarged and (2) what happened on the top-5th 3rd-out play. Read-only.
+</div>
+<button onclick="run()">Dump e13</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function fmtBases(b){
+  if(!b)return '—';
+  return [1,2,3].map(i=>{
+    const r=b[i-1];
+    return r?(i+'B:'+(r.name?r.name.split(' ')[0]:(r.jerseyNum?'#'+r.jerseyNum:'?'))):'';
+  }).filter(Boolean).join(' ')||'empty';
+}
+
+async function run(){
+  const status=document.getElementById('status');
+  status.textContent='Loading games/e13…';
+  try{
+    const snap=await db.collection('games').doc('e13').get();
+    if(!snap.exists)throw new Error('games/e13 not found');
+    const g=snap.data().gdata||{};
+    let html='';
+    html+='<h2>Matchup</h2><pre>'+esc((g.at||'?')+' @ '+(g.ht||'?')+'  '+(g.as||0)+'-'+(g.hs||0)+' · we are '+(g.ht==='Mighty Mussels'?'home':'away'))+'</pre>';
+
+    // Pitcher lists + their stats
+    ['hp','ap'].forEach(side=>{
+      const list=g[side]||[];
+      if(!list.length)return;
+      html+='<h2>'+(side==='hp'?'Home':'Away')+' pitchers ('+side+')</h2>';
+      html+='<table><thead><tr><th>Name</th><th>ip_outs</th><th>R</th><th>ER</th><th>H</th><th>BB</th><th>K</th></tr></thead><tbody>';
+      list.forEach(p=>{
+        html+='<tr><td>'+esc(p.name)+'</td><td>'+(p.ip_outs||0)+'</td><td>'+(p.runs_allowed||0)+'</td><td>'+(p.er||0)+'</td><td>'+(p.hits||0)+'</td><td>'+(p.bb_allowed||0)+'</td><td>'+(p.k_pitched||0)+'</td></tr>';
+      });
+      html+='</tbody></table>';
+    });
+
+    // G.runs with pitcher attribution
+    html+='<h2>G.runs (run-level attribution)</h2>';
+    html+='<table><thead><tr><th>inn</th><th>half</th><th>bi</th><th>charged pitcher</th><th>unearned</th><th>ab_num</th></tr></thead><tbody>';
+    (g.runs||[]).forEach(rn=>{
+      html+='<tr><td>'+rn.inn+'</td><td>'+rn.half+'</td><td>'+rn.bi+'</td><td>'+esc(rn.pitcher||'(none)')+'</td><td>'+(rn.unearned?'Y':'')+'</td><td>'+(rn.ab_num!=null?rn.ab_num:'')+'</td></tr>';
+    });
+    html+='</tbody></table>';
+
+    // Per-inning AB walk with preState + pitcher + scoring
+    const abs=(g.abs||[]).slice().sort((a,b)=>(a.inn-b.inn)||(a.half==='top'?-1:1)||(a.num-b.num));
+    const innHalves={};
+    abs.forEach(ab=>{const k=ab.inn+'-'+ab.half;if(!innHalves[k])innHalves[k]=[];innHalves[k].push(ab);});
+    html+='<h2>AB-by-AB (all innings — focus on 3-top and 5-top)</h2>';
+    Object.keys(innHalves).sort((a,b)=>{const[ia,ha]=a.split('-');const[ib,hb]=b.split('-');return (ia-ib)||(ha==='top'?-1:1);}).forEach(k=>{
+      const list=innHalves[k];
+      html+='<h2>Inning '+esc(k)+'</h2>';
+      html+='<table><thead><tr><th>#</th><th>batter</th><th>result</th><th>pitcher(stamped on AB)</th><th>pc</th><th>rbi</th><th>bases BEFORE (preState)</th><th>pscored</th><th>outOnAB</th><th>advancesOnAB</th></tr></thead><tbody>';
+      list.forEach(ab=>{
+        const pscored=(ab.pscored||[]).map(e=>typeof e==='string'?e:(e.name||('bi'+e.bi))).join(', ');
+        const outs=(ab.outOnAB||[]).map(o=>(o.name||'?')+'@'+(o.atBase>=4?'home':o.atBase)+(o.outType?'('+o.outType+')':'')).join('; ');
+        const advs=(ab.advancesOnAB||[]).map(a=>(a.name||'?')+'→'+a.toBase).join('; ');
+        const pre=ab.preState&&ab.preState.bases?fmtBases(ab.preState.bases):(ab.preState?JSON.stringify(ab.preState).slice(0,60):'(none)');
+        html+='<tr><td>'+ab.num+'</td><td>'+esc((ab.batter||'?'))+'</td><td>'+esc(ab.result)+'</td><td>'+esc(ab.pitcher||'(none)')+'</td><td>'+(ab.pc||0)+'</td><td>'+(ab.rbi||0)+'</td><td>'+esc(pre)+'</td><td>'+esc(pscored||'')+'</td><td>'+esc(outs||'')+'</td><td>'+esc(advs||'')+'</td></tr>';
+      });
+      html+='</tbody></table>';
+    });
+
+    document.getElementById('output').innerHTML=html;
+    status.textContent='✓ Dumped e13.';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+  }
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
