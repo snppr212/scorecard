@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Schedule manager — rainouts</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:920px;margin:auto;}
+h1{color:#c8a96e;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:12px;font-family:monospace;}
+th,td{padding:6px 8px;border:1px solid rgba(255,255,255,.10);text-align:left;vertical-align:middle;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+button{background:#c8a96e;color:#000;border:none;padding:5px 10px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:11px;}
+button.big{padding:12px 22px;font-size:14px;margin-bottom:12px;}
+button.rain{background:#3080d0;color:#fff;}
+button.clear{background:transparent;color:#c8a96e;border:1px solid #c8a96e;}
+.state-rain{color:#3080d0;font-weight:bold;}
+.state-final{color:#36a066;font-weight:bold;}
+.state-sched{color:var(--text3,#4a6278);}
+#status{margin-top:14px;padding:10px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+.ok{background:rgba(42,125,82,.20);color:#36a066;}
+.err{background:rgba(184,50,40,.20);color:#e04535;}
+.warn{background:rgba(200,169,110,.20);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Schedule manager</h1>
+<div class="note">
+Lists every game so you can flag the exact one — no name/date guessing. <strong>Rain</strong> marks a game rained out (shows "⛈ RAINED OUT", doesn't count W/L). <strong>Clear</strong> removes the flag. Each click writes immediately to <code>appdata/roster</code>. Reload the scorecard after to see changes.
+</div>
+<button class="big" onclick="load()">Load schedule</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let A=null;
+
+async function load(){
+  const status=document.getElementById('status');
+  status.className='warn';status.textContent='Reading appdata/roster…';
+  try{
+    const snap=await db.collection('appdata').doc('roster').get();
+    A=(snap.data()||{}).adata||{};
+    render();
+    status.className='ok';status.textContent='✓ Loaded. Click Rain / Clear on any game.';
+  }catch(e){status.className='err';status.textContent='Error: '+e.message;}
+}
+
+function render(){
+  const sched=(A.schedule||[]).filter(e=>e.type==='game');
+  const gr=A.gameResults||{};
+  let html='<table><thead><tr><th>id</th><th>Date</th><th>Matchup</th><th>H/A</th><th>State</th><th>Action</th></tr></thead><tbody>';
+  sched.forEach(e=>{
+    const r=gr[e.id];
+    let state,stateCls;
+    if(r&&r.rainedOut){state='⛈ RAINED OUT';stateCls='state-rain';}
+    else if(r&&r.final){const m=e.ha==='home'?r.hs:r.as,o=e.ha==='home'?r.as:r.hs;state=(m>o?'W':(m<o?'L':'T'))+' '+m+'-'+o;stateCls='state-final';}
+    else{state='scheduled';stateCls='state-sched';}
+    const btn=(r&&r.rainedOut)
+      ?'<button class="clear" onclick="setRain(\''+e.id+'\',false)">Clear rainout</button>'
+      :'<button class="rain" onclick="setRain(\''+e.id+'\',true)">⛈ Rain</button>';
+    html+='<tr><td>'+esc(e.id)+'</td><td>'+esc(e.date||'')+'</td><td>'+esc(e.title||'')+'</td><td>'+esc(e.ha||'')+'</td><td class="'+stateCls+'">'+esc(state)+'</td><td>'+btn+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('output').innerHTML=html;
+}
+
+async function setRain(id,on){
+  const status=document.getElementById('status');
+  status.className='warn';status.textContent=(on?'Marking ':'Clearing ')+id+'…';
+  try{
+    A.gameResults=A.gameResults||{};
+    if(on){
+      A.gameResults[id]=Object.assign({},A.gameResults[id]||{},{rainedOut:true,final:false});
+    }else{
+      if(A.gameResults[id]){delete A.gameResults[id].rainedOut;}
+    }
+    await db.collection('appdata').doc('roster').set({adata:A,updated:new Date()},{merge:false});
+    render();
+    status.className='ok';status.textContent='✓ '+(on?'Marked':'Cleared')+' '+id+'. Reload the scorecard to see it.';
+  }catch(e){status.className='err';status.textContent='Error: '+e.message;}
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
