@@ -52,6 +52,8 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 const ON_BASE=new Set(['1B','2B','3B','HR','LLHR','BB','HBP','ROE','FC','CI']);
+// top sorts before bottom within an inning
+function _hr(h){return h==='top'?0:1;}
 
 // Replay one game's run attribution. Mutates g.runs[].pitcher and recomputes
 // each pitcher's runs_allowed/er. Returns {changes:[...], pitcherBefore, pitcherAfter}.
@@ -61,7 +63,7 @@ function recomputeGame(g){
   const before={};
   allP.forEach(p=>{before[p.name]={r:p.runs_allowed||0,er:p.er||0};});
 
-  const abs=(g.abs||[]).slice().sort((a,b)=>(a.inn-b.inn)||(a.half==='top'?-1:1)||(a.num-b.num));
+  const abs=(g.abs||[]).slice().sort((a,b)=>(a.inn-b.inn)||(_hr(a.half)-_hr(b.half))||(a.num-b.num));
   // Build on-base events per half-inning, tagging each with the pitcher who was
   // in (ab.pitcher, falling back to the last seen pitcher in that half).
   const halfEvents={};
@@ -80,7 +82,7 @@ function recomputeGame(g){
   // Re-attribute runs (process in half-inning + ab_num order so earliest
   // on-base event is consumed first when a slot reaches base more than once).
   const runs=(g.runs||[]);
-  const runsSorted=runs.slice().sort((a,b)=>(a.inn-b.inn)||(a.half==='top'?-1:1)||((a.ab_num||0)-(b.ab_num||0)));
+  const runsSorted=runs.slice().sort((a,b)=>(a.inn-b.inn)||(_hr(a.half)-_hr(b.half))||((a.ab_num||0)-(b.ab_num||0)));
   const changes=[];
   runsSorted.forEach(run=>{
     if(run.manual)return; // leave manual/unattributed runs alone
