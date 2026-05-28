@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Strip phantom 3rd-out advances — all games</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1100px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;font-family:monospace;}
+th,td{padding:3px 7px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+button.danger{background:#e04535;color:#fff;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+#status{margin-top:14px;padding:12px;border-radius:4px;font-size:13px;white-space:pre-wrap;font-family:monospace;}
+#status.ok{background:rgba(42,125,82,.20);color:#36a066;}
+#status.err{background:rgba(184,50,40,.20);color:#e04535;}
+#status.preview{background:rgba(200,169,110,.10);color:#c8a96e;}
+.game-card{background:rgba(255,255,255,.03);padding:10px;border-radius:6px;margin-bottom:14px;border:1px solid rgba(200,169,110,.2);}
+.del{color:#e08080;}
+</style>
+</head>
+<body>
+<h1>Strip phantom 3rd-out advances</h1>
+<div class="note">
+When the at-bat that makes the <strong>3rd out</strong> also moved runners up (e.g. a groundout where trailing runners advance), the app was recording those as real <code>advancesOnAB</code> — but the inning's over, so the advance is meaningless. This walks every finalized game, finds the AB that recorded each half-inning's 3rd out, and clears its <code>advancesOnAB</code>. Runs (<code>pscored</code>) and the out itself are left untouched. Preview first.
+<br><br>
+Innings that ended on the 6-run cap (not 3 outs) are <strong>not</strong> touched — advances there are legit.
+</div>
+
+<button id="preview-btn" onclick="doPreview()">1. Preview all games</button>
+<button id="apply-btn" onclick="doApply()" class="danger" disabled>2. Apply fixes to Firestore</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function _hr(h){return h==='top'?0:1;}
+// Outs produced by an AB (matches the app's running-out logic).
+function abOuts(ab){
+  var c=0,r=ab.result;
+  if(['K','KL','GO','FO','LO','PO','FF','SAC','FC'].indexOf(r)>=0)c+=1;
+  else if(r==='DP'||r==='GIDP')c+=2;
+  else if(r==='TP')c+=3;
+  if(ab.outOnAB&&ab.outOnAB.length)c+=ab.outOnAB.length;
+  if(ab.interference)c+=1;
+  return c;
+}
+
+// Returns list of {ab, cleared:[advance descriptions]} for ABs whose phantom
+// advances were stripped. Mutates ab.advancesOnAB.
+function stripGame(g){
+  var abs=(g.abs||[]).slice().sort((a,b)=>(a.inn-b.inn)||(_hr(a.half)-_hr(b.half))||(a.num-b.num));
+  // Group by half-inning
+  var halves={};
+  abs.forEach(ab=>{var k=ab.inn+'-'+ab.half;(halves[k]=halves[k]||[]).push(ab);});
+  var stripped=[];
+  Object.keys(halves).forEach(k=>{
+    var list=halves[k];
+    var running=0, hitThird=false;
+    list.forEach(ab=>{
+      if(hitThird){
+        // Defensive: any AB after the 3rd out in the same half is also phantom
+        if(ab.advancesOnAB&&ab.advancesOnAB.length){
+          stripped.push({num:ab.num,inn:ab.inn,half:ab.half,batter:ab.batter,result:ab.result,advs:ab.advancesOnAB.map(a=>(a.name||'?')+'→'+a.toBase)});
+          delete ab.advancesOnAB;
+        }
+        return;
+      }
+      running+=abOuts(ab);
+      if(running>=3){
+        hitThird=true;
+        if(ab.advancesOnAB&&ab.advancesOnAB.length){
+          stripped.push({num:ab.num,inn:ab.inn,half:ab.half,batter:ab.batter,result:ab.result,advs:ab.advancesOnAB.map(a=>(a.name||'?')+'→'+a.toBase)});
+          delete ab.advancesOnAB;
+        }
+      }
+    });
+  });
+  return stripped;
+}
+
+let prepared=null;
+
+async function loadGames(){
+  const rosterSnap=await db.collection('appdata').doc('roster').get();
+  const A=rosterSnap.data().adata||{};
+  const ids=Object.keys(A.gameResults||{}).filter(k=>A.gameResults[k]&&A.gameResults[k].final===true&&k!=='test-sandbox');
+  const games=[];
+  for(const id of ids){
+    const d=await db.collection('games').doc(id).get();
+    if(d.exists&&d.data().gdata)games.push({id,gdata:d.data().gdata});
+  }
+  return games;
+}
+
+async function doPreview(){
+  const btn=document.getElementById('preview-btn');
+  const applyBtn=document.getElementById('apply-btn');
+  const status=document.getElementById('status');
+  const out=document.getElementById('output');
+  btn.disabled=true;applyBtn.disabled=true;prepared=null;
+  status.className='preview';status.textContent='Loading final games…';out.innerHTML='';
+  try{
+    const games=await loadGames();
+    let html='';let totalStripped=0;const toWrite=[];
+    games.forEach(({id,gdata})=>{
+      const stripped=stripGame(gdata);
+      if(!stripped.length)return;
+      totalStripped+=stripped.length;
+      toWrite.push({id,gdata});
+      html+='<div class="game-card"><h2>'+esc(id)+' · '+esc((gdata.at||'?')+' @ '+(gdata.ht||'?'))+'</h2>';
+      html+='<table><thead><tr><th>AB#</th><th>Inn</th><th>Batter</th><th>Result</th><th>Phantom advances removed</th></tr></thead><tbody>';
+      stripped.forEach(s=>{
+        html+='<tr><td>'+s.num+'</td><td>'+s.inn+'-'+s.half+'</td><td>'+esc(s.batter||'?')+'</td><td>'+esc(s.result)+'</td><td class="del">'+esc(s.advs.join('; '))+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+    });
+    out.innerHTML=html||'<p>No phantom 3rd-out advances found — all clean.</p>';
+    prepared=toWrite;
+    status.className='preview';
+    status.textContent='✓ Preview: '+totalStripped+' phantom advance-set(s) on 3rd-out ABs across '+toWrite.length+' game(s). Review, then Apply.';
+    applyBtn.disabled=toWrite.length===0;
+  }catch(e){
+    status.className='err';status.textContent='Error: '+e.message;
+  }
+  btn.disabled=false;
+}
+
+async function doApply(){
+  const applyBtn=document.getElementById('apply-btn');
+  const status=document.getElementById('status');
+  if(!prepared||!prepared.length){status.className='err';status.textContent='Nothing to apply — run Preview first.';return;}
+  applyBtn.disabled=true;
+  try{
+    if(!confirm('Strip phantom 3rd-out advances from '+prepared.length+' game(s)?')){applyBtn.disabled=false;return;}
+    status.className='preview';
+    for(let i=0;i<prepared.length;i++){
+      const {id,gdata}=prepared[i];
+      status.textContent='Writing '+id+' ('+(i+1)+'/'+prepared.length+')…';
+      await db.collection('games').doc(id).set({gdata:gdata,updated:new Date(),phantomAdvanceFixAt:new Date().toISOString()},{merge:true});
+    }
+    status.className='ok';
+    status.textContent='✓ Applied to '+prepared.length+' game(s). Reload the scorecard — the 3rd-out plays no longer show phantom runner advances.';
+  }catch(e){
+    status.className='err';status.textContent='Error: '+e.message;
+    applyBtn.disabled=false;
+  }
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>

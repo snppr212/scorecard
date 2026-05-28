@@ -6623,7 +6623,10 @@ G._abScoredBuffer=null;
 // A runner who was on base before the AB and is on a HIGHER base after (and
 // not in pscored or outOnAB) advanced. Stored on the AB record for the
 // Plays-tab sub-line renderer.
+// v2.25: if this AB recorded the 3rd out, the inning is over — any runner
+// movement on the play is meaningless, so don't log phantom advances.
 (function(){
+  if(G.outs>=3)return;
   var advances=[];
   _preBases.forEach(function(pre,preIdx){
     if(!pre)return;
@@ -10146,7 +10149,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.24';
+var APP_VERSION='v2.25';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
