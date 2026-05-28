@@ -1135,7 +1135,7 @@ try{
     if(A.gameResults){
       Object.keys(A.gameResults).forEach(function(k){
         var r=A.gameResults[k];
-        if(!r||r.final!==true)delete A.gameResults[k];
+        if(!r||(r.final!==true&&!r.rainedOut))delete A.gameResults[k];
       });
     }
     localStorage.setItem('mm_cleanup_v21','1');
@@ -10186,7 +10186,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.27';
+var APP_VERSION='v2.28';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
@@ -10285,8 +10285,9 @@ async function fbSaveRoster(){
           Object.keys(remoteA.gameResults).forEach(function(eid){
             var r=remoteA.gameResults[eid];
             var l=mergedGR[eid];
-            if(r&&r.final&&(!l||!l.final)){
-              // Remote says final, local doesn't — adopt remote so we don't undo it
+            // v2.28: adopt remote final OR rained-out entries the local copy
+            // doesn't have yet, so a save can't drop them.
+            if(r&&(r.final||r.rainedOut)&&(!l||(!l.final&&!l.rainedOut))){
               mergedGR[eid]=Object.assign({},l||{},r);
               merges[eid]=mergedGR[eid];
             }
@@ -10367,11 +10368,13 @@ function setupSyncListeners(){
   unsubRoster=db.collection('appdata').doc('roster').onSnapshot(snap=>{
     if(!snap.exists||!snap.data()||!snap.data().adata)return;
     var remoteA=snap.data().adata;
-    // Strip any non-final gameResults entries (prevents test data from re-hydrating)
+    // Strip any non-final gameResults entries (prevents test data from re-hydrating).
+    // v2.28: keep rained-out entries (final:false but rainedOut:true) so the
+    // "⛈ RAINED OUT" badge survives the sync.
     if(remoteA.gameResults){
       Object.keys(remoteA.gameResults).forEach(function(k){
         var r=remoteA.gameResults[k];
-        if(!r||r.final!==true)delete remoteA.gameResults[k];
+        if(!r||(r.final!==true&&!r.rainedOut))delete remoteA.gameResults[k];
       });
     }
     if(!_deepEq(remoteA,A)){
