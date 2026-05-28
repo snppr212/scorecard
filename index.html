@@ -8619,14 +8619,16 @@ function _toggleFullPitchLog(){
 }
 // v2.23: small home-plate badge (white pentagon, gold outline, run count
 // inside) to flag how many runs scored on an AB. Pentagon points down like
-// a real plate. Returns '' for 0 runs.
+// a real plate. v2.24: the count is an HTML span overlaid on the SVG (rather
+// than an SVG <text>) so it renders crisp like the out-circle numbers.
 function _homePlateBadge(n){
   if(!n||n<1)return '';
-  return '<span title="'+n+' run'+(n===1?'':'s')+' scored this AB" style="display:inline-flex;vertical-align:middle;margin-left:4px;flex-shrink:0;">'
-    +'<svg width="17" height="16" viewBox="0 0 18 17" xmlns="http://www.w3.org/2000/svg">'
+  return '<span title="'+n+' run'+(n===1?'':'s')+' scored this AB" style="position:relative;display:inline-flex;width:17px;height:16px;vertical-align:middle;margin-left:4px;flex-shrink:0;">'
+    +'<svg width="17" height="16" viewBox="0 0 18 17" style="position:absolute;top:0;left:0;" xmlns="http://www.w3.org/2000/svg">'
     +'<polygon points="2,1.5 16,1.5 16,8 9,15.5 2,8" fill="#f5f0e6" stroke="#c8a96e" stroke-width="1.3"/>'
-    +'<text x="9" y="7.2" text-anchor="middle" font-size="8" font-weight="bold" fill="#0d1b2a" font-family="sans-serif">'+n+'</text>'
-    +'</svg></span>';
+    +'</svg>'
+    +'<span style="position:absolute;top:0;left:0;width:100%;height:9px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:#0d1b2a;font-family:sans-serif;">'+n+'</span>'
+    +'</span>';
 }
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
 var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
@@ -8802,7 +8804,7 @@ function mkHalf(abs,label,inn,half){
     var errsOnAb=(G.errs||[]).filter(function(e){return !e.standalone&&e.ab_num===abNum;});
     errsOnAb.forEach(function(e){
       var typeLabel={F:'Field',T:'Throw',M:'Mental',C:'Catch'}[e.type]||e.type;
-      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--text2);font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:#e08080;font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
     });
     // v130: outs on bases recorded during this AB (FC, DP, GIDP, TP)
     // v137: interference outs render as "hit by ball (PO N)" instead of "out at <base>"
@@ -8852,7 +8854,7 @@ function mkHalf(abs,label,inn,half){
       // v2.23: gold for normal scored runs (matches the home-plate badge);
       // red only for unattributed manual runs that still need fixing.
       var color=hasManual?'var(--red2)':'var(--gold)';
-      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:'+color+';font-family:sans-serif;font-style:italic;">↳ 🏠 Scored: '+names+rbiPart+'</div>');
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:'+color+';font-family:sans-serif;font-style:italic;">↳ Scored: '+names+rbiPart+'</div>');
     }
     // v166: AB-level fix-it note
     if(ab.fixNote){
@@ -10144,7 +10146,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.23';
+var APP_VERSION='v2.24';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
