@@ -8617,6 +8617,17 @@ function _toggleFullPitchLog(){
   if(typeof renderLog==='function')renderLog();
   toast(G.fullPitchLog?'Marked as pitch-by-pitch logged':'Cleared pitch-by-pitch flag',2000);
 }
+// v2.23: small home-plate badge (white pentagon, gold outline, run count
+// inside) to flag how many runs scored on an AB. Pentagon points down like
+// a real plate. Returns '' for 0 runs.
+function _homePlateBadge(n){
+  if(!n||n<1)return '';
+  return '<span title="'+n+' run'+(n===1?'':'s')+' scored this AB" style="display:inline-flex;vertical-align:middle;margin-left:4px;flex-shrink:0;">'
+    +'<svg width="17" height="16" viewBox="0 0 18 17" xmlns="http://www.w3.org/2000/svg">'
+    +'<polygon points="2,1.5 16,1.5 16,8 9,15.5 2,8" fill="#f5f0e6" stroke="#c8a96e" stroke-width="1.3"/>'
+    +'<text x="9" y="7.2" text-anchor="middle" font-size="8" font-weight="bold" fill="#0d1b2a" font-family="sans-serif">'+n+'</text>'
+    +'</svg></span>';
+}
 function renderLog(){var p=$('log-panel');if(!G.abs.length){p.innerHTML='<div class="empty">No at-bats</div>';return;}
 var maxInn=Math.max.apply(null,G.abs.map(function(a){return a.inn;}));
 // v208: per-game "fully pitch-by-pitch logged" toggle. Drives the Season Stats
@@ -8691,7 +8702,14 @@ function mkHalf(abs,label,inn,half){
     var bc='b'+ab.result.replace(/[^A-Za-z]/g,'');
     var notation=abNotation(ab);
     var isRun=(ab.pscored&&ab.pscored.length>0)||ab.result==='HR'||ab.result==='LLHR';
-    var runStyle=isRun?'color:var(--amber2);':'';
+    // v2.23: count runs scored on this AB for the home-plate badge. pscored
+    // includes the HR batter in normal flow; fall back to 1 for a HR/LLHR with
+    // an empty pscored (edge case).
+    var runsOnAB=(ab.pscored&&ab.pscored.length)||0;
+    if((ab.result==='HR'||ab.result==='LLHR')&&runsOnAB===0)runsOnAB=1;
+    // v2.23: highlight run-scoring ABs with a subtle gold left-accent instead
+    // of turning all the card text orange.
+    var runStyle=isRun?'border-left:3px solid var(--gold);':'';
     // v98: at-a-glance error indicator on the result badge when this AB had errors
     var hasErrOnAb=(G.errs||[]).some(function(e){return !e.standalone&&e.ab_num===ab.num;});
     var errBadgeIndicator=hasErrOnAb?'<span style="color:var(--amber2);font-size:9px;margin-left:2px;" title="Error logged on this AB">⚠️</span>':'';
@@ -8744,7 +8762,7 @@ function mkHalf(abs,label,inn,half){
       +'<span style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+(i+1)+'</span>'
       +'<span style="font-size:13px;">'+abBatterHtml(ab)+'</span>'
       +'<span style="font-size:10px;font-family:monospace;overflow-wrap:anywhere;line-height:1.4;border-left:1px solid var(--border2);padding-left:6px;">'+pitchCell+'</span>'
-      +'<span style="display:inline-flex;align-items:center;"><span class="badge '+bc+'" style="font-size:11px;text-align:center;min-width:42px;">'+esc(notation)+errBadgeIndicator+'</span>'+outBadge+'</span>'
+      +'<span style="display:inline-flex;align-items:center;"><span class="badge '+bc+'" style="font-size:11px;text-align:center;min-width:42px;">'+esc(notation)+errBadgeIndicator+'</span>'+outBadge+_homePlateBadge(runsOnAB)+'</span>'
       +editBtns
       +'</div>';
     pieces.push(cardOpen+headerRow);
@@ -8784,7 +8802,7 @@ function mkHalf(abs,label,inn,half){
     var errsOnAb=(G.errs||[]).filter(function(e){return !e.standalone&&e.ab_num===abNum;});
     errsOnAb.forEach(function(e){
       var typeLabel={F:'Field',T:'Throw',M:'Mental',C:'Catch'}[e.type]||e.type;
-      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--amber2);font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--text2);font-family:sans-serif;">↳ ⚠️ E'+_posNum(e.pos)+'-'+typeLabel+' by '+esc(_shortName(e.player||'?'))+'</div>');
     });
     // v130: outs on bases recorded during this AB (FC, DP, GIDP, TP)
     // v137: interference outs render as "hit by ball (PO N)" instead of "out at <base>"
@@ -8797,7 +8815,7 @@ function mkHalf(abs,label,inn,half){
           var atLabel=out.atBase>=4?'home':['','1st','2nd','3rd'][out.atBase]||'?';
           line='↳ '+esc(_shortName(out.name||'?'))+' out at '+atLabel;
         }
-        subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--red2);font-family:sans-serif;font-style:italic;">'+line+'</div>');
+        subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:var(--text2);font-family:sans-serif;font-style:italic;">'+line+'</div>');
       });
     }
     // v134: non-out advances on this AB (forced advances on walks/HBP/FCs,
@@ -8831,8 +8849,10 @@ function mkHalf(abs,label,inn,half){
       });
       var names=parts.join(', ');
       var rbiPart=ab.rbi>0?' (+'+ab.rbi+' R)':' ('+ab.pscored.length+' R)';
-      var color=hasManual?'var(--red2)':'var(--amber2)';
-      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:'+color+';font-family:sans-serif;font-style:italic;">↳ Scored: '+names+rbiPart+'</div>');
+      // v2.23: gold for normal scored runs (matches the home-plate badge);
+      // red only for unattributed manual runs that still need fixing.
+      var color=hasManual?'var(--red2)':'var(--gold)';
+      subPieces.push('<div style="padding:2px 0 2px 18px;font-size:11px;color:'+color+';font-family:sans-serif;font-style:italic;">↳ 🏠 Scored: '+names+rbiPart+'</div>');
     }
     // v166: AB-level fix-it note
     if(ab.fixNote){
@@ -10124,7 +10144,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.22';
+var APP_VERSION='v2.23';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
