@@ -1325,7 +1325,9 @@ var isTbd=!ev.date||ev.date==='TBD'||isNaN(new Date(ev.date));
 var d=isTbd?null:new Date(ev.date);
 var mo=isTbd?'TBD':d.toLocaleString('default',{month:'short'}),dy=isTbd?'?':d.getDate(),dow=isTbd?'':['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
 var past=isPast(ev);var res=ev.type==='game'?A.gameResults[ev.id]:null;var rh='';
-if(res&&res.final){var m=ev.ha==='home'?res.hs:res.as,o=ev.ha==='home'?res.as:res.hs;rh='<div style="font-size:12px;font-weight:bold;color:'+(m>o?'var(--green2)':(m<o?'var(--red2)':'var(--text2)'))+';">'+(m>o?'W':(m<o?'L':'T'))+' '+m+'-'+o+'</div>';}
+// v2.27: rained-out games show a badge instead of a score and don't count W/L
+if(res&&res.rainedOut){rh='<div style="font-size:11px;font-weight:bold;color:var(--blue2);font-family:sans-serif;letter-spacing:.3px;">⛈ RAINED OUT</div>';}
+else if(res&&res.final){var m=ev.ha==='home'?res.hs:res.as,o=ev.ha==='home'?res.as:res.hs;rh='<div style="font-size:12px;font-weight:bold;color:'+(m>o?'var(--green2)':(m<o?'var(--red2)':'var(--text2)'))+';">'+(m>o?'W':(m<o?'L':'T'))+' '+m+'-'+o+'</div>';}
 // TBD entries get a red border + "POSTPONED — RESCHEDULE" badge
 var tbdStyle=isTbd?'border:1px solid var(--red2);background:rgba(184,50,40,.08);':'';
 var tbdBadge=isTbd?'<div style="font-size:9px;color:var(--red2);font-family:sans-serif;font-weight:bold;letter-spacing:.5px;margin-top:2px;">POSTPONED · TAP EDIT</div>':'';
@@ -1333,7 +1335,10 @@ return '<div class="sched-item'+(past?' past':'')+'" style="'+tbdStyle+'" onclic
 +'<div class="sdate"><div class="sdate-mo" style="'+(isTbd?'color:var(--red2);font-weight:bold;':'')+'">'+mo+'</div><div class="sdate-d" style="'+(isTbd?'color:var(--red2);':'')+'">'+dy+'</div><div class="sdate-dow">'+dow+'</div></div>'
 +'<div class="sinfo"><span class="stype '+ev.type+'">'+ev.type+'</span><div class="smatch">Mussels '+esc(ev.title)+'</div><div class="sloc">'+esc(ev.loc||(isTbd?'Location TBD':''))+'</div>'+tbdBadge+'</div>'
 +'<div style="text-align:right;flex-shrink:0;"><div class="stime">'+esc(ev.time||(isTbd?'Time TBD':''))+'</div>'+rh+'<div class="row" style="gap:4px;margin-top:4px;justify-content:flex-end;">'+(ev.type==='game'&&ev.opponent?'<button class="btn btn-xs" style="border-color:var(--gold);color:var(--gold);" onclick="event.stopPropagation();openScoutCard(\''+esc(ev.opponent)+'\')">🔍</button>':'')+'<button class="btn btn-xs" onclick="event.stopPropagation();editEv(\''+ev.id+'\')">Edit</button></div></div></div>';}).join('')||'<div class="empty">No events</div>';}
-function renderRec(){var games=A.schedule.filter(e=>e.type==='game'&&e.id!=='test-sandbox');var w=0,l=0,t=0,g=games.length;games.forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';var hasTest=!!A.gameResults['test-sandbox']||A.schedule.some(e=>e.id==='test-sandbox')||G.eid==='test-sandbox';var btn=$('btn-wipe-test');if(btn)btn.style.display=hasTest?'':'none';}
+function renderRec(){var games=A.schedule.filter(e=>e.type==='game'&&e.id!=='test-sandbox');var w=0,l=0,t=0;
+// v2.27: rained-out games aren't counted in the games total or the W/L/T record
+var g=games.filter(function(ev){var r=A.gameResults[ev.id];return !(r&&r.rainedOut);}).length;
+games.forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final||r.rainedOut)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';var hasTest=!!A.gameResults['test-sandbox']||A.schedule.some(e=>e.id==='test-sandbox')||G.eid==='test-sandbox';var btn=$('btn-wipe-test');if(btn)btn.style.display=hasTest?'':'none';}
 
 // RETRO SCORECARD — open the printable scorecard view for the current game.
 // Hidden behind a stealth link in the Rules tab while this feature is WIP.
@@ -10181,7 +10186,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.26';
+var APP_VERSION='v2.27';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
