@@ -2873,11 +2873,12 @@ function _accumBatAdvanced(s,ab){
 // synthetic auto-fill codes (K → [S,S,S], etc.) that fabricate swings/whiffs,
 // so restrict the advanced pages to games marked pitch-by-pitch logged.
 function _advFpNote(n,total){
-  return '<div style="font-size:11px;color:var(--text2);font-family:sans-serif;background:rgba(200,169,110,.08);border-radius:4px;padding:6px 8px;margin-bottom:8px;line-height:1.45;">📊 Advanced metrics use only the <strong>'+n+'</strong> of '+total+' game'+(total===1?'':'s')+' marked <em>pitch-by-pitch logged</em> — Whiff% / Chase% / Disc% need real per-pitch data, not auto-filled result codes. Flip a game\'s toggle on its Plays tab to include it.</div>';
+  // caption (not div) so it's valid inside the <table> and renders above it
+  return '<caption style="caption-side:top;text-align:left;font-size:11px;color:var(--text2);font-family:sans-serif;background:rgba(200,169,110,.08);border-radius:4px;padding:6px 8px;margin-bottom:6px;line-height:1.45;font-weight:normal;">📊 Advanced metrics use only the <strong>'+n+'</strong> of '+total+' game'+(total===1?'':'s')+' marked <em>pitch-by-pitch logged</em> — Whiff% / Chase% / Disc% need real per-pitch data, not auto-filled result codes. Flip a game\'s toggle on its Plays tab to include it.</caption>';
 }
 function renderSeasonBatAdvanced(games){
   var _allG=games||[];games=_allG.filter(function(g){return g.fullPitchLog===true;});
-  if(!games.length){$('season-bat').innerHTML=_advFpNote(0,_allG.length)+'<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">No fully pitch-by-pitch logged games yet — mark games on their Plays tab.</div>';return;}
+  if(!games.length){$('season-bat').innerHTML=_advFpNote(0,_allG.length)+'<tbody><tr><td style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">No fully pitch-by-pitch logged games yet — mark games on their Plays tab.</td></tr></tbody>';return;}
   var byPlayer={};
   games.forEach(function(g){
     var team=_ourTeamSide(g);var lu=_ourLineup(g);
@@ -2947,7 +2948,7 @@ function _accumPitAdvanced(s,ab){
 }
 function renderSeasonPitAdvanced(games){
   var _allG=games||[];games=_allG.filter(function(g){return g.fullPitchLog===true;});
-  if(!games.length){$('season-pit').innerHTML=_advFpNote(0,_allG.length)+'<div style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">No fully pitch-by-pitch logged games yet — mark games on their Plays tab.</div>';return;}
+  if(!games.length){$('season-pit').innerHTML=_advFpNote(0,_allG.length)+'<tbody><tr><td style="padding:14px;text-align:center;color:var(--text3);font-family:sans-serif;font-size:12px;">No fully pitch-by-pitch logged games yet — mark games on their Plays tab.</td></tr></tbody>';return;}
   var byPit={};
   games.forEach(function(g){
     var pl=_ourPitchers(g);var ourSide=_ourTeamSide(g);
@@ -10222,7 +10223,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.31';
+var APP_VERSION='v2.32';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
