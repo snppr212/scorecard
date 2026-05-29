@@ -82,9 +82,12 @@ async function run(){
         if(ab.team!==oppTeam)return;       // opponent's ABs only
         if(ab.autoOut)return;
         if(!BIP.has(ab.result))return;     // balls in play only
+        // our pitcher who faced this AB (fall back to the inning's planned P)
+        var pit=ab.pitcher||((g.fa&&g.fa[ab.inn]&&g.fa[ab.inn].P)||'—');
         rows.push({
           eid:g._eid, date:ev.date||'', opp:oppName,
           inn:ab.inn, half:ab.half, batter:ab.batter||'?',
+          pitcher:pit,
           result:RES[ab.result]||ab.result,
           isHit:HITS.has(ab.result),
           loc:ab.hitLoc!=null?(POS[ab.hitLoc]||ab.hitLoc):'—',
@@ -116,14 +119,15 @@ async function run(){
     html+='<h2>By trajectory</h2><div style="font-family:monospace;font-size:12px;margin-bottom:8px;">'+Object.keys(byTraj).sort((a,b)=>byTraj[b]-byTraj[a]).map(t=>t+': '+byTraj[t]).join(' · ')+'</div>';
     html+='<h2>By location (where it went)</h2><div style="font-family:monospace;font-size:12px;margin-bottom:8px;">'+Object.keys(byLoc).sort((a,b)=>byLoc[b]-byLoc[a]).map(l=>l+': '+byLoc[l]).join(' · ')+'</div>';
 
+    html+='<h2>By our pitcher</h2><div style="font-family:monospace;font-size:12px;margin-bottom:8px;">'+(function(){var bp={};rows.forEach(r=>{bp[r.pitcher]=bp[r.pitcher]||{n:0,hard:0};bp[r.pitcher].n++;if(r.hard==='hard')bp[r.pitcher].hard++;});return Object.keys(bp).sort((a,b)=>bp[b].n-bp[a].n).map(p=>esc(shortP(p))+': '+bp[p].n+' BIP'+(bp[p].hard?' ('+bp[p].hard+' hard)':'')).join(' · ');})()+'</div>';
     html+='<h2>Full list ('+rows.length+')</h2>';
-    html+='<table><thead><tr><th>Date</th><th>Opp</th><th>Inn</th><th>Batter</th><th>Result</th><th>Where</th><th>Type</th><th>Hardness</th></tr></thead><tbody>';
+    html+='<table><thead><tr><th>Date</th><th>Opp</th><th>Inn</th><th>Our P</th><th>Batter</th><th>Result</th><th>Where</th><th>Type</th><th>Hardness</th></tr></thead><tbody>';
     rows.sort((a,b)=>new Date(a.date)-new Date(b.date)||a.inn-b.inn);
-    const lines=['Date\tOpp\tInn\tBatter\tResult\tWhere\tType\tHardness'];
+    const lines=['Date\tOpp\tInn\tOur P\tBatter\tResult\tWhere\tType\tHardness'];
     rows.forEach(r=>{
       const hc=r.hard==='hard'?'hard':(r.hard==='soft'?'soft':'avg');
-      html+='<tr><td>'+esc(r.date)+'</td><td>'+esc(r.opp)+'</td><td>'+r.inn+esc(r.half==='top'?'▲':'▼')+'</td><td>'+esc(r.batter)+'</td><td class="'+(r.isHit?'hit':'')+'">'+esc(r.result)+'</td><td>'+esc(r.loc)+'</td><td>'+esc(r.traj)+'</td><td class="'+hc+'">'+esc(HARD[r.hard]||'—')+'</td></tr>';
-      lines.push([r.date,r.opp,r.inn+r.half,r.batter,r.result,r.loc,r.traj,HARD[r.hard]||'—'].join('\t'));
+      html+='<tr><td>'+esc(r.date)+'</td><td>'+esc(r.opp)+'</td><td>'+r.inn+esc(r.half==='top'?'▲':'▼')+'</td><td>'+esc(shortP(r.pitcher))+'</td><td>'+esc(r.batter)+'</td><td class="'+(r.isHit?'hit':'')+'">'+esc(r.result)+'</td><td>'+esc(r.loc)+'</td><td>'+esc(r.traj)+'</td><td class="'+hc+'">'+esc(HARD[r.hard]||'—')+'</td></tr>';
+      lines.push([r.date,r.opp,r.inn+r.half,r.pitcher,r.batter,r.result,r.loc,r.traj,HARD[r.hard]||'—'].join('\t'));
     });
     html+='</tbody></table>';
     _copyText=lines.join('\n');
@@ -133,6 +137,7 @@ async function run(){
     status.textContent='✓ '+rows.length+' opponent BIPs across '+fpGames.length+' fully-logged games: '+fpList;
   }catch(e){status.textContent='Error: '+e.message;}
 }
+function shortP(n){if(!n)return '—';var p=String(n).trim().split(' ');return p.length>1?p[0][0]+'. '+p[p.length-1]:n;}
 function toggleCopy(){const b=document.getElementById('copybox');b.style.display=b.style.display==='none'?'block':'none';b.value=_copyText;b.select();}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 </script>
