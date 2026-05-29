@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Opponent balls in play — fully-logged games</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1100px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:4px 7px;border:1px solid rgba(255,255,255,.10);text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+.hard{color:#e04535;font-weight:bold;}
+.avg{color:#c8a96e;}
+.soft{color:#8fa5bc;}
+.hit{color:#36a066;font-weight:bold;}
+.summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+.summary div{background:rgba(255,255,255,.04);padding:8px 14px;border-radius:4px;font-size:12px;}
+.summary strong{color:#c8a96e;font-size:16px;display:block;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+#status{margin-top:10px;font-size:12px;color:#c8a96e;}
+#copybox{width:100%;height:120px;font-family:monospace;font-size:10px;margin-top:8px;background:#0a1520;color:#e2ddd4;border:1px solid var(--border,rgba(255,255,255,.1));border-radius:4px;padding:6px;display:none;}
+</style>
+</head>
+<body>
+<h1>Opponent balls in play</h1>
+<div class="note">
+Every batted ball the opposing teams put in play, pulled <strong>only from games you marked fully pitch-by-pitch logged</strong> (so the contact detail is trustworthy). Shows result, where it went, trajectory (grounder / fly / line / pop), and hardness (hard / avg / soft). Strikeouts, walks, and HBP are excluded (no ball in play). Read-only.
+</div>
+<button onclick="run()">Build list</button>
+<button onclick="toggleCopy()">Show copyable text</button>
+<div id="status"></div>
+<textarea id="copybox" readonly></textarea>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const BIP=new Set(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE']);
+const RES={'1B':'Single','2B':'Double','3B':'Triple','HR':'HR','LLHR':'LL-HR','GO':'Groundout','FO':'Flyout','LO':'Lineout','PO':'Popout','FF':'Foul fly','SAC':'Sac','FC':'Fielder\'s choice','DP':'Double play','GIDP':'GIDP','TP':'Triple play','ROE':'Reached on error'};
+const HITS=new Set(['1B','2B','3B','HR','LLHR']);
+const POS={1:'P',2:'C',3:'1B',4:'2B',5:'3B',6:'SS',7:'LF',8:'CF','8a':'LC','8b':'RC',9:'RF'};
+const TRAJ={line:'Line drive',fly:'Fly ball',pop:'Pop up',ground:'Grounder'};
+const HARD={hard:'Hard',avg:'Avg',soft:'Soft'};
+
+let _copyText='';
+
+function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
+
+async function run(){
+  const status=document.getElementById('status');
+  status.textContent='Loading roster + final games…';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    const A=rosterSnap.data().adata||{};
+    const sched=A.schedule||[];
+    const gr=A.gameResults||{};
+    const ids=Object.keys(gr).filter(k=>gr[k]&&gr[k].final===true&&!gr[k].rainedOut&&k!=='test-sandbox');
+    const games=[];
+    for(const id of ids){const d=await db.collection('games').doc(id).get();if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}}
+    const fpGames=games.filter(g=>g.fullPitchLog===true);
+    status.textContent='Scanning '+fpGames.length+' fully-logged games (of '+games.length+' total)…';
+
+    const rows=[];
+    fpGames.forEach(g=>{
+      const ev=sched.find(e=>e.id===g._eid)||{};
+      const oppTeam=ourSide(g)==='home'?'away':'home';
+      const oppName=ourSide(g)==='home'?g.at:g.ht;
+      (g.abs||[]).forEach(ab=>{
+        if(ab.team!==oppTeam)return;       // opponent's ABs only
+        if(ab.autoOut)return;
+        if(!BIP.has(ab.result))return;     // balls in play only
+        rows.push({
+          eid:g._eid, date:ev.date||'', opp:oppName,
+          inn:ab.inn, half:ab.half, batter:ab.batter||'?',
+          result:RES[ab.result]||ab.result,
+          isHit:HITS.has(ab.result),
+          loc:ab.hitLoc!=null?(POS[ab.hitLoc]||ab.hitLoc):'—',
+          traj:ab.trajectory?(TRAJ[ab.trajectory]||ab.trajectory):'—',
+          hard:ab.hardness||''
+        });
+      });
+    });
+
+    // Summaries
+    const byHard={hard:0,avg:0,soft:0,'':0};
+    const byTraj={};const byLoc={};let hits=0;
+    rows.forEach(r=>{
+      byHard[r.hard]=(byHard[r.hard]||0)+1;
+      byTraj[r.traj]=(byTraj[r.traj]||0)+1;
+      byLoc[r.loc]=(byLoc[r.loc]||0)+1;
+      if(r.isHit)hits++;
+    });
+
+    let html='<div class="summary">';
+    html+='<div><strong>'+rows.length+'</strong>balls in play</div>';
+    html+='<div><strong class="hit">'+hits+'</strong>hits</div>';
+    html+='<div><strong class="hard">'+(byHard.hard||0)+'</strong>hard</div>';
+    html+='<div><strong>'+(byHard.avg||0)+'</strong>avg</div>';
+    html+='<div><strong class="soft">'+(byHard.soft||0)+'</strong>soft</div>';
+    if(byHard['']>0)html+='<div><strong>'+byHard['']+'</strong>untagged hardness</div>';
+    html+='</div>';
+
+    html+='<h2>By trajectory</h2><div style="font-family:monospace;font-size:12px;margin-bottom:8px;">'+Object.keys(byTraj).sort((a,b)=>byTraj[b]-byTraj[a]).map(t=>t+': '+byTraj[t]).join(' · ')+'</div>';
+    html+='<h2>By location (where it went)</h2><div style="font-family:monospace;font-size:12px;margin-bottom:8px;">'+Object.keys(byLoc).sort((a,b)=>byLoc[b]-byLoc[a]).map(l=>l+': '+byLoc[l]).join(' · ')+'</div>';
+
+    html+='<h2>Full list ('+rows.length+')</h2>';
+    html+='<table><thead><tr><th>Date</th><th>Opp</th><th>Inn</th><th>Batter</th><th>Result</th><th>Where</th><th>Type</th><th>Hardness</th></tr></thead><tbody>';
+    rows.sort((a,b)=>new Date(a.date)-new Date(b.date)||a.inn-b.inn);
+    const lines=['Date\tOpp\tInn\tBatter\tResult\tWhere\tType\tHardness'];
+    rows.forEach(r=>{
+      const hc=r.hard==='hard'?'hard':(r.hard==='soft'?'soft':'avg');
+      html+='<tr><td>'+esc(r.date)+'</td><td>'+esc(r.opp)+'</td><td>'+r.inn+esc(r.half==='top'?'▲':'▼')+'</td><td>'+esc(r.batter)+'</td><td class="'+(r.isHit?'hit':'')+'">'+esc(r.result)+'</td><td>'+esc(r.loc)+'</td><td>'+esc(r.traj)+'</td><td class="'+hc+'">'+esc(HARD[r.hard]||'—')+'</td></tr>';
+      lines.push([r.date,r.opp,r.inn+r.half,r.batter,r.result,r.loc,r.traj,HARD[r.hard]||'—'].join('\t'));
+    });
+    html+='</tbody></table>';
+    _copyText=lines.join('\n');
+
+    document.getElementById('output').innerHTML=html;
+    const fpList=fpGames.map(g=>g._eid+' ('+(sched.find(e=>e.id===g._eid)||{}).title+')').join(', ');
+    status.textContent='✓ '+rows.length+' opponent BIPs across '+fpGames.length+' fully-logged games: '+fpList;
+  }catch(e){status.textContent='Error: '+e.message;}
+}
+function toggleCopy(){const b=document.getElementById('copybox');b.style.display=b.style.display==='none'?'block':'none';b.value=_copyText;b.select();}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
