@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dump e12 / e13 / e15 run detail</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1150px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;font-family:monospace;}
+th,td{padding:3px 6px;border:1px solid rgba(255,255,255,.10);text-align:left;vertical-align:top;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+#status{margin-top:10px;font-size:12px;color:#c8a96e;}
+.runrow{background:rgba(42,125,82,.10);}
+.grun{font-size:11px;font-family:monospace;margin:4px 0 12px;color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Dump e12 / e13 / e15 — run detail</h1>
+<div class="note">
+For each flagged game, dumps the half-innings where we pitched (opponent batting), every AB with pscored, and the logged <code>G.runs</code> + inns array — so you can reconcile against your notes which runs were/weren't recorded. Rows that scored a run are tinted green. Read-only.
+</div>
+<button onclick="run()">Dump games</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+async function run(){
+  const status=document.getElementById('status');
+  status.textContent='Loading…';
+  try{
+    let html='';
+    for(const eid of ['e12','e13','e15']){
+      const snap=await db.collection('games').doc(eid).get();
+      if(!snap.exists){html+='<h2>'+eid+' — not found</h2>';continue;}
+      const g=snap.data().gdata||{};
+      const side=g.ht==='Mighty Mussels'?'home':'away';
+      const ourHalf=side==='home'?'top':'bottom';
+      const oppRuns=side==='home'?(g.as||0):(g.hs||0);
+      const ourP=side==='home'?(g.hp||[]):(g.ap||[]);
+      const charged=ourP.reduce((s,p)=>s+(p.runs_allowed||0),0);
+      html+='<h2>'+esc(eid)+' · '+esc((g.at||'')+' @ '+(g.ht||''))+' · opp scored '+oppRuns+' · charged '+charged+' ('+(charged-oppRuns>0?'+':'')+(charged-oppRuns)+')</h2>';
+      // pitcher lines
+      html+='<table><thead><tr><th>Our pitcher</th><th>R</th><th>ER</th></tr></thead><tbody>';
+      ourP.forEach(p=>{if((p.ip_outs||0)>0||(p.runs_allowed||0)>0)html+='<tr><td>'+esc(p.name)+'</td><td>'+(p.runs_allowed||0)+'</td><td>'+(p.er||0)+'</td></tr>';});
+      html+='</tbody></table>';
+      // AB walk for our pitching half
+      const abs=(g.abs||[]).filter(ab=>ab.half===ourHalf).sort((a,b)=>(a.inn-b.inn)||(a.num-b.num));
+      html+='<table><thead><tr><th>#</th><th>Inn</th><th>batter(bi)</th><th>result</th><th>pitcher</th><th>rbi</th><th>pscored</th></tr></thead><tbody>';
+      abs.forEach(ab=>{
+        const ps=(ab.pscored||[]).map(e=>typeof e==='string'?e:(e.name||('bi'+e.bi))).join(', ');
+        const cls=(ab.pscored&&ab.pscored.length)?' class="runrow"':'';
+        html+='<tr'+cls+'><td>'+ab.num+'</td><td>'+ab.inn+'</td><td>'+esc((ab.batter||'?'))+' (bi'+ab.bi+')</td><td>'+esc(ab.result)+'</td><td>'+esc(ab.pitcher||'(none)')+'</td><td>'+(ab.rbi||0)+'</td><td>'+esc(ps)+'</td></tr>';
+      });
+      html+='</tbody></table>';
+      const rr=(g.runs||[]).filter(r=>r.half===ourHalf);
+      html+='<div class="grun"><strong>G.runs ('+ourHalf+'):</strong> '+(rr.length?rr.map(r=>'inn'+r.inn+' bi'+r.bi+'→'+(r.pitcher||'?')+(r.manual?'(manual)':'')+(r.unearned?'(UE)':'')).join(' · '):'(none)')+'<br><strong>inns (opp):</strong> '+JSON.stringify(side==='home'?g.inns.a:g.inns.h)+'</div>';
+    }
+    document.getElementById('output').innerHTML=html;
+    status.textContent='✓ Done.';
+  }catch(e){status.textContent='Error: '+e.message;}
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
