@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Verify our pitcher stats (post inherited-runner fix)</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1150px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:4px 7px;border:1px solid rgba(255,255,255,.10);text-align:right;}
+th:first-child,td:first-child{text-align:left;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+tfoot td{font-weight:bold;border-top:2px solid rgba(200,169,110,.4);}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+#status{margin-top:10px;font-size:12px;color:#c8a96e;}
+.flag{color:#e04535;font-weight:bold;}
+.ok{color:#36a066;}
+</style>
+</head>
+<body>
+<h1>Verify our pitcher stats</h1>
+<div class="note">
+Reads every finalized game fresh from Firestore and aggregates our pitchers' lines straight from the stored <code>hp</code>/<code>ap</code> records (which now reflect the inherited-runner fix). Shows season totals + a per-game breakdown so you can spot-check. IP = ip_outs/3. ERA = ER/IP×6 (6-inning LL game).
+</div>
+<button onclick="run()">Load + verify</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function ourP(g){return g.ht==='Mighty Mussels'?(g.hp||[]):(g.ap||[]);}
+function ip(outs){return Math.floor((outs||0)/3)+'.'+((outs||0)%3);}
+function fmtEra(er,outs){if(!outs)return '—';return ((er/(outs/3))*6).toFixed(2);}
+
+async function run(){
+  const status=document.getElementById('status');
+  status.textContent='Loading roster + final games…';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    const A=rosterSnap.data().adata||{};
+    const sched=A.schedule||[];
+    const gr=A.gameResults||{};
+    const ids=Object.keys(gr).filter(k=>gr[k]&&gr[k].final===true&&!gr[k].rainedOut&&k!=='test-sandbox');
+    const games=[];
+    for(const id of ids){
+      const d=await db.collection('games').doc(id).get();
+      if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}
+    }
+    status.textContent='Aggregating '+games.length+' games…';
+
+    // Aggregate season per pitcher
+    const byP={};
+    const perGame=[]; // {eid, date, opp, pitchers:[{name,ip_outs,r,er,h,bb,k}]}
+    games.forEach(g=>{
+      const ev=sched.find(e=>e.id===g._eid)||{};
+      const pl=ourP(g);
+      const gp=[];
+      pl.forEach(p=>{
+        if(!p||!p.name)return;
+        if(!((p.ip_outs||0)>0||(p.total||0)>0||(p.runs_allowed||0)>0))return;
+        if(!byP[p.name])byP[p.name]={name:p.name,games:0,ip_outs:0,r:0,er:0,h:0,bb:0,k:0,pc:0};
+        const s=byP[p.name];
+        s.games++;s.ip_outs+=(p.ip_outs||0);s.r+=(p.runs_allowed||0);s.er+=(p.er||0);
+        s.h+=(p.hits||0);s.bb+=(p.bb_allowed||0);s.k+=(p.k_pitched||0);s.pc+=(p.total||0);
+        gp.push({name:p.name,ip_outs:p.ip_outs||0,r:p.runs_allowed||0,er:p.er||0,h:p.hits||0,bb:p.bb_allowed||0,k:p.k_pitched||0,pc:p.total||0});
+      });
+      perGame.push({eid:g._eid,date:ev.date||'',opp:(ev.title||((g.at||'')+' @ '+(g.ht||''))),pitchers:gp});
+    });
+
+    // Season totals table
+    let html='<h2>Season totals — our pitchers</h2>';
+    html+='<table><thead><tr><th>Pitcher</th><th>G</th><th>IP</th><th>PC</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th><th>ERA</th></tr></thead><tbody>';
+    const rows=Object.values(byP).sort((a,b)=>b.ip_outs-a.ip_outs);
+    const T={games:0,ip_outs:0,r:0,er:0,h:0,bb:0,k:0,pc:0};
+    rows.forEach(s=>{
+      html+='<tr><td>'+esc(s.name)+'</td><td>'+s.games+'</td><td>'+ip(s.ip_outs)+'</td><td>'+s.pc+'</td><td>'+s.h+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+fmtEra(s.er,s.ip_outs)+'</td></tr>';
+      T.games=Math.max(T.games,0);T.ip_outs+=s.ip_outs;T.r+=s.r;T.er+=s.er;T.h+=s.h;T.bb+=s.bb;T.k+=s.k;T.pc+=s.pc;
+    });
+    html+='</tbody><tfoot><tr><td>STAFF</td><td>'+games.length+'</td><td>'+ip(T.ip_outs)+'</td><td>'+T.pc+'</td><td>'+T.h+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+fmtEra(T.er,T.ip_outs)+'</td></tr></tfoot></table>';
+
+    // Per-game breakdown
+    html+='<h2>Per-game breakdown</h2>';
+    perGame.sort((a,b)=>new Date(a.date)-new Date(b.date));
+    perGame.forEach(pg=>{
+      html+='<h2 style="font-size:12px;border:none;margin:10px 0 2px;">'+esc(pg.eid)+' · '+esc(pg.date)+' · '+esc(pg.opp)+'</h2>';
+      html+='<table><thead><tr><th>Pitcher</th><th>IP</th><th>PC</th><th>H</th><th>R</th><th>ER</th><th>BB</th><th>K</th></tr></thead><tbody>';
+      pg.pitchers.forEach(p=>{
+        const hl=pg.eid==='e13'?' style="background:rgba(200,169,110,.10);"':'';
+        html+='<tr'+hl+'><td>'+esc(p.name)+'</td><td>'+ip(p.ip_outs)+'</td><td>'+p.pc+'</td><td>'+p.h+'</td><td>'+p.r+'</td><td>'+p.er+'</td><td>'+p.bb+'</td><td>'+p.k+'</td></tr>';
+      });
+      html+='</tbody></table>';
+    });
+
+    document.getElementById('output').innerHTML=html;
+    status.textContent='✓ Done. '+rows.length+' pitchers across '+games.length+' games. e13 highlighted — confirm Miles 6R/5ER, Brody 0R/0ER.';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+  }
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
