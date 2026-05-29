@@ -8644,6 +8644,17 @@ function abNotation(ab){
   if(n&&n!==r&&n!==rLabel)return rLabel+' '+n;
   return rLabel;
 }
+// v2.29: reconcile runs scored (scoreboard) vs runs attributed (G.runs) per
+// half. top half = away team bats = away runs; bottom = home runs. A nonzero
+// gap means the pitching lines won't tie out to the score.
+function _runAttributionGap(){
+  var awayScored=G.as||0, homeScored=G.hs||0;
+  var runs=G.runs||[];
+  var awayAttr=runs.filter(function(r){return r.half==='top';}).length;
+  var homeAttr=runs.filter(function(r){return r.half==='bottom';}).length;
+  return {awayScored:awayScored,awayAttr:awayAttr,awayGap:awayScored-awayAttr,
+          homeScored:homeScored,homeAttr:homeAttr,homeGap:homeScored-homeAttr};
+}
 // v208: toggle the per-game "pitch-by-pitch logged" flag from the Plays tab.
 // Default false — flip on explicitly only when every pitch in every AB was
 // tapped in real time. Drives the Season Stats line-score Sw column.
@@ -8681,6 +8692,17 @@ var html='<div style="padding:6px 10px;margin-bottom:8px;background:rgba(255,255
 var _manCands=(typeof _findManualRunCandidates==='function')?_findManualRunCandidates():[];
 if(_manCands.length){
   html+='<div onclick="openManualRunReview()" style="cursor:pointer;background:rgba(184,50,40,.15);border-left:3px solid var(--red2);border-radius:var(--rs);padding:8px 10px;margin-bottom:10px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">⚠️</span><div style="flex:1;font-size:12px;font-family:sans-serif;color:var(--text);"><strong>'+_manCands.length+' unattributed run'+(_manCands.length===1?'':'s')+'</strong> · tap to attribute to the right kid</div><span style="color:var(--gold);font-size:11px;font-family:sans-serif;">Fix →</span></div>';
+}
+// v2.29: run-attribution guardrail. Compare runs SCORED (the scoreboard) to
+// runs ATTRIBUTED in G.runs, per half. Any mismatch means runs that won't
+// land on a pitcher's line (gap>0) or a duplicate/phantom run (gap<0). Flag
+// it live so it's caught during the game, not in a season-end audit.
+var _ag=(typeof _runAttributionGap==='function')?_runAttributionGap():null;
+if(_ag&&(_ag.awayGap!==0||_ag.homeGap!==0)){
+  var _gparts=[];
+  if(_ag.awayGap!==0)_gparts.push(esc(G.at)+': '+_ag.awayScored+' scored / '+_ag.awayAttr+' assigned ('+(_ag.awayGap>0?'+':'')+_ag.awayGap+')');
+  if(_ag.homeGap!==0)_gparts.push(esc(G.ht)+': '+_ag.homeScored+' scored / '+_ag.homeAttr+' assigned ('+(_ag.homeGap>0?'+':'')+_ag.homeGap+')');
+  html+='<div style="background:rgba(200,144,48,.15);border-left:3px solid var(--amber2);border-radius:var(--rs);padding:8px 10px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:16px;">📊</span><div style="flex:1;font-size:11px;font-family:sans-serif;color:var(--text);line-height:1.5;"><strong style="color:var(--amber2);">Run-attribution gap</strong> — '+_gparts.join(' · ')+'.<br><span style="color:var(--text2);">A + means runs scored that aren\'t tied to a pitcher (won\'t show on a pitching line); a − means a run is logged twice. Open the AB where the run scored (✎) and use "+ Add run scored" / remove to fix.</span></div></div>';
 }
 // v165: oldest-first / newest-first toggle for the inning order.
 // Within a half-inning the AB order stays as-is (first batter at the top);
@@ -10186,7 +10208,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.28';
+var APP_VERSION='v2.29';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
