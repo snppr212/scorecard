@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Run attribution gaps — opp score vs pitcher R</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1150px;margin:auto;}
+h1{color:#c8a96e;}
+h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+.note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+th,td{padding:4px 7px;border:1px solid rgba(255,255,255,.10);text-align:left;vertical-align:top;}
+th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+td.num{text-align:right;}
+button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;}
+#status{margin-top:10px;font-size:12px;color:#c8a96e;}
+.gap{color:#e04535;font-weight:bold;}
+.ok{color:#36a066;}
+</style>
+</head>
+<body>
+<h1>Run attribution gaps</h1>
+<div class="note">
+For each game, compares the <strong>opponent's total runs</strong> (what our pitchers should be charged) against the <strong>sum of runs charged to our pitchers</strong>, and against the <strong>sum of G.runs entries</strong>. A gap means runs scored that were never logged as attributable runs (manual score bumps, or runners that scored but weren't recorded in pscored). Also dumps e4 + e9 half-innings (the biggest suspects) so we can see which runners scored. Read-only.
+</div>
+<button onclick="run()">Run reconciliation</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
+function ourP(g){return ourSide(g)==='home'?(g.hp||[]):(g.ap||[]);}
+function _hr(h){return h==='top'?0:1;}
+
+async function run(){
+  const status=document.getElementById('status');
+  status.textContent='Loading…';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    const A=rosterSnap.data().adata||{};
+    const sched=A.schedule||[];
+    const gr=A.gameResults||{};
+    const ids=Object.keys(gr).filter(k=>gr[k]&&gr[k].final===true&&!gr[k].rainedOut&&k!=='test-sandbox');
+    const games=[];
+    for(const id of ids){const d=await db.collection('games').doc(id).get();if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}}
+
+    // Reconciliation table
+    let html='<h2>Per-game reconciliation</h2>';
+    html+='<table><thead><tr><th>Game</th><th>Opp</th><th class="num">Opp runs (score)</th><th class="num">Charged to our P</th><th class="num">Σ G.runs (opp half)</th><th class="num">Manual runs</th><th>Status</th></tr></thead><tbody>';
+    games.sort((a,b)=>{const da=sched.find(e=>e.id===a._eid),dbb=sched.find(e=>e.id===b._eid);return new Date((da&&da.date)||0)-new Date((dbb&&dbb.date)||0);});
+    games.forEach(g=>{
+      const ev=sched.find(e=>e.id===g._eid)||{};
+      const side=ourSide(g);
+      const oppRuns=side==='home'?(g.as||0):(g.hs||0); // opponent's total runs
+      const oppHalf=side==='home'?'top':'bottom'; // opponent bats in this half
+      const charged=ourP(g).reduce((s,p)=>s+(p.runs_allowed||0),0);
+      const gRunsOppHalf=(g.runs||[]).filter(r=>r.half===oppHalf).length;
+      const manualRuns=(g.runs||[]).filter(r=>r.half===oppHalf&&r.manual).length;
+      const gap=oppRuns-charged;
+      const statusCls=gap===0?'ok':'gap';
+      const statusTxt=gap===0?'✓ matches':('⚠ '+gap+' run'+(Math.abs(gap)===1?'':'s')+' unattributed');
+      html+='<tr><td>'+esc(g._eid)+'</td><td>'+esc(ev.title||'')+'</td><td class="num">'+oppRuns+'</td><td class="num">'+charged+'</td><td class="num">'+gRunsOppHalf+'</td><td class="num">'+(manualRuns||'')+'</td><td class="'+statusCls+'">'+statusTxt+'</td></tr>';
+    });
+    html+='</tbody></table>';
+
+    // Detail dump for flagged games
+    ['e4','e9'].forEach(eid=>{
+      const g=games.find(x=>x._eid===eid);if(!g)return;
+      const side=ourSide(g);const oppHalf=side==='home'?'top':'bottom';
+      html+='<h2>'+esc(eid)+' — opponent half-innings ('+oppHalf+')</h2>';
+      const abs=(g.abs||[]).filter(ab=>ab.half===oppHalf).sort((a,b)=>(a.inn-b.inn)||(a.num-b.num));
+      html+='<table><thead><tr><th>#</th><th>Inn</th><th>batter(bi)</th><th>result</th><th>pitcher</th><th>pscored</th></tr></thead><tbody>';
+      abs.forEach(ab=>{
+        const ps=(ab.pscored||[]).map(e=>typeof e==='string'?e:(e.name||('bi'+e.bi))).join(', ');
+        html+='<tr><td>'+ab.num+'</td><td>'+ab.inn+'</td><td>'+esc((ab.batter||'?'))+' (bi'+ab.bi+')</td><td>'+esc(ab.result)+'</td><td>'+esc(ab.pitcher||'(none)')+'</td><td>'+esc(ps)+'</td></tr>';
+      });
+      html+='</tbody></table>';
+      // G.runs for this game's opp half
+      html+='<div style="font-size:11px;font-family:monospace;margin-bottom:10px;"><strong>G.runs ('+oppHalf+'):</strong> ';
+      const rr=(g.runs||[]).filter(r=>r.half===oppHalf);
+      html+=rr.length?rr.map(r=>'inn'+r.inn+' bi'+r.bi+'→'+(r.pitcher||'?')+(r.manual?'(manual)':'')+(r.unearned?'(UE)':'')).join(' · '):'(none)';
+      html+=' · inns array: '+JSON.stringify(side==='home'?g.inns.a:g.inns.h)+'</div>';
+    });
+
+    document.getElementById('output').innerHTML=html;
+    status.textContent='✓ Done. Red rows = runs that scored but aren\'t charged to any pitcher.';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+  }
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
