@@ -2979,6 +2979,7 @@ function renderSeasonPitAdvanced(games){
     s.strikes=Math.max(s.strikes,3*s.k);
     s.pitches=Math.max(s.pitches,s.balls+s.strikes);
     s.strikePct=s.pitches>0?s.strikes/s.pitches:0;
+    s.swingPct=s.pitches>0?s.swings/s.pitches:0;// v2.33: how often batters offered at our pitches
     s.whiffPct=s.swings>0?s.whiffs/s.swings:0;
     s.chasePct=s.swings>0?s.chases/s.swings:0;
   });
@@ -2991,13 +2992,14 @@ function renderSeasonPitAdvanced(games){
     +_sortableTh('St','strikes','pitAdv')
     +_sortableTh('Ba','balls','pitAdv')
     +_sortableTh('St%','strikePct','pitAdv')
+    +_sortableTh('Sw%','swingPct','pitAdv')
     +_sortableTh('Whf%','whiffPct','pitAdv')
     +_sortableTh('Ch%','chasePct','pitAdv')
     +_sortableTh('Z·Sw','zoneSwings','pitAdv')
     +'</tr></thead><tbody>';
   rows.forEach(function(s){
     var j=_findJersey(s.name);var nm=j?'#'+j+' '+sn(s.name):sn(s.name);
-    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+Math.round(s.strikePct*100)+'%</td><td class="hi">'+(s.swings>0?Math.round(s.whiffPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.chasePct*100)+'%':'—')+'</td><td>'+s.zoneSwings+'</td></tr>';
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pitches+'</td><td>'+s.strikes+'</td><td>'+s.balls+'</td><td class="hi">'+Math.round(s.strikePct*100)+'%</td><td class="hi">'+(s.pitches>0?Math.round(s.swingPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.whiffPct*100)+'%':'—')+'</td><td class="hi">'+(s.swings>0?Math.round(s.chasePct*100)+'%':'—')+'</td><td>'+s.zoneSwings+'</td></tr>';
   });
   h+='</tbody>';
   // v189: OPP rows removed — see "Opp Pit" tab for cross-league pitcher data.
@@ -10223,7 +10225,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.32';
+var APP_VERSION='v2.33';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
