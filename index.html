@@ -3073,21 +3073,24 @@ function buildOptimalMusselsLineup(games,coachDocs){
     lu.forEach(function(p,i){
       if(!p||!p.name)return;
       var key=p.name;
-      if(!byPlayer[key])byPlayer[key]={pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0,qBip:0,fpContact:0,fpWhiffs:0,fpDecided:0};
+      if(!byPlayer[key])byPlayer[key]={pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0,qBip:0,fpContact:0,fpWhiffs:0,fpDecided:0,rawPa:0,rawAb:0,rawH:0,rawBb:0,rawHbp:0,rawSf:0,rawTb:0,rawBip:0,rawK:0};
       var s=byPlayer[key];
       (g.abs||[]).forEach(function(ab){
         if(ab.bi!==i||ab.team!==team)return;
-        if(!ab.autoOut)s.pa+=gw;
+        // v2.41: accumulate BOTH recency-weighted (gw → drives the score) and raw
+        // unweighted (raw* → drives the DISPLAY line, so the coach sees true season
+        // counts, not fractional ×1.5 figures like "BIP 12.5/30.5").
+        if(!ab.autoOut){s.pa+=gw;s.rawPa++;}
         var r=ab.result;
-        if(!['BB','HBP','SAC'].includes(r))s.ab+=gw;
-        if(['1B','2B','3B','HR','LLHR'].includes(r))s.h+=gw;
+        if(!['BB','HBP','SAC'].includes(r)){s.ab+=gw;s.rawAb++;}
+        if(['1B','2B','3B','HR','LLHR'].includes(r)){s.h+=gw;s.rawH++;}
         if(['2B','3B','HR','LLHR'].includes(r))s.xbh+=gw;
-        if(r==='BB')s.bb+=gw;
-        if(r==='HBP')s.hbp+=gw;
-        if(r==='K'||r==='KL')s.k+=gw;
-        if(r==='SAC')s.sf+=gw;
-        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','ROE'].includes(r))s.bip+=gw;
-        if(r==='1B')s.tb+=gw;else if(r==='2B')s.tb+=2*gw;else if(r==='3B')s.tb+=3*gw;else if(r==='HR'||r==='LLHR')s.tb+=4*gw;
+        if(r==='BB'){s.bb+=gw;s.rawBb++;}
+        if(r==='HBP'){s.hbp+=gw;s.rawHbp++;}
+        if(r==='K'||r==='KL'){s.k+=gw;s.rawK++;}
+        if(r==='SAC'){s.sf+=gw;s.rawSf++;}
+        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','ROE'].includes(r)){s.bip+=gw;s.rawBip++;}
+        if(r==='1B'){s.tb+=gw;s.rawTb+=1;}else if(r==='2B'){s.tb+=2*gw;s.rawTb+=2;}else if(r==='3B'){s.tb+=3*gw;s.rawTb+=3;}else if(r==='HR'||r==='LLHR'){s.tb+=4*gw;s.rawTb+=4;}
         // v2.35: quality-contact bonus eligibility — any hard-hit ball (incl outs)
         // or an avg/hard line drive. Process > outcome (a hard LO is still a good swing).
         if(ab.hardness==='hard'||(ab.trajectory==='line'&&ab.hardness==='avg'))s.qBip+=gw;
@@ -3154,7 +3157,7 @@ function buildOptimalMusselsLineup(games,coachDocs){
   // transparent — only the composite ranking uses the walk-discounted version.
   // Ratings term max 0.6 (all four 5/5), realistic 0.15-0.30 range.
   var ranked=A.roster.map(function(rp,idx){
-    var s=byPlayer[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0,qBip:0,fpContact:0,fpWhiffs:0,fpDecided:0};
+    var s=byPlayer[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0,qBip:0,fpContact:0,fpWhiffs:0,fpDecided:0,rawPa:0,rawAb:0,rawH:0,rawBb:0,rawHbp:0,rawSf:0,rawTb:0,rawBip:0,rawK:0};
     var paDenom=s.pa||1;
     var obpDenom=s.ab+s.bb+s.hbp+s.sf;
     var obp=obpDenom>0?(s.h+s.bb+s.hbp)/obpDenom:0;// standard OBP — used for slot sorting + display
@@ -3164,6 +3167,12 @@ function buildOptimalMusselsLineup(games,coachDocs){
     var kRate=s.k/paDenom;
     var bipRate=s.bip/paDenom;
     var qRate=s.qBip/paDenom;
+    // v2.41: true (unweighted) season line for the DISPLAY string. The score above uses
+    // the recency-weighted values; the coach should see real season counts, not the
+    // fractional ×1.5 figures (e.g. "BIP 12.5/30.5").
+    var _dObpDen=s.rawAb+s.rawBb+s.rawHbp+s.rawSf;
+    var dispObp=_dObpDen>0?(s.rawH+s.rawBb+s.rawHbp)/_dObpDen:0;
+    var dispSlg=s.rawAb>0?s.rawTb/s.rawAb:0;
     // v2.38: swing-modulated K penalty. qSwR rewards productive swings (contact full,
     // whiffs half) over takes; null (no fully-logged pitches) → neutral 0.5 = old −0.7.
     var qSwR=s.fpDecided>0?(s.fpContact+0.5*s.fpWhiffs)/s.fpDecided:null;
@@ -3180,7 +3189,7 @@ function buildOptimalMusselsLineup(games,coachDocs){
     var ratingsTerm=0.3*hNorm+0.1*cNorm+0.1*dNorm+0.1*clNorm;
     var hasAnyRating=r.hitting!=null||r.confidence!=null||r.discipline!=null||r.clutch!=null;
     var score=(s.pa>0||hasAnyRating)?(statsScore+ratingsTerm):(-1-idx*0.0001);
-    return {rp:rp,score:score,pa:s.pa,obp:obp,wobp:wobp,slg:slg,ba:ba,k:s.k,bip:s.bip,bipRate:bipRate,qBip:s.qBip,qRate:qRate,qSwR:qSwR,swingCredit:swingCredit,kPenCoef:kPenCoef,h:s.h,xbh:s.xbh,rosterIdx:idx,statsScore:statsScore,ratingsTerm:ratingsTerm,hRating:hRating,hRated:r.hitting!=null,confRated:r.confidence!=null,discRated:r.discipline!=null,clutchRated:r.clutch!=null,coachCount:r._coachCount||0};
+    return {rp:rp,score:score,pa:s.pa,obp:obp,wobp:wobp,slg:slg,ba:ba,k:s.k,bip:s.bip,bipRate:bipRate,qBip:s.qBip,qRate:qRate,dispObp:dispObp,dispSlg:dispSlg,dispPa:s.rawPa,dispBip:s.rawBip,dispK:s.rawK,qSwR:qSwR,swingCredit:swingCredit,kPenCoef:kPenCoef,h:s.h,xbh:s.xbh,rosterIdx:idx,statsScore:statsScore,ratingsTerm:ratingsTerm,hRating:hRating,hRated:r.hitting!=null,confRated:r.confidence!=null,discRated:r.discipline!=null,clutchRated:r.clutch!=null,coachCount:r._coachCount||0};
   });
   // Primary sort: composite score desc; tiebreakers: PA desc, then roster idx asc.
   ranked.sort(function(a,b){if(a.score!==b.score)return b.score-a.score;if(a.pa!==b.pa)return b.pa-a.pa;return a.rosterIdx-b.rosterIdx;});
@@ -3219,7 +3228,7 @@ function buildOptimalMusselsLineup(games,coachDocs){
     // With only 2 PA-eligible hitters, swap so highest OBP leads off
     if(ranked[1].obp>ranked[0].obp){var tmp=ranked[0];ranked[0]=ranked[1];ranked[1]=tmp;}
   }
-  return ranked.map(function(r){return {name:r.rp.name||'',jersey:r.rp.jersey||'',rid:r.rp.id,_score:r.score,_pa:r.pa,_obp:r.obp,_slg:r.slg,_ba:r.ba,_k:r.k,_bip:r.bip,_bipRate:r.bipRate,_ratingsTerm:r.ratingsTerm,_hRating:r.hRating,_hRated:r.hRated,_confRated:r.confRated,_discRated:r.discRated,_clutchRated:r.clutchRated,_coachCount:r.coachCount};});
+  return ranked.map(function(r){return {name:r.rp.name||'',jersey:r.rp.jersey||'',rid:r.rp.id,_score:r.score,_pa:r.pa,_obp:r.obp,_slg:r.slg,_ba:r.ba,_k:r.k,_bip:r.bip,_bipRate:r.bipRate,_dispObp:r.dispObp,_dispSlg:r.dispSlg,_dispPa:r.dispPa,_dispBip:r.dispBip,_dispK:r.dispK,_ratingsTerm:r.ratingsTerm,_hRating:r.hRating,_hRated:r.hRated,_confRated:r.confRated,_discRated:r.discRated,_clutchRated:r.clutchRated,_coachCount:r.coachCount};});
 }
 // Export the season-stats screen as a PDF via the browser's print → "Save as PDF"
 // dialog. Adds body.printing-season for the duration so the print stylesheet
@@ -3320,7 +3329,7 @@ async function showOptimalLineup(){
     // Stats-line-only display (v97): hides the per-player ratings breakdown so
     // the modal is cleanly shareable with other coaches. Ratings still factor
     // into the score sort under the hood.
-    var statsLine=p._pa>0?'OBP '+(p._obp>0?fmt3(p._obp):'.000')+' · SLG '+(p._slg>0?fmt3(p._slg):'.000')+' · BIP '+(p._bip||0)+'/'+p._pa+' · K '+p._k:'(no game data)';
+    var statsLine=p._dispPa>0?'OBP '+(p._dispObp>0?fmt3(p._dispObp):'.000')+' · SLG '+(p._dispSlg>0?fmt3(p._dispSlg):'.000')+' · BIP '+(p._dispBip||0)+'/'+p._dispPa+' · K '+p._dispK:'(no game data)';
     rows+='<div class="lu-row" style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);">'
       +'<span class="lu-ord" style="width:24px;color:var(--gold);font-weight:bold;">'+(i+1)+'</span>'
       +'<div class="bat-jersey">'+(p.jersey||'?')+'</div>'
@@ -10295,7 +10304,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.40';
+var APP_VERSION='v2.41';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
