@@ -2,9 +2,9 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Quality-contact bonus diagnostic</title>
+<title>Optimal-lineup formula diagnostic (v2.36)</title>
 <style>
-  body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1250px;margin:auto;}
+  body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1280px;margin:auto;}
   h1{color:#c8a96e;}
   h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
   .note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
@@ -19,6 +19,7 @@
   .avg{color:#c8a96e;}
   .soft{color:#8fa5bc;}
   .dim{color:#8fa5bc;}
+  .recent{color:#c8a96e;font-weight:bold;}
   .summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
   .summary div{background:rgba(255,255,255,.04);padding:8px 14px;border-radius:4px;font-size:12px;}
   .summary strong{color:#c8a96e;font-size:16px;display:block;}
@@ -27,9 +28,9 @@
 </style>
 </head>
 <body>
-<h1>Quality-contact bonus diagnostic (v2.35)</h1>
+<h1>Optimal-lineup formula diagnostic (v2.36)</h1>
 <div class="note">
-Sanity-checks the new <code>qRate</code> term in the optimal-lineup formula. A Mussels AB qualifies for the bonus when <code>hardness === 'hard'</code> (any trajectory) OR (<code>trajectory === 'line' && hardness === 'avg'</code>). Outs count too — a hard LO is still a good swing. Shows the OLD score (no BA term, no qRate) vs the NEW score (with BA + qRate) so you can see exactly who moves and by how much. <em>Stats only — coach-ratings contribution is not included here; the live lineup also adds the ratings term.</em> Read-only.
+Compares the <strong>v2.35</strong> formula (<code>0.5·OBP + 0.7·SLG + 1.5·BIP-rate + 0.5·BA + 0.3·qRate − 1.0·K-rate</code>, no recency) against the new <strong>v2.36</strong> formula (<code>0.5·wOBP + 0.7·SLG + 1.5·BIP-rate + 0.5·BA + 0.3·qRate − 0.7·K-rate</code>, recency-weighted, walks discounted to 0.5 of a hit, K penalty eased). <em>Stats only — coach-ratings contribution is not included; the live lineup also adds the ratings term.</em> Read-only.
 </div>
 <button onclick="run()">Build diagnostic</button>
 <div id="status"></div>
@@ -51,13 +52,11 @@ const db = firebase.firestore();
 
 const BIPSET=new Set(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','ROE']);
 const HITS=new Set(['1B','2B','3B','HR','LLHR']);
-const XBH=new Set(['2B','3B','HR','LLHR']);
 
 function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
 function ourLineup(g){return ourSide(g)==='home'?(g.hlu||[]):(g.alu||[]);}
 function qualifies(ab){return ab.hardness==='hard'||(ab.trajectory==='line'&&ab.hardness==='avg');}
 function whyQual(ab){
-  if(ab.hardness==='hard'&&ab.trajectory==='line'&&ab.hardness==='avg')return 'hard+line·avg';
   if(ab.hardness==='hard')return 'hard';
   if(ab.trajectory==='line'&&ab.hardness==='avg')return 'line·avg';
   return '';
@@ -72,38 +71,59 @@ async function run(){
     const roster=A.roster||[];
     const gr=A.gameResults||{};
     const sched=A.schedule||[];
+    const schedById={};sched.forEach(e=>{if(e&&e.id)schedById[e.id]=e;});
     const ids=Object.keys(gr).filter(k=>gr[k]&&gr[k].final===true&&!gr[k].rainedOut&&k!=='test-sandbox');
-    const games=[];
-    for(const id of ids){const d=await db.collection('games').doc(id).get();if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}}
-    status.textContent='Scanning '+games.length+' games…';
+    let games=[];
+    for(const id of ids){
+      const d=await db.collection('games').doc(id).get();
+      if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}
+    }
+    // Sort chronologically — exactly mirrors v2.36 buildOptimalMusselsLineup
+    games.sort((a,b)=>{
+      const da=(schedById[a._eid]||{}).date||'';
+      const db_=(schedById[b._eid]||{}).date||'';
+      return da.localeCompare(db_);
+    });
+    const lastIdx=games.length-1;
+    function gameWeight(gi){return (lastIdx-gi)<3?1.5:1.0;}
+    status.textContent='Scanning '+games.length+' games (chronological)…';
 
-    // Per-player aggregation — mirrors buildOptimalMusselsLineup exactly
-    const byPlayer={};
-    const qABs=[]; // detail list of qualifying ABs
+    // Per-player aggregation — both UNWEIGHTED (for v2.35 score) and WEIGHTED (for v2.36 score)
+    const byPlayerRaw={},byPlayerW={};
+    const qABs=[];
     let totalBIP=0,bipWithHard=0,bipWithTraj=0,bipBoth=0,bipQual=0;
     const hardnessBreakdown={hard:0,avg:0,soft:0,untagged:0};
     const trajBreakdown={line:0,fly:0,pop:0,ground:0,untagged:0};
 
-    games.forEach(g=>{
+    games.forEach((g,gi)=>{
       if(g.ht!=='Mighty Mussels'&&g.at!=='Mighty Mussels')return;
       const team=ourSide(g);const lu=ourLineup(g);
-      const ev=sched.find(e=>e.id===g._eid)||{};
+      const ev=schedById[g._eid]||{};
+      const gw=gameWeight(gi);
       lu.forEach((p,i)=>{
         if(!p||!p.name)return;
-        if(!byPlayer[p.name])byPlayer[p.name]={name:p.name,pa:0,ab:0,h:0,bb:0,hbp:0,k:0,tb:0,sf:0,bip:0,qBip:0,hardBip:0,lineAvgBip:0,bipUntagged:0};
-        const s=byPlayer[p.name];
+        const initR={pa:0,ab:0,h:0,bb:0,hbp:0,k:0,tb:0,sf:0,bip:0,qBip:0,hardBip:0,lineAvgBip:0,bipUntagged:0};
+        if(!byPlayerRaw[p.name])byPlayerRaw[p.name]={name:p.name,...initR};
+        if(!byPlayerW[p.name])byPlayerW[p.name]={name:p.name,pa:0,ab:0,h:0,bb:0,hbp:0,k:0,tb:0,sf:0,bip:0,qBip:0};
+        const sR=byPlayerRaw[p.name],sW=byPlayerW[p.name];
         (g.abs||[]).forEach(ab=>{
           if(ab.bi!==i||ab.team!==team)return;
-          if(!ab.autoOut)s.pa++;
           const r=ab.result;
-          if(!['BB','HBP','SAC'].includes(r))s.ab++;
-          if(HITS.has(r))s.h++;
-          if(r==='BB')s.bb++;
-          if(r==='HBP')s.hbp++;
-          if(r==='K'||r==='KL')s.k++;
-          if(r==='SAC')s.sf++;
-          if(BIPSET.has(r))s.bip++;
-          if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;
+          const isPA=!ab.autoOut;
+          const isAB=!['BB','HBP','SAC'].includes(r);
+          const isH=HITS.has(r);
+          if(isPA){sR.pa++;sW.pa+=gw;}
+          if(isAB){sR.ab++;sW.ab+=gw;}
+          if(isH){sR.h++;sW.h+=gw;}
+          if(r==='BB'){sR.bb++;sW.bb+=gw;}
+          if(r==='HBP'){sR.hbp++;sW.hbp+=gw;}
+          if(r==='K'||r==='KL'){sR.k++;sW.k+=gw;}
+          if(r==='SAC'){sR.sf++;sW.sf+=gw;}
+          if(BIPSET.has(r)){sR.bip++;sW.bip+=gw;}
+          if(r==='1B'){sR.tb+=1;sW.tb+=gw;}
+          else if(r==='2B'){sR.tb+=2;sW.tb+=2*gw;}
+          else if(r==='3B'){sR.tb+=3;sW.tb+=3*gw;}
+          else if(r==='HR'||r==='LLHR'){sR.tb+=4;sW.tb+=4*gw;}
           if(BIPSET.has(r)){
             totalBIP++;
             if(ab.hardness)bipWithHard++;
@@ -111,41 +131,71 @@ async function run(){
             if(ab.hardness&&ab.trajectory)bipBoth++;
             hardnessBreakdown[ab.hardness||'untagged']=(hardnessBreakdown[ab.hardness||'untagged']||0)+1;
             trajBreakdown[ab.trajectory||'untagged']=(trajBreakdown[ab.trajectory||'untagged']||0)+1;
-            if(!ab.hardness&&!ab.trajectory)s.bipUntagged++;
-            if(ab.hardness==='hard')s.hardBip++;
-            if(ab.trajectory==='line'&&ab.hardness==='avg')s.lineAvgBip++;
+            if(!ab.hardness&&!ab.trajectory)sR.bipUntagged++;
+            if(ab.hardness==='hard')sR.hardBip++;
+            if(ab.trajectory==='line'&&ab.hardness==='avg')sR.lineAvgBip++;
             if(qualifies(ab)){
-              s.qBip++;bipQual++;
-              qABs.push({batter:p.name,date:ev.date||'',opp:team==='home'?(g.at||'?'):(g.ht||'?'),eid:g._eid,inn:ab.inn,half:ab.half,result:r,traj:ab.trajectory||'',hard:ab.hardness||'',why:whyQual(ab)});
+              sR.qBip++;sW.qBip+=gw;bipQual++;
+              qABs.push({batter:p.name,date:ev.date||'',opp:team==='home'?(g.at||'?'):(g.ht||'?'),eid:g._eid,inn:ab.inn,half:ab.half,result:r,traj:ab.trajectory||'',hard:ab.hardness||'',why:whyQual(ab),gw});
             }
           }
         });
       });
     });
 
-    // Score each roster member, old formula vs new formula
+    // Score each roster member under both v2.35 (unweighted, original OBP, K=1.0) and v2.36 (weighted, wOBP, K=0.7)
     const rows=roster.map(rp=>{
-      const s=byPlayer[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,tb:0,sf:0,bip:0,qBip:0,hardBip:0,lineAvgBip:0,bipUntagged:0};
-      const paDenom=s.pa||1;
-      const obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;
-      const slg=s.ab>0?s.tb/s.ab:0;
-      const ba=s.ab>0?s.h/s.ab:0;
-      const kRate=s.k/paDenom;
-      const bipRate=s.bip/paDenom;
-      const qRate=s.qBip/paDenom;
-      const oldScore=0.5*obp+0.7*slg+1.5*bipRate-1.0*kRate;
-      const newScore=0.5*obp+0.7*slg+1.5*bipRate+0.5*ba+0.3*qRate-1.0*kRate;
-      return {name:rp.name,pa:s.pa,h:s.h,bb:s.bb,k:s.k,bip:s.bip,qBip:s.qBip,hardBip:s.hardBip,lineAvgBip:s.lineAvgBip,bipUntagged:s.bipUntagged,obp,slg,ba,bipRate,qRate,oldScore,newScore,delta:newScore-oldScore};
-    }).filter(r=>r.pa>0);
+      const sR=byPlayerRaw[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,tb:0,sf:0,bip:0,qBip:0,hardBip:0,lineAvgBip:0,bipUntagged:0};
+      const sW=byPlayerW[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,tb:0,sf:0,bip:0,qBip:0};
+      // v2.35 (raw)
+      const obpR=(sR.ab+sR.bb+sR.hbp+sR.sf)>0?(sR.h+sR.bb+sR.hbp)/(sR.ab+sR.bb+sR.hbp+sR.sf):0;
+      const slgR=sR.ab>0?sR.tb/sR.ab:0;
+      const baR=sR.ab>0?sR.h/sR.ab:0;
+      const bipR=sR.pa>0?sR.bip/sR.pa:0;
+      const kR=sR.pa>0?sR.k/sR.pa:0;
+      const qR=sR.pa>0?sR.qBip/sR.pa:0;
+      const v235=0.5*obpR+0.7*slgR+1.5*bipR+0.5*baR+0.3*qR-1.0*kR;
+      // v2.36 (weighted, wOBP, K=0.7)
+      const obpDen=sW.ab+sW.bb+sW.hbp+sW.sf;
+      const obpW=obpDen>0?(sW.h+sW.bb+sW.hbp)/obpDen:0;
+      const wobpW=obpDen>0?(sW.h+0.5*sW.bb+sW.hbp)/obpDen:0;
+      const slgW=sW.ab>0?sW.tb/sW.ab:0;
+      const baW=sW.ab>0?sW.h/sW.ab:0;
+      const bipW=sW.pa>0?sW.bip/sW.pa:0;
+      const kW=sW.pa>0?sW.k/sW.pa:0;
+      const qW=sW.pa>0?sW.qBip/sW.pa:0;
+      const v236=0.5*wobpW+0.7*slgW+1.5*bipW+0.5*baW+0.3*qW-0.7*kW;
+      return {
+        name:rp.name,
+        paR:sR.pa,paW:sW.pa,
+        hR:sR.h,bbR:sR.bb,kR:sR.k,bipR:sR.bip,qBipR:sR.qBip,
+        hW:sW.h,bbW:sW.bb,kW:sW.k,bipW:sW.bip,
+        obpR,obpW,wobpW,slgR,slgW,baR,baW,
+        v235,v236,delta:v236-v235,
+        // contributions
+        cWobp:0.5*wobpW,cSlg:0.7*slgW,cBip:1.5*bipW,cBa:0.5*baW,cQ:0.3*qW,cK:-0.7*kW
+      };
+    }).filter(r=>r.paR>0);
 
     // Old rank vs new rank
-    const oldOrder=[...rows].sort((a,b)=>b.oldScore-a.oldScore||b.pa-a.pa);
-    const newOrder=[...rows].sort((a,b)=>b.newScore-a.newScore||b.pa-a.pa);
-    const oldRank={},newRank={};
-    oldOrder.forEach((r,i)=>oldRank[r.name]=i+1);
-    newOrder.forEach((r,i)=>newRank[r.name]=i+1);
+    const v235Order=[...rows].sort((a,b)=>b.v235-a.v235||b.paR-a.paR);
+    const v236Order=[...rows].sort((a,b)=>b.v236-a.v236||b.paW-a.paW);
+    const v235Rank={},v236Rank={};
+    v235Order.forEach((r,i)=>v235Rank[r.name]=i+1);
+    v236Order.forEach((r,i)=>v236Rank[r.name]=i+1);
 
     let html='';
+    // ---- GAME WEIGHTS ----
+    html+='<h2>Recency weights applied</h2>';
+    html+='<table><thead><tr><th>idx</th><th>Date</th><th>Opp</th><th>eid</th><th class="num">Weight</th></tr></thead><tbody>';
+    games.forEach((g,gi)=>{
+      const ev=schedById[g._eid]||{};
+      const gw=gameWeight(gi);
+      const opp=g.ht==='Mighty Mussels'?(g.at||'?'):(g.ht||'?');
+      html+='<tr><td>'+gi+'</td><td>'+esc(ev.date||'?')+'</td><td>'+esc(opp)+'</td><td class="dim">'+esc(g._eid)+'</td><td class="num '+(gw>1?'recent':'')+'">'+gw.toFixed(2)+'×</td></tr>';
+    });
+    html+='</tbody></table>';
+
     // ---- COVERAGE ----
     html+='<h2>Contact-quality data coverage</h2>';
     html+='<div class="summary">';
@@ -162,58 +212,74 @@ async function run(){
     html+='</div>';
 
     // ---- PER-PLAYER ----
-    html+='<h2>Per-player score breakdown (OLD vs NEW)</h2>';
-    html+='<div class="note" style="margin-bottom:8px;font-size:11px;">Sorted by NEW statsScore desc. Δ shows how much each kid moves vs. the OLD pre-v2.35 formula. "Rank Δ" shows position change in stats-only order; <strong>+</strong> = moved up, <strong>−</strong> = moved down.</div>';
-    html+='<table><thead><tr><th>Player</th><th class="num">PA</th><th class="num">H</th><th class="num">BB</th><th class="num">K</th><th class="num">BIP</th><th class="num">qBip</th><th class="num">OBP</th><th class="num">SLG</th><th class="num">BA</th><th class="num">BIP/PA</th><th class="num">q/PA</th><th class="num">OLD</th><th class="num">NEW</th><th class="num">Δ</th><th class="num">+BA·0.5</th><th class="num">+qRate·0.3</th><th class="num">Rank Δ</th></tr></thead><tbody>';
-    newOrder.forEach((r)=>{
-      const baBonus=0.5*r.ba;
-      const qBonus=0.3*r.qRate;
-      const dCls=r.delta>0.04?'pos':(r.delta<-0.01?'neg':'');
-      const rankDelta=oldRank[r.name]-newRank[r.name];// + means moved up
+    html+='<h2>Per-player breakdown — v2.35 (no recency, OBP, K=1.0) vs v2.36 (recency, wOBP, K=0.7)</h2>';
+    html+='<div class="note" style="margin-bottom:8px;font-size:11px;">Sorted by v2.36 score desc. <strong>Rank Δ</strong> shows position change vs v2.35 stats-only order. Numbers in <span class="recent">gold</span> for recent-game (1.5×) weighted counts.</div>';
+    html+='<table><thead><tr>'
+      +'<th>Player</th>'
+      +'<th class="num">PA<br>(raw / wgt)</th>'
+      +'<th class="num">H</th><th class="num">BB</th><th class="num">K</th><th class="num">BIP</th><th class="num">qBip</th>'
+      +'<th class="num">OBP</th><th class="num">wOBP</th><th class="num">SLG</th><th class="num">BA</th>'
+      +'<th class="num">v2.35</th><th class="num">v2.36</th><th class="num">Δ</th>'
+      +'<th class="num">Rank Δ</th>'
+      +'</tr></thead><tbody>';
+    v236Order.forEach(r=>{
+      const dCls=r.delta>0.04?'pos':(r.delta<-0.04?'neg':'');
+      const rankDelta=v235Rank[r.name]-v236Rank[r.name];
       const rdCls=rankDelta>0?'pos':(rankDelta<0?'neg':'dim');
       const rdStr=rankDelta>0?('↑'+rankDelta):(rankDelta<0?('↓'+(-rankDelta)):'—');
-      html+='<tr><td>'+esc(r.name)+'</td><td class="num">'+r.pa+'</td><td class="num">'+r.h+'</td><td class="num">'+r.bb+'</td><td class="num">'+r.k+'</td><td class="num">'+r.bip+'</td><td class="num">'+r.qBip+'</td>'
-        +'<td class="num">'+fix3(r.obp)+'</td><td class="num">'+fix3(r.slg)+'</td><td class="num">'+fix3(r.ba)+'</td>'
-        +'<td class="num">'+fix3(r.bipRate)+'</td><td class="num">'+fix3(r.qRate)+'</td>'
-        +'<td class="num">'+fix3(r.oldScore)+'</td><td class="num">'+fix3(r.newScore)+'</td>'
+      html+='<tr><td>'+esc(r.name)+'</td>'
+        +'<td class="num">'+r.paR+' / '+fix1(r.paW)+'</td>'
+        +'<td class="num">'+r.hR+' / <span class="recent">'+fix1(r.hW)+'</span></td>'
+        +'<td class="num">'+r.bbR+' / <span class="recent">'+fix1(r.bbW)+'</span></td>'
+        +'<td class="num">'+r.kR+' / <span class="recent">'+fix1(r.kW)+'</span></td>'
+        +'<td class="num">'+r.bipR+' / <span class="recent">'+fix1(r.bipW)+'</span></td>'
+        +'<td class="num">'+r.qBipR+' / <span class="recent">'+fix1(r.qBip||r.cQ/0.3*r.paW)+'</span></td>'
+        +'<td class="num">'+fix3(r.obpW)+'</td><td class="num">'+fix3(r.wobpW)+'</td>'
+        +'<td class="num">'+fix3(r.slgW)+'</td><td class="num">'+fix3(r.baW)+'</td>'
+        +'<td class="num">'+fix3(r.v235)+'</td><td class="num">'+fix3(r.v236)+'</td>'
         +'<td class="num '+dCls+'">'+(r.delta>=0?'+':'')+fix3(r.delta)+'</td>'
-        +'<td class="num">'+fix3(baBonus)+'</td><td class="num">'+fix3(qBonus)+'</td>'
         +'<td class="num '+rdCls+'">'+rdStr+'</td></tr>';
     });
     html+='</tbody></table>';
 
-    // ---- COVERAGE-PER-PLAYER ----
-    html+='<h2>Quality-data coverage per player</h2>';
-    html+='<div class="note" style="margin-bottom:8px;font-size:11px;">How many of each kid\'s BIPs had hardness/trajectory tagged at all. A low qBip alongside lots of untagged BIPs = the kid may be under-credited because contact wasn\'t tagged (not because they don\'t hit it hard).</div>';
-    html+='<table><thead><tr><th>Player</th><th class="num">BIP total</th><th class="num">qBip</th><th class="num">hard</th><th class="num">line·avg</th><th class="num">BIP untagged</th><th class="num">% tagged</th></tr></thead><tbody>';
-    newOrder.forEach(r=>{
-      const tagged=r.bip-r.bipUntagged;
-      const tagPct=r.bip>0?Math.round(100*tagged/r.bip):0;
-      const cls=r.bip>0&&tagPct<60?'neg':'';
-      html+='<tr><td>'+esc(r.name)+'</td><td class="num">'+r.bip+'</td><td class="num pos">'+r.qBip+'</td><td class="num">'+r.hardBip+'</td><td class="num">'+r.lineAvgBip+'</td><td class="num">'+r.bipUntagged+'</td><td class="num '+cls+'">'+(r.bip>0?(tagPct+'%'):'—')+'</td></tr>';
+    // ---- CONTRIBUTION BREAKDOWN ----
+    html+='<h2>v2.36 score — term-by-term contribution</h2>';
+    html+='<div class="note" style="margin-bottom:8px;font-size:11px;">Each term\'s share of the v2.36 statsScore. Negative K contribution shown; everything else additive.</div>';
+    html+='<table><thead><tr><th>Player</th><th class="num">+wOBP·0.5</th><th class="num">+SLG·0.7</th><th class="num">+BIP·1.5</th><th class="num">+BA·0.5</th><th class="num">+qRate·0.3</th><th class="num">−K·0.7</th><th class="num">=v2.36</th></tr></thead><tbody>';
+    v236Order.forEach(r=>{
+      html+='<tr><td>'+esc(r.name)+'</td>'
+        +'<td class="num">'+fix3(r.cWobp)+'</td>'
+        +'<td class="num">'+fix3(r.cSlg)+'</td>'
+        +'<td class="num">'+fix3(r.cBip)+'</td>'
+        +'<td class="num">'+fix3(r.cBa)+'</td>'
+        +'<td class="num">'+fix3(r.cQ)+'</td>'
+        +'<td class="num neg">'+fix3(r.cK)+'</td>'
+        +'<td class="num">'+fix3(r.v236)+'</td></tr>';
     });
     html+='</tbody></table>';
 
     // ---- QUALIFYING AB LIST ----
     html+='<h2>Every qualifying AB ('+qABs.length+' total)</h2>';
     const byB={};qABs.forEach(q=>{(byB[q.batter]=byB[q.batter]||[]).push(q);});
-    html+='<table><thead><tr><th>Player</th><th class="num">qBip</th><th>ABs (date · opp · inn · result · traj · hardness · why)</th></tr></thead><tbody>';
+    html+='<table><thead><tr><th>Player</th><th class="num">qBip</th><th>ABs (date · opp · inn · result · traj · hardness · why · gw)</th></tr></thead><tbody>';
     Object.keys(byB).sort((a,b)=>byB[b].length-byB[a].length).forEach(b=>{
       const list=byB[b].sort((x,y)=>(new Date(x.date))-(new Date(y.date)));
       const det=list.map(q=>{
         const hc=q.hard==='hard'?'hard':(q.hard==='soft'?'soft':'avg');
-        return esc(q.date)+' · '+esc(q.opp)+' · '+q.inn+(q.half==='top'?'▲':'▼')+' · '+esc(q.result)+' · '+esc(q.traj||'—')+' · <span class="'+hc+'">'+esc(q.hard||'—')+'</span> · <span class="pos">'+esc(q.why)+'</span>';
+        const gwCls=q.gw>1?'recent':'dim';
+        return esc(q.date)+' · '+esc(q.opp)+' · '+q.inn+(q.half==='top'?'▲':'▼')+' · '+esc(q.result)+' · '+esc(q.traj||'—')+' · <span class="'+hc+'">'+esc(q.hard||'—')+'</span> · <span class="pos">'+esc(q.why)+'</span> · <span class="'+gwCls+'">'+q.gw.toFixed(1)+'×</span>';
       }).join('<br>');
       html+='<tr><td>'+esc(b)+'</td><td class="num pos">'+list.length+'</td><td style="font-size:10px;line-height:1.5;">'+det+'</td></tr>';
     });
     html+='</tbody></table>';
 
     out.innerHTML=html;
-    status.textContent='✓ Done. '+rows.length+' players with ≥1 PA · '+qABs.length+' qualifying ABs · '+bipQual+'/'+totalBIP+' BIPs ('+pct(bipQual,totalBIP)+') trigger the bonus.';
+    status.textContent='✓ Done. '+rows.length+' players with ≥1 PA · '+qABs.length+' qualifying ABs ('+bipQual+'/'+totalBIP+' = '+pct(bipQual,totalBIP)+' BIPs trigger the bonus) · last '+Math.min(3,games.length)+' games weighted 1.5×.';
   }catch(e){status.textContent='Error: '+e.message;console.error(e);}
 }
 
 function pct(n,d){return d>0?Math.round(100*n/d)+'%':'—';}
+function fix1(n){return (n||0).toFixed(1);}
 function fix3(n){return (n||0).toFixed(3);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 </script>

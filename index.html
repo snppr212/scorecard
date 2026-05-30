@@ -3021,7 +3021,11 @@ async function _fetchAllFinalGames(){
     var ids=Object.keys(A.gameResults||{}).filter(function(k){return A.gameResults[k]&&A.gameResults[k].final===true&&k!=='test-sandbox';});
     for(var i=0;i<ids.length;i++){
       var doc=await db.collection('games').doc(ids[i]).get();
-      if(doc.exists&&doc.data()&&doc.data().gdata)games.push(doc.data().gdata);
+      if(doc.exists&&doc.data()&&doc.data().gdata){
+        var gd=doc.data().gdata;
+        gd._eid=ids[i];// v2.36: needed so buildOptimalMusselsLineup can look up dates for recency weighting
+        games.push(gd);
+      }
     }
   }catch(e){console.log('_fetchAllFinalGames error:',e);}
   return games;
@@ -3030,8 +3034,22 @@ function buildOptimalMusselsLineup(games,coachDocs){
   coachDocs=coachDocs||{};
   // Aggregate per-player batting stats from Mussels' own ABs across all games.
   var byPlayer={};
-  games.forEach(function(g){
+  // v2.36: recency weighting — sort games chronologically (via schedule date) and
+  // weight the LAST 3 games × 1.5, earlier games × 1.0. Every stat increment below
+  // is scaled by gw, so a hot recent streak lifts a kid and an early-season slump
+  // matters less. All players are weighted the same per game, so relative rank is
+  // preserved; only absolute counts inflate slightly.
+  var _schedById={};(A.schedule||[]).forEach(function(e){if(e&&e.id)_schedById[e.id]=e;});
+  games=games.slice().sort(function(a,b){
+    var da=(_schedById[a._eid]||{}).date||'';
+    var dbd=(_schedById[b._eid]||{}).date||'';
+    return da.localeCompare(dbd);
+  });
+  var _lastIdx=games.length-1;
+  function _gameWeight(gi){return (_lastIdx-gi)<3?1.5:1.0;}
+  games.forEach(function(g,gi){
     if(g.ht!=='Mighty Mussels'&&g.at!=='Mighty Mussels')return;
+    var gw=_gameWeight(gi);
     var team=_ourTeamSide(g);var lu=_ourLineup(g);
     lu.forEach(function(p,i){
       if(!p||!p.name)return;
@@ -3040,22 +3058,22 @@ function buildOptimalMusselsLineup(games,coachDocs){
       var s=byPlayer[key];
       (g.abs||[]).forEach(function(ab){
         if(ab.bi!==i||ab.team!==team)return;
-        if(!ab.autoOut)s.pa++;
+        if(!ab.autoOut)s.pa+=gw;
         var r=ab.result;
-        if(!['BB','HBP','SAC'].includes(r))s.ab++;
-        if(['1B','2B','3B','HR','LLHR'].includes(r))s.h++;
-        if(['2B','3B','HR','LLHR'].includes(r))s.xbh++;
-        if(r==='BB')s.bb++;
-        if(r==='HBP')s.hbp++;
-        if(r==='K'||r==='KL')s.k++;
-        if(r==='SAC')s.sf++;
-        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','ROE'].includes(r))s.bip++;
-        if(r==='1B')s.tb+=1;else if(r==='2B')s.tb+=2;else if(r==='3B')s.tb+=3;else if(r==='HR'||r==='LLHR')s.tb+=4;
+        if(!['BB','HBP','SAC'].includes(r))s.ab+=gw;
+        if(['1B','2B','3B','HR','LLHR'].includes(r))s.h+=gw;
+        if(['2B','3B','HR','LLHR'].includes(r))s.xbh+=gw;
+        if(r==='BB')s.bb+=gw;
+        if(r==='HBP')s.hbp+=gw;
+        if(r==='K'||r==='KL')s.k+=gw;
+        if(r==='SAC')s.sf+=gw;
+        if(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','ROE'].includes(r))s.bip+=gw;
+        if(r==='1B')s.tb+=gw;else if(r==='2B')s.tb+=2*gw;else if(r==='3B')s.tb+=3*gw;else if(r==='HR'||r==='LLHR')s.tb+=4*gw;
         // v2.35: quality-contact bonus eligibility — any hard-hit ball (incl outs)
         // or an avg/hard line drive. Process > outcome (a hard LO is still a good swing).
-        if(ab.hardness==='hard'||(ab.trajectory==='line'&&ab.hardness==='avg'))s.qBip++;
+        if(ab.hardness==='hard'||(ab.trajectory==='line'&&ab.hardness==='avg'))s.qBip+=gw;
       });
-      (g.steals||[]).forEach(function(e){if(e.bi==i)s.sb++;});
+      (g.steals||[]).forEach(function(e){if(e.bi==i)s.sb+=gw;});
     });
   });
   // v92: Resolve each player's effective ratings — average across all coaches who
@@ -3081,27 +3099,36 @@ function buildOptimalMusselsLineup(games,coachDocs){
   var hittingVals=A.roster.map(function(p){var r=effectiveRatings[p.name];return r&&r.hitting!=null?r.hitting:null;}).filter(function(v){return v!=null;});
   var teamAvgHitting=hittingVals.length?hittingVals.reduce(function(a,b){return a+b;},0)/hittingVals.length:2.5;
   // Score every roster player; missing-data players get 0 and rank last (in roster order).
-  // v2.35 formula: contact + not striking out remain dominant. A BA term means hits
-  // get DOUBLE credit (OBP + BA) while walks only score via OBP — so a walk ≈ ½ hit
-  // automatically (no explicit walk-discount knob). A small qRate term rewards process
-  // over outcome: any hard-hit ball OR an avg/hard line drive earns credit even on an
-  // out (a hard LO is still a good swing). qRate is contact-quality data only — it's
-  // tagged per-AB so it has wider coverage than the per-pitch swing-quality stuff.
-  //   stats   = 0.5·OBP + 0.7·SLG + 1.5·BIP-rate + 0.5·BA + 0.3·qRate − 1.0·K-rate
+  // v2.36 formula: two targeted fixes for LL realities at this age.
+  //   (1) wOBP REPLACES OBP in the score — walks count as 0.5 of a hit in the on-base
+  //       calc, so a kid whose walks come from "stand-and-watch" gets less credit.
+  //       Combined with the +0.5·BA term, a walk ends up ≈ ¼ of a hit overall — heavy
+  //       passivity discount. (Standard OBP is still computed below for slot-sorting.)
+  //   (2) K penalty EASED 1.0 → 0.7 — at this age, swinging-and-missing is more
+  //       developmentally honest than not swinging at all. Cobe still pays for Ks,
+  //       just not as harshly relative to the passive walker.
+  //   Plus: stat aggregation above is RECENCY-WEIGHTED (last 3 games ×1.5), so hot
+  //   streaks bubble up and early-season ruts matter less.
+  //   stats   = 0.5·wOBP + 0.7·SLG + 1.5·BIP-rate + 0.5·BA + 0.3·qRate − 0.7·K-rate
+  //   wOBP    = (H + 0.5·BB + HBP) / (AB + BB + HBP + SF)
   //   ratings = 0.3·hittingNorm + 0.1·confidenceNorm + 0.1·disciplineNorm + 0.1·clutchNorm
   //             where each *Norm = rating/5; null intangibles contribute 0; null Hitting
   //             falls back to team-avg-Hitting.
+  // Slot 1/2/4/5 sorting STILL uses standard OBP (not wOBP) so the slot rule stays
+  // transparent — only the composite ranking uses the walk-discounted version.
   // Ratings term max 0.6 (all four 5/5), realistic 0.15-0.30 range.
   var ranked=A.roster.map(function(rp,idx){
     var s=byPlayer[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0,qBip:0};
     var paDenom=s.pa||1;
-    var obp=(s.ab+s.bb+s.hbp+s.sf)>0?(s.h+s.bb+s.hbp)/(s.ab+s.bb+s.hbp+s.sf):0;
+    var obpDenom=s.ab+s.bb+s.hbp+s.sf;
+    var obp=obpDenom>0?(s.h+s.bb+s.hbp)/obpDenom:0;// standard OBP — used for slot sorting + display
+    var wobp=obpDenom>0?(s.h+0.5*s.bb+s.hbp)/obpDenom:0;// v2.36: walks discounted to 0.5 of a hit, used in score
     var slg=s.ab>0?s.tb/s.ab:0;
     var ba=s.ab>0?s.h/s.ab:0;
     var kRate=s.k/paDenom;
     var bipRate=s.bip/paDenom;
     var qRate=s.qBip/paDenom;
-    var statsScore=0.5*obp+0.7*slg+1.5*bipRate+0.5*ba+0.3*qRate-1.0*kRate;// v2.35: +0.5·BA + 0.3·qRate
+    var statsScore=0.5*wobp+0.7*slg+1.5*bipRate+0.5*ba+0.3*qRate-0.7*kRate;// v2.36: wOBP, K 1.0→0.7
     // Ratings blend (v92: averaged across all coaches who rated this player)
     var r=effectiveRatings[rp.name]||{};
     var hRating=r.hitting!=null?r.hitting:teamAvgHitting;
@@ -3112,7 +3139,7 @@ function buildOptimalMusselsLineup(games,coachDocs){
     var ratingsTerm=0.3*hNorm+0.1*cNorm+0.1*dNorm+0.1*clNorm;
     var hasAnyRating=r.hitting!=null||r.confidence!=null||r.discipline!=null||r.clutch!=null;
     var score=(s.pa>0||hasAnyRating)?(statsScore+ratingsTerm):(-1-idx*0.0001);
-    return {rp:rp,score:score,pa:s.pa,obp:obp,slg:slg,ba:ba,k:s.k,bip:s.bip,bipRate:bipRate,qBip:s.qBip,qRate:qRate,h:s.h,xbh:s.xbh,rosterIdx:idx,statsScore:statsScore,ratingsTerm:ratingsTerm,hRating:hRating,hRated:r.hitting!=null,confRated:r.confidence!=null,discRated:r.discipline!=null,clutchRated:r.clutch!=null,coachCount:r._coachCount||0};
+    return {rp:rp,score:score,pa:s.pa,obp:obp,wobp:wobp,slg:slg,ba:ba,k:s.k,bip:s.bip,bipRate:bipRate,qBip:s.qBip,qRate:qRate,h:s.h,xbh:s.xbh,rosterIdx:idx,statsScore:statsScore,ratingsTerm:ratingsTerm,hRating:hRating,hRated:r.hitting!=null,confRated:r.confidence!=null,discRated:r.discipline!=null,clutchRated:r.clutch!=null,coachCount:r._coachCount||0};
   });
   // Primary sort: composite score desc; tiebreakers: PA desc, then roster idx asc.
   ranked.sort(function(a,b){if(a.score!==b.score)return b.score-a.score;if(a.pa!==b.pa)return b.pa-a.pa;return a.rosterIdx-b.rosterIdx;});
@@ -10227,7 +10254,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.35';
+var APP_VERSION='v2.36';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
