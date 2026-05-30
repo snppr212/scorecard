@@ -78,11 +78,12 @@ async function run(){
       const d=await db.collection('games').doc(id).get();
       if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}
     }
-    // Sort chronologically — exactly mirrors v2.36 buildOptimalMusselsLineup
+    // Sort chronologically — v2.37 fix: parse as Date, not lex compare ("May 14" sorts
+    // before "May 2" lexically — that bug sent the recency boost to the wrong games).
     games.sort((a,b)=>{
-      const da=(schedById[a._eid]||{}).date||'';
-      const db_=(schedById[b._eid]||{}).date||'';
-      return da.localeCompare(db_);
+      const da=new Date((schedById[a._eid]||{}).date||0).getTime();
+      const db_=new Date((schedById[b._eid]||{}).date||0).getTime();
+      return da-db_;
     });
     const lastIdx=games.length-1;
     function gameWeight(gi){return (lastIdx-gi)<3?1.5:1.0;}

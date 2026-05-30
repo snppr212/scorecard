@@ -3040,10 +3040,12 @@ function buildOptimalMusselsLineup(games,coachDocs){
   // matters less. All players are weighted the same per game, so relative rank is
   // preserved; only absolute counts inflate slightly.
   var _schedById={};(A.schedule||[]).forEach(function(e){if(e&&e.id)_schedById[e.id]=e;});
+  // v2.37: parse dates as Date objects — string sort treated "May 14" < "May 2"
+  // lexically and gave the recency boost to the WRONG 3 games.
   games=games.slice().sort(function(a,b){
-    var da=(_schedById[a._eid]||{}).date||'';
-    var dbd=(_schedById[b._eid]||{}).date||'';
-    return da.localeCompare(dbd);
+    var da=new Date((_schedById[a._eid]||{}).date||0).getTime();
+    var dbd=new Date((_schedById[b._eid]||{}).date||0).getTime();
+    return da-dbd;
   });
   var _lastIdx=games.length-1;
   function _gameWeight(gi){return (_lastIdx-gi)<3?1.5:1.0;}
@@ -10254,7 +10256,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.36';
+var APP_VERSION='v2.37';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
