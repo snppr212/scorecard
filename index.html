@@ -3078,19 +3078,15 @@ function buildOptimalMusselsLineup(games,coachDocs){
   var hittingVals=A.roster.map(function(p){var r=effectiveRatings[p.name];return r&&r.hitting!=null?r.hitting:null;}).filter(function(v){return v!=null;});
   var teamAvgHitting=hittingVals.length?hittingVals.reduce(function(a,b){return a+b;},0)/hittingVals.length:2.5;
   // Score every roster player; missing-data players get 0 and rank last (in roster order).
-  // v2.22 formula: contact still matters, but raw BIP-rate was over-rewarding
-  // soft-contact kids (high BIP, low BABIP — e.g. a soft tapper to the mound
-  // counts the same as a line drive). Cut BIP-rate weight hard and ADD a BA
-  // term so PRODUCTIVE contact (hits, not soft outs) drives the score. Also
-  // eased the K penalty slightly — a power kid who whiffs isn't worse than a
-  // kid who softly grounds out.
-  //   stats   = 0.5·OBP + 0.8·SLG + 0.6·BIP-rate + 0.5·BA − 0.9·K-rate
+  // v91 formula reflects coach's LL-specific philosophy: contact + not striking
+  // out are the two top signals at this age. Walks are noisy (could be discipline,
+  // could be passive — kid never going to swing) so OBP is discounted until we
+  // have swing-rate data. Sample formula context:
+  //   stats   = 0.5·OBP + 0.5·SLG + 1.5·BIP-rate − 1.0·K-rate
   //   ratings = 0.3·hittingNorm + 0.1·confidenceNorm + 0.1·disciplineNorm + 0.1·clutchNorm
   //             where each *Norm = rating/5; null intangibles contribute 0; null Hitting
   //             falls back to team-avg-Hitting.
-  // Ratings term max 0.6 (all four 5/5), realistic 0.15-0.30 range. NOTE: a
-  // cold-streak hitter (e.g. 1-for-15) ranks low on stats alone — rate their
-  // hitting high to lift them past the small-sample slump.
+  // Ratings term max 0.6 (all four 5/5), realistic 0.15-0.30 range.
   var ranked=A.roster.map(function(rp,idx){
     var s=byPlayer[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,sb:0,tb:0,sf:0,bip:0,xbh:0};
     var paDenom=s.pa||1;
@@ -3099,7 +3095,7 @@ function buildOptimalMusselsLineup(games,coachDocs){
     var ba=s.ab>0?s.h/s.ab:0;
     var kRate=s.k/paDenom;
     var bipRate=s.bip/paDenom;
-    var statsScore=0.5*obp+0.8*slg+0.6*bipRate+0.5*ba-0.9*kRate;// v2.22: cut BIP 1.5→0.6, +0.5·BA, K 1.0→0.9
+    var statsScore=0.5*obp+0.7*slg+1.5*bipRate-1.0*kRate;// v104: SLG bumped 0.5→0.7
     // Ratings blend (v92: averaged across all coaches who rated this player)
     var r=effectiveRatings[rp.name]||{};
     var hRating=r.hitting!=null?r.hitting:teamAvgHitting;
@@ -10225,7 +10221,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.33';
+var APP_VERSION='v2.34';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
