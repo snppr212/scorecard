@@ -54,7 +54,7 @@ const HITS=new Set(['1B','2B','3B','HR','LLHR']);
 const XBH=new Set(['2B','3B','HR','LLHR']);
 
 function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
-function ourLineup(g){return ourSide(g)==='home'?(g.hl||[]):(g.al||[]);}
+function ourLineup(g){return ourSide(g)==='home'?(g.hlu||[]):(g.alu||[]);}
 function qualifies(ab){return ab.hardness==='hard'||(ab.trajectory==='line'&&ab.hardness==='avg');}
 function whyQual(ab){
   if(ab.hardness==='hard'&&ab.trajectory==='line'&&ab.hardness==='avg')return 'hard+line·avg';
