@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pitches per out — team + per pitcher + blow-up innings</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1280px;margin:auto;}
+  h1{color:#c8a96e;}
+  h2{color:#c8a96e;font-size:14px;margin-top:22px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+  .note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+  .note code{background:rgba(255,255,255,.05);padding:1px 4px;border-radius:3px;}
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+  th,td{padding:4px 7px;border:1px solid rgba(255,255,255,.10);text-align:left;vertical-align:top;}
+  th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+  td.num{text-align:right;}
+  .good{color:#36a066;font-weight:bold;}
+  .mid{color:#c8a96e;}
+  .bad{color:#e04535;font-weight:bold;}
+  .dim{color:#8fa5bc;}
+  .blowup{background:rgba(184,50,40,.13);}
+  .summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .summary div{background:rgba(255,255,255,.04);padding:8px 14px;border-radius:4px;font-size:12px;}
+  .summary strong{color:#c8a96e;font-size:18px;display:block;}
+  button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+  #status{margin-top:10px;font-size:12px;color:#c8a96e;}
+  .seg{margin-bottom:10px;}
+  .seg button{background:rgba(255,255,255,.06);color:#c8a96e;padding:6px 12px;font-size:11px;margin-right:4px;}
+  .seg button.on{background:#c8a96e;color:#000;}
+</style>
+</head>
+<body>
+<h1>Pitches per out — our staff</h1>
+<div class="note">
+<strong>P/Out = pitches thrown ÷ outs recorded.</strong> Lower is better (efficient). Fewer pitches per out = quick innings; high P/Out = laboring, deep counts, baserunners. The season totals (Sections 1–2) use the app's <code>IP</code> definition (batter outs: K, groundout, flyout, etc. — matches the season pitching page exactly). Section 3 walks every half-inning we pitched and flags the ones that <strong>ended without 3 outs</strong> — the run-limit / called / walk-off innings where the bats kept coming — counting <em>all</em> outs (incl. runners thrown out on the bases). Read-only.
+</div>
+<button onclick="run()">Build analysis</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const BATTER_OUT1=new Set(['K','KL','FO','GO','LO','PO','FF','SAC','FC']);
+function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
+function ourPitchHalf(g){return ourSide(g)==='home'?'top':'bottom';}// opponent bats here
+function pcOf(ab){return (ab.pc>0)?ab.pc:((ab.pitches||[]).length);}
+
+// batter outs only — matches recalcPitcherStats / ip_outs (skips autoOut, no baserunning)
+function batterOuts(ab){
+  if(ab.autoOut)return 0;
+  var r=ab.result,c=0;
+  if(['K','KL','FO','GO','LO','PO','FF','SAC','FC','DP','GIDP','TP'].indexOf(r)>=0)c+=1;
+  if(r==='DP'||r==='GIDP')c+=1;
+  if(r==='TP')c+=2;
+  if(ab.interference)c+=1;
+  return c;
+}
+// total outs in the inning incl. baserunning + auto — matches _inningOutCount
+function totalOuts(ab){
+  if(ab.autoOut)return 1;
+  var r=ab.result,c=0;
+  if(BATTER_OUT1.has(r))c+=1;
+  else if(r==='DP'||r==='GIDP')c+=2;
+  else if(r==='TP')c+=3;
+  if(ab.outOnAB&&ab.outOnAB.length)c+=ab.outOnAB.length;
+  return c;
+}
+function poClass(po){if(po==null)return '';return po<=5?'good':(po<=7?'mid':'bad');}
+
+let _innRows=[],_innFilter='all';
+
+async function run(){
+  const status=document.getElementById('status'),out=document.getElementById('output');
+  out.innerHTML='';status.textContent='Loading roster + final games…';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    const A=rosterSnap.data().adata||{};
+    const gr=A.gameResults||{};
+    const sched=A.schedule||[];
+    const schedById={};sched.forEach(e=>{if(e&&e.id)schedById[e.id]=e;});
+    const ids=Object.keys(gr).filter(k=>gr[k]&&gr[k].final===true&&!gr[k].rainedOut&&k!=='test-sandbox');
+    const games=[];
+    for(const id of ids){const d=await db.collection('games').doc(id).get();if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}}
+    games.sort((a,b)=>new Date((schedById[a._eid]||{}).date||0)-new Date((schedById[b._eid]||{}).date||0));
+    status.textContent='Analyzing '+games.length+' games…';
+
+    // ---- Sections 1 & 2: season per-pitcher (app-consistent ip_outs / total) ----
+    const byPit={};
+    let teamPitches=0,teamOuts=0,teamRuns=0;
+    games.forEach(g=>{
+      const ourP=ourSide(g)==='home'?(g.hp||[]):(g.ap||[]);
+      ourP.forEach(p=>{
+        if((p.total||0)===0&&(p.ip_outs||0)===0)return;
+        if(!byPit[p.name])byPit[p.name]={name:p.name,pitches:0,outs:0,r:0,er:0,bb:0,k:0,hbp:0,hits:0,games:0};
+        const s=byPit[p.name];
+        s.pitches+=(p.total||0);s.outs+=(p.ip_outs||0);
+        s.r+=(p.runs_allowed||0);s.er+=(p.er||0);
+        s.bb+=(p.bb_allowed||0);s.k+=(p.k_pitched||0);
+        s.hbp+=(p.hbp_allowed||0);s.hits+=(p.hits||0);
+        s.games++;
+        teamPitches+=(p.total||0);teamOuts+=(p.ip_outs||0);teamRuns+=(p.runs_allowed||0);
+      });
+    });
+    const teamPO=teamOuts>0?teamPitches/teamOuts:null;
+    const teamIP=Math.floor(teamOuts/3)+'.'+(teamOuts%3);
+
+    let html='';
+    html+='<h2>1. Team efficiency (season)</h2><div class="summary">';
+    html+='<div><strong>'+teamPitches+'</strong>total pitches</div>';
+    html+='<div><strong>'+teamIP+' ('+teamOuts+')</strong>innings (outs)</div>';
+    html+='<div><strong class="'+poClass(teamPO)+'">'+(teamPO==null?'—':teamPO.toFixed(2))+'</strong>pitches / out</div>';
+    html+='<div><strong>'+(teamPO==null?'—':(teamPO*3).toFixed(1))+'</strong>pitches / inning</div>';
+    html+='<div><strong>'+teamRuns+'</strong>runs allowed</div>';
+    html+='<div><strong>'+(teamOuts>0?(teamRuns/(teamOuts/3)).toFixed(2):'—')+'</strong>runs / inning</div>';
+    html+='</div>';
+    html+='<div class="note" style="font-size:11px;margin-bottom:14px;">Rule of thumb at this level: <span class="good">≤5 P/out</span> = efficient · <span class="mid">5–7</span> = ok · <span class="bad">&gt;7</span> = laboring. (A clean 3-up-3-down inning of all first-pitch outs ≈ 3 P/out; lots of deep counts &amp; baserunners pushes it up fast.)</div>';
+
+    // per pitcher
+    html+='<h2>2. Per-pitcher (season)</h2>';
+    html+='<div class="note" style="font-size:11px;margin-bottom:8px;">Sorted by outs recorded (workload) desc. <strong>P/Out</strong> is the headline. <strong>K/Out</strong> = share of outs via strikeout (high = misses bats; low = relies on contact/defense). Small-sample guys (few outs) will have noisy P/Out.</div>';
+    const pitchers=Object.values(byPit).sort((a,b)=>b.outs-a.outs);
+    html+='<table><thead><tr><th>Pitcher</th><th class="num">G</th><th class="num">IP</th><th class="num">Outs</th><th class="num">Pitches</th><th class="num">P/Out</th><th class="num">P/Inn</th><th class="num">R</th><th class="num">BB</th><th class="num">K</th><th class="num">K/Out</th></tr></thead><tbody>';
+    pitchers.forEach(s=>{
+      const po=s.outs>0?s.pitches/s.outs:null;
+      const ip=Math.floor(s.outs/3)+'.'+(s.outs%3);
+      const kout=s.outs>0?(s.k/s.outs):null;
+      html+='<tr><td>'+esc(s.name)+'</td>'
+        +'<td class="num">'+s.games+'</td>'
+        +'<td class="num">'+ip+'</td>'
+        +'<td class="num">'+s.outs+'</td>'
+        +'<td class="num">'+s.pitches+'</td>'
+        +'<td class="num '+poClass(po)+'">'+(po==null?'—':po.toFixed(2))+'</td>'
+        +'<td class="num">'+(po==null?'—':(po*3).toFixed(1))+'</td>'
+        +'<td class="num">'+s.r+'</td>'
+        +'<td class="num">'+s.bb+'</td>'
+        +'<td class="num">'+s.k+'</td>'
+        +'<td class="num">'+(kout==null?'—':pct(kout))+'</td></tr>';
+    });
+    // team footer
+    html+='<tr style="border-top:2px solid var(--border2);font-weight:bold;"><td>TEAM</td><td class="num">'+games.length+'</td><td class="num">'+teamIP+'</td><td class="num">'+teamOuts+'</td><td class="num">'+teamPitches+'</td><td class="num '+poClass(teamPO)+'">'+(teamPO==null?'—':teamPO.toFixed(2))+'</td><td class="num">'+(teamPO==null?'—':(teamPO*3).toFixed(1))+'</td><td class="num">'+teamRuns+'</td><td class="num"></td><td class="num"></td><td class="num"></td></tr>';
+    html+='</tbody></table>';
+
+    // ---- Section 3: inning-by-inning, our pitching ----
+    _innRows=[];
+    games.forEach(g=>{
+      const date=(schedById[g._eid]||{}).date||g._eid;
+      const opp=g.ht==='Mighty Mussels'?(g.at||'?'):(g.ht||'?');
+      const ph=ourPitchHalf(g);
+      const side=ourSide(g);
+      const oppInns=side==='home'?((g.inns&&g.inns.a)||[]):((g.inns&&g.inns.h)||[]);
+      // group our-pitching ABs by inning
+      const byInn={};
+      (g.abs||[]).forEach(ab=>{
+        if(ab.half!==ph)return;       // only the half we pitch
+        if(ab.autoOut)return;          // skip synthetic end-of-game padding
+        const inn=ab.inn;
+        if(!byInn[inn])byInn[inn]={inn,pitches:0,bOuts:0,tOuts:0,pitchers:{}};
+        const e=byInn[inn];
+        e.pitches+=pcOf(ab);
+        e.bOuts+=batterOuts(ab);
+        e.tOuts+=totalOuts(ab);
+        const pn=ab.pitcher||((g.fa&&g.fa[inn]&&g.fa[inn].P))||'(unknown)';
+        e.pitchers[pn]=(e.pitchers[pn]||0)+pcOf(ab);
+      });
+      Object.keys(byInn).map(Number).sort((a,b)=>a-b).forEach(inn=>{
+        const e=byInn[inn];
+        // runs this inning: authoritative line-score value, fallback to g.runs count
+        let runs=(oppInns[inn-1]!=null)?oppInns[inn-1]:((g.runs||[]).filter(r=>r.inn===inn&&r.half===ph).length);
+        // dominant pitcher(s) for the inning, ordered by pitches
+        const pl=Object.keys(e.pitchers).sort((a,b)=>e.pitchers[b]-e.pitchers[a]);
+        const po=e.bOuts>0?e.pitches/e.bOuts:null;
+        _innRows.push({date,opp,inn,pitchers:pl,pitches:e.pitches,bOuts:e.bOuts,tOuts:e.tOuts,runs,po,incomplete:e.tOuts<3});
+      });
+    });
+
+    const blowups=_innRows.filter(r=>r.incomplete);
+    const blowupRuns=blowups.reduce((s,r)=>s+r.runs,0);
+    const blowupPitches=blowups.reduce((s,r)=>s+r.pitches,0);
+
+    html+='<h2>3. Inning-by-inning (our pitching) — the blow-up finder</h2>';
+    html+='<div class="summary">';
+    html+='<div><strong>'+_innRows.length+'</strong>half-innings pitched</div>';
+    html+='<div><strong class="bad">'+blowups.length+'</strong>ended without 3 outs</div>';
+    html+='<div><strong class="bad">'+blowupRuns+'</strong>runs in those innings</div>';
+    html+='<div><strong>'+blowupPitches+'</strong>pitches in those innings</div>';
+    html+='<div><strong>'+(blowups.length>0?(blowupRuns/blowups.length).toFixed(1):'—')+'</strong>runs / blow-up inning</div>';
+    html+='</div>';
+    html+='<div class="note" style="font-size:11px;margin-bottom:8px;"><strong>Outs</strong> = total outs recorded that inning (incl. runners thrown out on the bases). Rows with <span class="bad">&lt;3 outs</span> are tinted red — the inning ended on the run limit, time, a walk-off, or the game ending, NOT on three outs. <strong>Note:</strong> a few &lt;3-out innings are legit (final inning of a win, walk-off) — the ones to worry about are high pitches + high runs.</div>';
+    html+='<div class="seg"><button id="f-all" class="on" onclick="setFilter(\'all\')">All innings</button><button id="f-blow" onclick="setFilter(\'blow\')">Only &lt;3-out innings</button><button id="f-worst" onclick="setFilter(\'worst\')">Worst by runs</button></div>';
+    html+='<div id="inn-table"></div>';
+
+    out.innerHTML=html;
+    renderInnTable();
+    status.textContent='✓ Done. Team '+(teamPO==null?'—':teamPO.toFixed(2))+' P/out across '+teamIP+' IP · '+blowups.length+' innings ended without 3 outs ('+blowupRuns+' runs).';
+  }catch(e){status.textContent='Error: '+e.message;console.error(e);}
+}
+
+function setFilter(f){_innFilter=f;
+  document.getElementById('f-all').classList.toggle('on',f==='all');
+  document.getElementById('f-blow').classList.toggle('on',f==='blow');
+  document.getElementById('f-worst').classList.toggle('on',f==='worst');
+  renderInnTable();}
+
+function renderInnTable(){
+  const host=document.getElementById('inn-table');if(!host)return;
+  let rows=_innRows.slice();
+  if(_innFilter==='blow')rows=rows.filter(r=>r.incomplete);
+  if(_innFilter==='worst'){rows.sort((a,b)=>b.runs-a.runs||b.pitches-a.pitches);}
+  else{rows.sort((a,b)=>new Date(a.date)-new Date(b.date)||a.inn-b.inn);}
+  let h='<table><thead><tr><th>Date</th><th>Opp</th><th class="num">Inn</th><th>Pitcher(s)</th><th class="num">Pitches</th><th class="num">Outs</th><th class="num">Runs</th><th class="num">P/Out</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    h+='<tr class="'+(r.incomplete?'blowup':'')+'">'
+      +'<td>'+esc(r.date)+'</td>'
+      +'<td>'+esc(r.opp)+'</td>'
+      +'<td class="num">'+r.inn+'</td>'
+      +'<td>'+esc(r.pitchers.join(', '))+'</td>'
+      +'<td class="num">'+r.pitches+'</td>'
+      +'<td class="num'+(r.incomplete?' bad':'')+'">'+r.tOuts+(r.incomplete?' ⚠':'')+'</td>'
+      +'<td class="num'+(r.runs>=3?' bad':'')+'">'+r.runs+'</td>'
+      +'<td class="num '+poClass(r.po)+'">'+(r.po==null?'∞':r.po.toFixed(1))+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  host.innerHTML=h;
+}
+
+function pct(n){return Math.round(100*n)+'%';}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
