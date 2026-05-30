@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Swing-rate K-penalty diagnostic — fully pitch-logged games only</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1320px;margin:auto;}
+  h1{color:#c8a96e;}
+  h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+  .note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+  .note code{background:rgba(255,255,255,.05);padding:1px 4px;border-radius:3px;}
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+  th,td{padding:4px 7px;border:1px solid rgba(255,255,255,.10);text-align:left;vertical-align:top;}
+  th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+  td.num{text-align:right;}
+  .pos{color:#36a066;font-weight:bold;}
+  .neg{color:#e04535;font-weight:bold;}
+  .contact{color:#36a066;}
+  .whiff{color:#e09030;}
+  .look{color:#e04535;}
+  .dim{color:#8fa5bc;}
+  .summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .summary div{background:rgba(255,255,255,.04);padding:8px 14px;border-radius:4px;font-size:12px;}
+  .summary strong{color:#c8a96e;font-size:16px;display:block;}
+  button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+  #status{margin-top:10px;font-size:12px;color:#c8a96e;}
+  .formula{background:rgba(255,255,255,.04);padding:10px 14px;border-radius:4px;font-family:monospace;font-size:12px;margin-bottom:12px;line-height:1.7;}
+</style>
+</head>
+<body>
+<h1>Swing-rate K-penalty diagnostic</h1>
+<div class="note">
+Replaces the flat v2.37 K penalty (<code>−0.7·kRate</code>) with one driven by each kid's <strong>actual swing behavior</strong> in fully pitch-logged games — not just the last pitch of a strikeout. Contact swings (<span class="contact">X / F / FT</span> = ball-in-play, foul, foul tip) earn full credit as <em>good swings</em>; whiffs (<span class="whiff">S</span>) earn partial credit (a swing, but missed); called strikes (<span class="look">L</span> = watching strike three go by) earn nothing. A kid who swings the bat and makes contact gets the penalty eased; a kid who stands and watches gets it harsher. <code>kRate</code> is still computed from ALL games (recency-weighted); only the per-kid swing <em>profile</em> comes from fully-logged pitch data. Read-only.
+</div>
+<div class="formula" id="formula"></div>
+<button onclick="run()">Build diagnostic</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ---- TUNABLE CONSTANTS (the whole point of previewing first) ----
+const WHIFF_CREDIT = 0.5;   // a whiff is half a "good swing" (engaged but missed)
+const REF_QSWR     = 0.30;  // qSwR that earns the MAX penalty relief (full swingCredit=1)
+const PEN_BASE     = 1.0;   // K penalty for a totally passive kid (swingCredit=0)
+const PEN_RELIEF   = 0.6;   // how much full swingCredit eases the penalty
+// → penalty = −(PEN_BASE − PEN_RELIEF·swingCredit)·kRate
+//   passive (swingCredit 0)   → −1.0·kRate
+//   neutral (swingCredit 0.5) → −0.7·kRate  (matches v2.37)
+//   max     (swingCredit 1)   → −0.4·kRate
+const FALLBACK_CREDIT = 0.5; // kids with no fully-logged pitch data → neutral (−0.7·kRate)
+
+const HITS=new Set(['1B','2B','3B','HR','LLHR']);
+const BIPSET=new Set(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','ROE']);
+
+function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
+function ourLineup(g){return ourSide(g)==='home'?(g.hlu||[]):(g.alu||[]);}
+function qualifies(ab){return ab.hardness==='hard'||(ab.trajectory==='line'&&ab.hardness==='avg');}
+
+function swingCreditFromProfile(prof){
+  if(!prof||prof.decided<=0)return FALLBACK_CREDIT;
+  var qSwR=(prof.contact*1.0 + prof.whiffs*WHIFF_CREDIT)/prof.decided;
+  return Math.max(0,Math.min(1,qSwR/REF_QSWR));
+}
+
+document.getElementById('formula').innerHTML=
+  '<strong>Swing profile</strong> (fully-logged pitches only):<br>'
+  +'&nbsp;&nbsp;decided = S + F + FT + X + B + L + H&nbsp;&nbsp;(U / Us excluded)<br>'
+  +'&nbsp;&nbsp;qSwR = (contact·1.0 + whiffs·'+WHIFF_CREDIT+') / decided&nbsp;&nbsp;[contact = X+F+FT, whiffs = S]<br>'
+  +'&nbsp;&nbsp;swingCredit = min(1, qSwR / '+REF_QSWR+')<br>'
+  +'<strong>K penalty</strong> = −('+PEN_BASE+' − '+PEN_RELIEF+'·swingCredit) · kRate&nbsp;&nbsp;<span class="dim">// vs v2.37 flat −0.7·kRate</span>';
+
+async function run(){
+  const status=document.getElementById('status'),out=document.getElementById('output');
+  out.innerHTML='';status.textContent='Loading roster + final games…';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    const A=rosterSnap.data().adata||{};
+    const roster=A.roster||[];
+    const gr=A.gameResults||{};
+    const sched=A.schedule||[];
+    const schedById={};sched.forEach(e=>{if(e&&e.id)schedById[e.id]=e;});
+    const ids=Object.keys(gr).filter(k=>gr[k]&&gr[k].final===true&&!gr[k].rainedOut&&k!=='test-sandbox');
+    let games=[];
+    for(const id of ids){
+      const d=await db.collection('games').doc(id).get();
+      if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}
+    }
+    games.sort((a,b)=>new Date((schedById[a._eid]||{}).date||0)-new Date((schedById[b._eid]||{}).date||0));
+    const lastIdx=games.length-1;
+    const gameWeight=gi=>(lastIdx-gi)<3?1.5:1.0;
+    const fpCount=games.filter(g=>g.fullPitchLog===true).length;
+    status.textContent='Scanning '+games.length+' games ('+fpCount+' fully-logged)…';
+
+    // ---- swing PROFILE: fully-logged games only, UNWEIGHTED ----
+    const prof={}; // name → {decided, swings, contact, whiffs, look, balls, hbp, unk}
+    games.forEach(g=>{
+      if(g.fullPitchLog!==true)return;
+      if(g.ht!=='Mighty Mussels'&&g.at!=='Mighty Mussels')return;
+      const team=ourSide(g);const lu=ourLineup(g);
+      lu.forEach((p,i)=>{
+        if(!p||!p.name)return;
+        if(!prof[p.name])prof[p.name]={decided:0,swings:0,contact:0,whiffs:0,look:0,balls:0,hbp:0,unk:0};
+        const pr=prof[p.name];
+        (g.abs||[]).forEach(ab=>{
+          if(ab.bi!==i||ab.team!==team)return;
+          (ab.pitches||[]).forEach(c=>{
+            if(c==='S'){pr.whiffs++;pr.swings++;pr.decided++;}
+            else if(c==='F'||c==='FT'||c==='X'){pr.contact++;pr.swings++;pr.decided++;}
+            else if(c==='L'){pr.look++;pr.decided++;}
+            else if(c==='B'){pr.balls++;pr.decided++;}
+            else if(c==='H'){pr.hbp++;pr.decided++;}
+            else {pr.unk++;} // U, Us — excluded from decided
+          });
+        });
+      });
+    });
+
+    // ---- full rate stats: ALL games, recency-weighted (mirrors live buildOptimalMusselsLineup) ----
+    const byPlayer={};
+    games.forEach((g,gi)=>{
+      if(g.ht!=='Mighty Mussels'&&g.at!=='Mighty Mussels')return;
+      const gw=gameWeight(gi);
+      const team=ourSide(g);const lu=ourLineup(g);
+      lu.forEach((p,i)=>{
+        if(!p||!p.name)return;
+        if(!byPlayer[p.name])byPlayer[p.name]={pa:0,ab:0,h:0,bb:0,hbp:0,k:0,tb:0,sf:0,bip:0,qBip:0};
+        const s=byPlayer[p.name];
+        (g.abs||[]).forEach(ab=>{
+          if(ab.bi!==i||ab.team!==team)return;
+          if(!ab.autoOut)s.pa+=gw;
+          const r=ab.result;
+          if(!['BB','HBP','SAC'].includes(r))s.ab+=gw;
+          if(HITS.has(r))s.h+=gw;
+          if(r==='BB')s.bb+=gw;
+          if(r==='HBP')s.hbp+=gw;
+          if(r==='K'||r==='KL')s.k+=gw;
+          if(r==='SAC')s.sf+=gw;
+          if(BIPSET.has(r))s.bip+=gw;
+          if(r==='1B')s.tb+=gw;else if(r==='2B')s.tb+=2*gw;else if(r==='3B')s.tb+=3*gw;else if(r==='HR'||r==='LLHR')s.tb+=4*gw;
+          if(ab.hardness==='hard'||(ab.trajectory==='line'&&ab.hardness==='avg'))s.qBip+=gw;
+        });
+      });
+    });
+
+    // ---- score each kid: v2.37 vs candidate ----
+    const rows=roster.map(rp=>{
+      const s=byPlayer[rp.name]||{pa:0,ab:0,h:0,bb:0,hbp:0,k:0,tb:0,sf:0,bip:0,qBip:0};
+      const pr=prof[rp.name];
+      const paDenom=s.pa||1;
+      const obpDen=s.ab+s.bb+s.hbp+s.sf;
+      const wobp=obpDen>0?(s.h+0.5*s.bb+s.hbp)/obpDen:0;
+      const slg=s.ab>0?s.tb/s.ab:0;
+      const ba=s.ab>0?s.h/s.ab:0;
+      const kRate=s.k/paDenom;
+      const bipRate=s.bip/paDenom;
+      const qRate=s.qBip/paDenom;
+      const base=0.5*wobp+0.7*slg+1.5*bipRate+0.5*ba+0.3*qRate; // everything except the K penalty
+      const v237Score=base-0.7*kRate; // v2.37 flat K penalty
+      const credit=swingCreditFromProfile(pr);
+      const penCoef=PEN_BASE-PEN_RELIEF*credit;
+      const v238Score=base-penCoef*kRate;
+      // profile display values
+      const decided=pr?pr.decided:0;
+      const swings=pr?pr.swings:0;
+      const contact=pr?pr.contact:0;
+      const whiffs=pr?pr.whiffs:0;
+      const look=pr?pr.look:0;
+      const qSwR=decided>0?(contact*1.0+whiffs*WHIFF_CREDIT)/decided:null;
+      const swR=decided>0?swings/decided:null;
+      const contactRate=swings>0?contact/swings:null;
+      return {name:rp.name,pa:s.pa,k:s.k,kRate,
+        decided,swings,contact,whiffs,look,balls:pr?pr.balls:0,
+        swR,qSwR,contactRate,credit,penCoef,
+        v237:v237Score,v238:v238Score,delta:v238Score-v237Score};
+    }).filter(r=>r.pa>0);
+
+    const v237Order=[...rows].sort((a,b)=>b.v237-a.v237||b.pa-a.pa);
+    const v238Order=[...rows].sort((a,b)=>b.v238-a.v238||b.pa-a.pa);
+    const r237={},r238={};
+    v237Order.forEach((r,i)=>r237[r.name]=i+1);
+    v238Order.forEach((r,i)=>r238[r.name]=i+1);
+
+    let html='';
+
+    // coverage
+    const totDecided=Object.values(prof).reduce((s,p)=>s+p.decided,0);
+    const totContact=Object.values(prof).reduce((s,p)=>s+p.contact,0);
+    const totWhiff=Object.values(prof).reduce((s,p)=>s+p.whiffs,0);
+    const totLook=Object.values(prof).reduce((s,p)=>s+p.look,0);
+    html+='<h2>Coverage</h2><div class="summary">';
+    html+='<div><strong>'+fpCount+'</strong>fully-logged games</div>';
+    html+='<div><strong>'+totDecided+'</strong>decided pitches</div>';
+    html+='<div><strong class="contact">'+totContact+'</strong>contact swings</div>';
+    html+='<div><strong class="whiff">'+totWhiff+'</strong>whiffs</div>';
+    html+='<div><strong class="look">'+totLook+'</strong>called strikes (look)</div>';
+    html+='</div>';
+
+    // swing profile
+    html+='<h2>Swing profile (fully-logged pitches) + resulting K penalty</h2>';
+    html+='<div class="note" style="font-size:11px;margin-bottom:8px;">Sorted by qSwR (productive-swing rate) desc. <span class="contact">Contact</span>=X+F+FT, <span class="whiff">Whiff</span>=S, <span class="look">Look</span>=called strike L. <strong>penCoef</strong> is the multiplier on kRate: 0.40=max relief (aggressive contact), 0.70=neutral (=v2.37), 1.00=full penalty (passive). Kids with no logged pitches fall back to 0.70.</div>';
+    html+='<table><thead><tr><th>Player</th><th class="num">decided P</th><th class="num">Sw</th><th class="num">Ct</th><th class="num">Wh</th><th class="num">Lk</th><th class="num">SwR</th><th class="num">Contact%</th><th class="num">qSwR</th><th class="num">swingCredit</th><th class="num">penCoef</th></tr></thead><tbody>';
+    [...rows].sort((a,b)=>(b.qSwR==null?-1:b.qSwR)-(a.qSwR==null?-1:a.qSwR)).forEach(r=>{
+      const pcCls=r.penCoef<0.65?'pos':(r.penCoef>0.75?'neg':'');
+      html+='<tr><td>'+esc(r.name)+'</td>'
+        +'<td class="num">'+r.decided+'</td>'
+        +'<td class="num">'+r.swings+'</td>'
+        +'<td class="num contact">'+r.contact+'</td>'
+        +'<td class="num whiff">'+r.whiffs+'</td>'
+        +'<td class="num look">'+r.look+'</td>'
+        +'<td class="num">'+(r.swR==null?'—':pct(r.swR))+'</td>'
+        +'<td class="num">'+(r.contactRate==null?'—':pct(r.contactRate))+'</td>'
+        +'<td class="num">'+(r.qSwR==null?'—':fix3(r.qSwR))+'</td>'
+        +'<td class="num">'+fix2(r.credit)+'</td>'
+        +'<td class="num '+pcCls+'">'+fix2(r.penCoef)+'×</td></tr>';
+    });
+    html+='</tbody></table>';
+
+    // score comparison
+    html+='<h2>Score impact — v2.37 (flat −0.7·kRate) vs candidate (swing-modulated)</h2>';
+    html+='<div class="note" style="font-size:11px;margin-bottom:8px;">Sorted by candidate score desc. Stats-only (no coach ratings). <strong>Rank Δ</strong> = position change vs v2.37.</div>';
+    html+='<table><thead><tr><th>Player</th><th class="num">PA</th><th class="num">K</th><th class="num">kRate</th><th class="num">penCoef</th><th class="num">v2.37</th><th class="num">candidate</th><th class="num">Δ</th><th class="num">Rank Δ</th></tr></thead><tbody>';
+    v238Order.forEach(r=>{
+      const dCls=r.delta>0.02?'pos':(r.delta<-0.02?'neg':'');
+      const rd=r237[r.name]-r238[r.name];
+      const rdCls=rd>0?'pos':(rd<0?'neg':'dim');
+      const rdStr=rd>0?('↑'+rd):(rd<0?('↓'+(-rd)):'—');
+      html+='<tr><td>'+esc(r.name)+'</td>'
+        +'<td class="num">'+fix1(r.pa)+'</td>'
+        +'<td class="num">'+fix1(r.k)+'</td>'
+        +'<td class="num">'+fix3(r.kRate)+'</td>'
+        +'<td class="num">'+fix2(r.penCoef)+'×</td>'
+        +'<td class="num">'+fix3(r.v237)+'</td>'
+        +'<td class="num">'+fix3(r.v238)+'</td>'
+        +'<td class="num '+dCls+'">'+(r.delta>=0?'+':'')+fix3(r.delta)+'</td>'
+        +'<td class="num '+rdCls+'">'+rdStr+'</td></tr>';
+    });
+    html+='</tbody></table>';
+
+    out.innerHTML=html;
+    status.textContent='✓ Done. '+fpCount+' fully-logged games · '+totDecided+' decided pitches ('+totContact+' contact / '+totWhiff+' whiff / '+totLook+' look).';
+  }catch(e){status.textContent='Error: '+e.message;console.error(e);}
+}
+
+function pct(n){return Math.round(100*n)+'%';}
+function fix1(n){return (n||0).toFixed(1);}
+function fix2(n){return (n||0).toFixed(2);}
+function fix3(n){return (n||0).toFixed(3);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
