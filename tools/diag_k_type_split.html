@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>K vs KL split diagnostic — fully pitch-logged games only</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1280px;margin:auto;}
+  h1{color:#c8a96e;}
+  h2{color:#c8a96e;font-size:14px;margin-top:18px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+  .note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+  .note code{background:rgba(255,255,255,.05);padding:1px 4px;border-radius:3px;}
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:monospace;}
+  th,td{padding:4px 7px;border:1px solid rgba(255,255,255,.10);text-align:left;vertical-align:top;}
+  th{background:rgba(200,169,110,.10);color:#c8a96e;font-size:10px;}
+  td.num{text-align:right;}
+  .pos{color:#36a066;font-weight:bold;}
+  .neg{color:#e04535;font-weight:bold;}
+  .sw{color:#36a066;}
+  .lk{color:#e04535;}
+  .dim{color:#8fa5bc;}
+  .warn{color:#e09030;}
+  .summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .summary div{background:rgba(255,255,255,.04);padding:8px 14px;border-radius:4px;font-size:12px;}
+  .summary strong{color:#c8a96e;font-size:16px;display:block;}
+  button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+  #status{margin-top:10px;font-size:12px;color:#c8a96e;}
+  .pitch{display:inline-block;padding:1px 4px;margin:0 1px;font-size:10px;border-radius:2px;background:rgba(255,255,255,.05);}
+  .pS{background:rgba(224,69,53,.20);color:#ff8580;}
+  .pL{background:rgba(54,160,102,.20);color:#5fd185;}
+  .pB{background:rgba(143,165,188,.15);color:#a8b5c5;}
+  .pF{background:rgba(200,169,110,.18);color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>K vs KL split diagnostic — fully pitch-logged games only</h1>
+<div class="note">
+For each Mussel, splits strikeouts into <span class="sw">K (swinging)</span> vs <span class="lk">KL (looking)</span> — gated to games with <code>fullPitchLog === true</code> so the classification is trustworthy (in fully-logged games the K vs KL flag is auto-derived from whether the 3rd strike was an <code>S</code> or <code>L</code> pitch code). Shows current penalty (<code>−0.7·(K+KL)/PA</code>) vs proposed penalty (<code>−0.5·K/PA − 1.0·KL/PA</code>), and a full AB-by-AB list of every strikeout with its pitch sequence so you can verify the classification. Read-only.
+</div>
+<button onclick="run()">Build diagnostic</button>
+<div id="status"></div>
+<div id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
+function ourLineup(g){return ourSide(g)==='home'?(g.hlu||[]):(g.alu||[]);}
+
+// Pitch sequence visualizer
+function renderPitches(pitches){
+  if(!pitches||!pitches.length)return '<span class="dim">no pitches logged</span>';
+  return pitches.map(p=>{
+    const cls='p'+(p==='S'?'S':p==='L'?'L':p==='B'||p==='H'?'B':'F');
+    const lbl=p==='S'?'Sw':p==='L'?'Lk':p==='B'?'B':p==='L'?'L':p==='F'?'F':p==='FT'?'FT':p==='X'?'X':p==='H'?'HB':p==='Us'?'Us':p;
+    return '<span class="pitch '+cls+'">'+esc(lbl)+'</span>';
+  }).join('');
+}
+
+async function run(){
+  const status=document.getElementById('status'),out=document.getElementById('output');
+  out.innerHTML='';status.textContent='Loading roster + final games…';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    const A=rosterSnap.data().adata||{};
+    const roster=A.roster||[];
+    const gr=A.gameResults||{};
+    const sched=A.schedule||[];
+    const schedById={};sched.forEach(e=>{if(e&&e.id)schedById[e.id]=e;});
+    const ids=Object.keys(gr).filter(k=>gr[k]&&gr[k].final===true&&!gr[k].rainedOut&&k!=='test-sandbox');
+    const allGames=[];
+    for(const id of ids){
+      const d=await db.collection('games').doc(id).get();
+      if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;allGames.push(gd);}
+    }
+    const fpGames=allGames.filter(g=>g.fullPitchLog===true);
+    fpGames.sort((a,b)=>new Date((schedById[a._eid]||{}).date||0)-new Date((schedById[b._eid]||{}).date||0));
+    status.textContent='Scanning '+fpGames.length+' fully-logged games (of '+allGames.length+' total)…';
+
+    // Pass 1 — fully-logged only — get K_sw / KL split + PA
+    const fpByPlayer={};
+    const kABs=[];// detail rows for the AB-by-AB list
+    fpGames.forEach(g=>{
+      if(g.ht!=='Mighty Mussels'&&g.at!=='Mighty Mussels')return;
+      const team=ourSide(g);const lu=ourLineup(g);
+      const ev=schedById[g._eid]||{};
+      lu.forEach((p,i)=>{
+        if(!p||!p.name)return;
+        if(!fpByPlayer[p.name])fpByPlayer[p.name]={pa:0,ksw:0,klk:0};
+        const s=fpByPlayer[p.name];
+        (g.abs||[]).forEach(ab=>{
+          if(ab.bi!==i||ab.team!==team)return;
+          if(!ab.autoOut)s.pa++;
+          const r=ab.result;
+          if(r==='K'||r==='KL'){
+            const isLook=(r==='KL');
+            if(isLook)s.klk++;else s.ksw++;
+            kABs.push({
+              batter:p.name,
+              date:ev.date||'',
+              opp:team==='home'?(g.at||'?'):(g.ht||'?'),
+              eid:g._eid,inn:ab.inn,half:ab.half,
+              result:r,
+              pitches:ab.pitches||[]
+            });
+          }
+        });
+      });
+    });
+
+    // Pass 2 — ALL games — get K total + PA total per kid (for extrapolation)
+    const allByPlayer={};
+    allGames.forEach(g=>{
+      if(g.ht!=='Mighty Mussels'&&g.at!=='Mighty Mussels')return;
+      const team=ourSide(g);const lu=ourLineup(g);
+      lu.forEach((p,i)=>{
+        if(!p||!p.name)return;
+        if(!allByPlayer[p.name])allByPlayer[p.name]={pa:0,k:0};
+        const s=allByPlayer[p.name];
+        (g.abs||[]).forEach(ab=>{
+          if(ab.bi!==i||ab.team!==team)return;
+          if(!ab.autoOut)s.pa++;
+          if(ab.result==='K'||ab.result==='KL')s.k++;
+        });
+      });
+    });
+
+    let html='';
+
+    // ---- COVERAGE ----
+    html+='<h2>Coverage</h2>';
+    html+='<div class="summary">';
+    html+='<div><strong>'+fpGames.length+'</strong>fully-logged games</div>';
+    html+='<div><strong>'+allGames.length+'</strong>total finalized games</div>';
+    html+='<div><strong>'+Math.round(100*fpGames.length/Math.max(1,allGames.length))+'%</strong>fully-logged share</div>';
+    html+='<div><strong class="pos">'+kABs.filter(k=>k.result==='K').length+'</strong>swinging Ks logged</div>';
+    html+='<div><strong class="lk">'+kABs.filter(k=>k.result==='KL').length+'</strong>looking Ks logged</div>';
+    html+='</div>';
+    html+='<div style="font-size:11px;font-family:monospace;color:var(--text2,#a8b5c5);margin-bottom:14px;">';
+    html+='<strong>Fully-logged games:</strong> '+fpGames.map(g=>{const ev=schedById[g._eid]||{};return esc(ev.date||'?')+' vs '+(g.ht==='Mighty Mussels'?esc(g.at||'?'):esc(g.ht||'?'));}).join(' · ');
+    html+='</div>';
+
+    // ---- PER-PLAYER SPLIT ----
+    html+='<h2>K-type split — fully-logged games only</h2>';
+    html+='<div class="note" style="margin-bottom:8px;font-size:11px;">Each kid\'s K vs KL split from fully-logged games. "Cur pen" is the v2.37 K penalty applied to these PAs (<code>−0.7·(K+KL)/PA</code>); "Prop pen" is the proposed split-weight penalty (<code>−0.5·K/PA − 1.0·KL/PA</code>). Δ = how much that kid\'s score moves under the new rule for fully-logged PAs.</div>';
+    const sortedNames=Object.keys(fpByPlayer).sort((a,b)=>(fpByPlayer[b].ksw+fpByPlayer[b].klk)-(fpByPlayer[a].ksw+fpByPlayer[a].klk));
+    html+='<table><thead><tr><th>Player</th><th class="num">PA (FP)</th><th class="num">K (sw)</th><th class="num">KL (lk)</th><th class="num">Total K</th><th class="num">K/KL ratio</th><th class="num">Cur pen</th><th class="num">Prop pen</th><th class="num">Δ</th></tr></thead><tbody>';
+    sortedNames.forEach(name=>{
+      const s=fpByPlayer[name];
+      const total=s.ksw+s.klk;
+      if(total===0&&s.pa===0)return;
+      const ratio=total>0?(s.ksw+'/'+s.klk):'—';
+      const swPct=total>0?Math.round(100*s.ksw/total)+'% sw':'—';
+      const paD=s.pa||1;
+      const curPen=-0.7*total/paD;
+      const propPen=-0.5*s.ksw/paD - 1.0*s.klk/paD;
+      const delta=propPen-curPen;
+      const dCls=delta>0.01?'pos':(delta<-0.01?'neg':'');
+      html+='<tr><td>'+esc(name)+'</td>'
+        +'<td class="num">'+s.pa+'</td>'
+        +'<td class="num sw">'+s.ksw+'</td>'
+        +'<td class="num lk">'+s.klk+'</td>'
+        +'<td class="num">'+total+'</td>'
+        +'<td class="num">'+ratio+' ('+swPct+')</td>'
+        +'<td class="num">'+fix3(curPen)+'</td>'
+        +'<td class="num">'+fix3(propPen)+'</td>'
+        +'<td class="num '+dCls+'">'+(delta>=0?'+':'')+fix3(delta)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+
+    // ---- EXTRAPOLATION ACROSS ALL GAMES ----
+    html+='<h2>Estimated impact across ALL games (extrapolating the fully-logged K/KL ratio)</h2>';
+    html+='<div class="note" style="margin-bottom:8px;font-size:11px;">Uses each kid\'s fully-logged K/KL ratio to estimate the split across ALL their season Ks, then applies the new weights. <strong>Assumes the kid\'s strikeout style is consistent</strong> — a kid who swings-and-misses in fully-logged games is assumed to do the same in non-logged games. Kids without K-type data in fully-logged games show <span class="warn">no estimate</span> and would just keep their v2.37 penalty.</div>';
+    html+='<table><thead><tr><th>Player</th><th class="num">Season PA</th><th class="num">Season K</th><th class="num">Sample K/KL</th><th class="num">Est K_sw</th><th class="num">Est K_lk</th><th class="num">v2.37 pen</th><th class="num">Est new pen</th><th class="num">Δ</th></tr></thead><tbody>';
+    const extrapRows=[];
+    Object.keys(allByPlayer).sort((a,b)=>allByPlayer[b].k-allByPlayer[a].k).forEach(name=>{
+      const a=allByPlayer[name];
+      const fp=fpByPlayer[name]||{ksw:0,klk:0,pa:0};
+      const fpTotal=fp.ksw+fp.klk;
+      const paD=a.pa||1;
+      const curPen=-0.7*a.k/paD;
+      if(fpTotal===0||a.k===0){
+        if(a.k>0){
+          html+='<tr><td>'+esc(name)+'</td><td class="num">'+a.pa+'</td><td class="num">'+a.k+'</td><td class="num warn">none</td><td class="num dim">—</td><td class="num dim">—</td><td class="num">'+fix3(curPen)+'</td><td class="num dim">—</td><td class="num dim">—</td></tr>';
+        }
+        return;
+      }
+      const swRatio=fp.ksw/fpTotal;
+      const estSw=a.k*swRatio;
+      const estLk=a.k*(1-swRatio);
+      const newPen=-0.5*estSw/paD - 1.0*estLk/paD;
+      const delta=newPen-curPen;
+      extrapRows.push({name,pa:a.pa,k:a.k,fp:fp.ksw+'/'+fp.klk,estSw,estLk,curPen,newPen,delta});
+    });
+    extrapRows.sort((x,y)=>y.delta-x.delta);// most-helped first
+    extrapRows.forEach(r=>{
+      const dCls=r.delta>0.02?'pos':(r.delta<-0.02?'neg':'');
+      html+='<tr><td>'+esc(r.name)+'</td>'
+        +'<td class="num">'+r.pa+'</td>'
+        +'<td class="num">'+r.k+'</td>'
+        +'<td class="num">'+r.fp+'</td>'
+        +'<td class="num sw">'+r.estSw.toFixed(1)+'</td>'
+        +'<td class="num lk">'+r.estLk.toFixed(1)+'</td>'
+        +'<td class="num">'+fix3(r.curPen)+'</td>'
+        +'<td class="num">'+fix3(r.newPen)+'</td>'
+        +'<td class="num '+dCls+'">'+(r.delta>=0?'+':'')+fix3(r.delta)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+
+    // ---- AB-BY-AB DETAIL ----
+    html+='<h2>Every strikeout in fully-logged games ('+kABs.length+')</h2>';
+    html+='<div class="note" style="margin-bottom:8px;font-size:11px;">Pitch sequence shown — verify K = ends in <span class="pitch pS">Sw</span>, KL = ends in <span class="pitch pL">Lk</span>. If a label looks wrong, the underlying pitch tags need fixing.</div>';
+    const byB={};kABs.forEach(k=>{(byB[k.batter]=byB[k.batter]||[]).push(k);});
+    html+='<table><thead><tr><th>Player</th><th class="num">K/KL</th><th>ABs</th></tr></thead><tbody>';
+    Object.keys(byB).sort((a,b)=>byB[b].length-byB[a].length).forEach(b=>{
+      const list=byB[b].sort((x,y)=>(new Date(x.date))-(new Date(y.date)));
+      const det=list.map(k=>{
+        const lbl=k.result==='K'?'<span class="sw">K</span>':'<span class="lk">KL</span>';
+        const last=(k.pitches||[]).slice(-1)[0];
+        const validates=(k.result==='K'&&last==='S')||(k.result==='KL'&&last==='L');
+        const validIcon=validates?'<span class="pos">✓</span>':'<span class="warn">⚠</span>';
+        return esc(k.date)+' · '+esc(k.opp)+' · '+k.inn+(k.half==='top'?'▲':'▼')+' · '+lbl+' '+validIcon+' · '+renderPitches(k.pitches);
+      }).join('<br>');
+      const swCount=list.filter(k=>k.result==='K').length;
+      const lkCount=list.filter(k=>k.result==='KL').length;
+      html+='<tr><td>'+esc(b)+'</td><td class="num"><span class="sw">'+swCount+'</span>/<span class="lk">'+lkCount+'</span></td><td style="font-size:10px;line-height:1.6;">'+det+'</td></tr>';
+    });
+    html+='</tbody></table>';
+
+    out.innerHTML=html;
+    status.textContent='✓ Done. '+fpGames.length+' fully-logged games · '+kABs.filter(k=>k.result==='K').length+' swinging Ks + '+kABs.filter(k=>k.result==='KL').length+' looking Ks.';
+  }catch(e){status.textContent='Error: '+e.message;console.error(e);}
+}
+
+function fix3(n){return (n||0).toFixed(3);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
