@@ -1747,6 +1747,15 @@ function _gameDateLabel(g){
   var ev=(A.schedule||[]).find(function(e){return e.id===g.eid;});
   return ev&&ev.date?ev.date:(g.eid||'');
 }
+// v2.39: innings actually played = the highest inning that had an at-bat. The
+// g.inns arrays are pre-filled to the scheduled length (6 zeros) so their length
+// is useless here; max(ab.inn) correctly reflects shortened games (time/mercy
+// limit) and games where the home team didn't bat in the final half-inning.
+function _gameInningsPlayed(g){
+  var mx=0;
+  ((g&&g.abs)||[]).forEach(function(ab){if(ab&&ab.inn>mx)mx=ab.inn;});
+  return mx;
+}
 function renderSeasonLineScores(games){
   var body=$('season-lines-body');if(!body)return;
   if(!games||!games.length){
@@ -1777,9 +1786,10 @@ function renderSeasonLineScores(games){
   sorted.forEach(function(g){
     var stats=_gameLineScoreStats(g);
     var date=_gameDateLabel(g);
+    var innsPlayed=_gameInningsPlayed(g);
     var ours=g.ht==='Mighty Mussels'?'home':'away';
-    // Date header row spanning all 7 columns
-    h+='<tr><td colspan="7" style="background:rgba(200,169,110,.10);color:var(--gold);font-weight:bold;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-top:2px solid var(--border2);">'+esc(date)+'</td></tr>';
+    // Date header row spanning all 7 columns — v2.39: show innings played in ()
+    h+='<tr><td colspan="7" style="background:rgba(200,169,110,.10);color:var(--gold);font-weight:bold;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-top:2px solid var(--border2);">'+esc(date)+(innsPlayed>0?' <span style="font-weight:normal;opacity:.7;">('+innsPlayed+' inn)</span>':'')+'</td></tr>';
     function row(side){
       var s=stats[side];
       var rowCls=side===ours?'style="background:rgba(200,169,110,.06);"':'';
@@ -10279,7 +10289,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.38';
+var APP_VERSION='v2.39';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
