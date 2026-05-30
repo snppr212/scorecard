@@ -2159,7 +2159,9 @@ function _renderSeasonLegend(view){
       ['K','Strikeouts'],
       ['HBP','Hit-by-pitches issued'],
       ['BAA','Batting average against = H / AB-against (ip_outs + H). Derived from pitcher record so it works even on older games without per-AB pitcher tagging.'],
-      ['ERA','Earned-run average per 6 innings (LL convention, not 9)']
+      ['ERA','Earned-run average per 6 innings (LL convention, not 9)'],
+      ['WHIP','Walks + hits per inning pitched = (BB + H) / IP'],
+      ['P/O','Pitches per out = PC / outs. Efficiency — lower is better. ~3 = a clean first-pitch-out inning; walks and deep counts push it up fast.']
     ];
   }
   function rowHtml(rows){return rows.map(function(r){return '<div style="margin:3px 0;"><strong style="color:var(--gold);min-width:50px;display:inline-block;">'+r[0]+'</strong> — '+r[1]+'</div>';}).join('');}
@@ -2814,6 +2816,7 @@ function renderSeasonPit(games){
     s.baa=s.abAgainst>0?s.hits/s.abAgainst:0;
     s.era=s.ip_outs>0?(s.er/(s.ip_outs/3)*6):null;
     s.whip=s.ip_outs>0?((s.bb+s.hits)/(s.ip_outs/3)):null;// v2.30: (BB+H)/IP
+    s.ppo=s.ip_outs>0?(s.pc/s.ip_outs):null;// v2.40: pitches per out (efficiency — lower better)
   });
   // v181: apply user-selected sort (defaults to IP desc)
   rows=_sortRows(rows,_getStatsSort('pit'));
@@ -2834,14 +2837,16 @@ function renderSeasonPit(games){
     +_sortableTh('BAA','baa','pit')
     +_sortableTh('ERA','era','pit')
     +_sortableTh('WHIP','whip','pit')
+    +_sortableTh('P/O','ppo','pit')
     +'</tr></thead><tbody>';
   rows.forEach(function(s){
     var ip=Math.floor(s.ip_outs/3)+'.'+(s.ip_outs%3);
     var era=s.ip_outs>0?fmt3(s.er/(s.ip_outs/3)*6):'—';
     var whip=s.ip_outs>0?((s.bb+s.hits)/(s.ip_outs/3)).toFixed(2):'—';
+    var ppo=s.ip_outs>0?(s.pc/s.ip_outs).toFixed(2):'—';
     var baa=s.abAgainst>0?fmt3(s.baa):'—';
     var j=_findJersey(s.name);var nm=j?'#'+j+' '+sn(s.name):sn(s.name);
-    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td class="hi">'+ip+'</td><td>'+s.bf+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baa+'</td><td class="hi">'+era+'</td><td class="hi">'+whip+'</td></tr>';
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td class="hi">'+ip+'</td><td>'+s.bf+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baa+'</td><td class="hi">'+era+'</td><td class="hi">'+whip+'</td><td class="hi">'+ppo+'</td></tr>';
   });
   var T={games:games.length,ip_outs:0,pc:0,baEst:0,stkEst:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,abAgainst:0,bf:0};
   rows.forEach(function(s){T.ip_outs+=s.ip_outs;T.pc+=s.pc;T.baEst+=s.baEst;T.stkEst+=s.stkEst;T.hits+=s.hits;T.r+=s.r;T.er+=s.er;T.bb+=s.bb;T.k+=s.k;T.hbp+=s.hbp;T.abAgainst+=s.abAgainst;T.bf+=s.bf;});
@@ -2849,7 +2854,8 @@ function renderSeasonPit(games){
   var Tera=T.ip_outs>0?fmt3(T.er/(T.ip_outs/3)*6):'—';
   var Tbaa=T.abAgainst>0?fmt3(T.hits/T.abAgainst):'—';
   var Twhip=T.ip_outs>0?((T.bb+T.hits)/(T.ip_outs/3)).toFixed(2):'—';
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td><td class="hi">'+Twhip+'</td></tr></tfoot>';
+  var Tppo=T.ip_outs>0?(T.pc/T.ip_outs).toFixed(2):'—';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td><td class="hi">'+Twhip+'</td><td class="hi">'+Tppo+'</td></tr></tfoot>';
   // v189: OPP rows removed — see "Opp Pit" tab for cross-league pitcher data.
   $('season-pit').innerHTML=h;
 }
@@ -10289,7 +10295,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.39';
+var APP_VERSION='v2.40';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
