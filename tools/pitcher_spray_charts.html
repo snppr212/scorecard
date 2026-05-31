@@ -141,55 +141,95 @@ async function run(){
 function drawSprayChart(canvas,bips){
   const ctx=canvas.getContext('2d');
   const w=canvas.width, h=canvas.height;
-  const scale=w/100; // 100-unit field → canvas pixels
+  const cx=w/2, cy=h*0.75; // center at home plate (bottom-center)
+  const infield=Math.min(w,h)*0.25; // infield diamond size
 
   // Clear
   ctx.fillStyle='#0d1b2a';
   ctx.fillRect(0,0,w,h);
 
-  // Draw field outline (diamond + grass)
-  ctx.strokeStyle='rgba(200,169,110,.3)';
+  // Grass (light green arc for outfield)
+  ctx.fillStyle='rgba(50,100,50,.15)';
+  ctx.beginPath();
+  ctx.arc(cx,cy,infield*1.8,0,Math.PI,false);
+  ctx.fill();
+
+  // Draw diamond (home, 1B, 2B, 3B)
+  const home={x:cx,y:cy};
+  const b1={x:cx+infield,y:cy-infield};
+  const b2={x:cx,y:cy-infield*2};
+  const b3={x:cx-infield,y:cy-infield};
+
+  ctx.strokeStyle='rgba(200,169,110,.4)';
   ctx.lineWidth=2;
-  // Foul lines
   ctx.beginPath();
-  ctx.moveTo(scale*15,scale*15);ctx.lineTo(scale*50,scale*90);ctx.lineTo(scale*85,scale*15);
-  ctx.stroke();
-  // Baseline
-  ctx.beginPath();
-  ctx.moveTo(scale*15,scale*15);ctx.lineTo(scale*85,scale*15);
+  ctx.moveTo(home.x,home.y);ctx.lineTo(b1.x,b1.y);ctx.lineTo(b2.x,b2.y);ctx.lineTo(b3.x,b3.y);ctx.closePath();
   ctx.stroke();
 
-  // Draw field zones (arcs for visual reference)
-  ctx.strokeStyle='rgba(200,169,110,.15)';
+  // Foul lines extending to outfield
+  ctx.strokeStyle='rgba(200,169,110,.25)';
   ctx.lineWidth=1;
-  for(let r=10;r<=80;r+=20){
-    ctx.beginPath();
-    ctx.arc(scale*50,scale*90,scale*r,Math.PI*0.2,Math.PI*0.8,false);
-    ctx.stroke();
-  }
+  ctx.beginPath();
+  ctx.moveTo(home.x,home.y);
+  ctx.lineTo(b1.x+infield*0.8,b1.y-infield*0.8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(home.x,home.y);
+  ctx.lineTo(b3.x-infield*0.8,b3.y-infield*0.8);
+  ctx.stroke();
 
-  // Label positions
+  // Pitcher's mound marker
+  ctx.fillStyle='rgba(200,169,110,.3)';
+  ctx.beginPath();
+  ctx.arc(cx,cy-infield*0.4,infield*0.08,0,Math.PI*2);
+  ctx.fill();
+
+  // Base labels
   ctx.fillStyle='#c8a96e';
-  ctx.font='10px Arial';
+  ctx.font='bold 11px Arial';
   ctx.textAlign='center';
   ctx.textBaseline='middle';
-  Object.keys(POS_COORDS).forEach(k=>{
-    const pos=POS_COORDS[k];
-    ctx.fillText(pos.label,scale*pos.x,scale*pos.y);
-  });
+  ctx.fillText('H',home.x,home.y+20);
+  ctx.fillText('1B',b1.x+20,b1.y);
+  ctx.fillText('2B',b2.x,b2.y-15);
+  ctx.fillText('3B',b3.x-20,b3.y);
+
+  // Outfield position labels
+  ctx.font='10px Arial';
+  ctx.fillStyle='rgba(200,169,110,.6)';
+  const lf={x:cx-infield*1.5,y:cy-infield*1.3};
+  const cf={x:cx,y:cy-infield*2.2};
+  const rf={x:cx+infield*1.5,y:cy-infield*1.3};
+  ctx.fillText('LF',lf.x,lf.y);
+  ctx.fillText('CF',cf.x,cf.y);
+  ctx.fillText('RF',rf.x,rf.y);
+
+  // Map hit locations to field coordinates
+  const locToCoord={
+    1: home,
+    2: home,
+    3: b1,
+    4: {x:cx+infield*0.5,y:cy-infield*1.2},
+    5: b3,
+    6: {x:cx-infield*0.5,y:cy-infield*1.2},
+    7: lf,
+    8: cf,
+    9: rf,
+    '8a': {x:(lf.x+cf.x)/2,y:(lf.y+cf.y)/2},
+    '8b': {x:(cf.x+rf.x)/2,y:(cf.y+rf.y)/2}
+  };
 
   // Plot hits
   bips.forEach(b=>{
-    const pos=POS_COORDS[b.loc];
+    const pos=locToCoord[b.loc];
     if(!pos)return;
-    const x=scale*pos.x, y=scale*pos.y;
     const radius=HARD_WEIGHT[b.hard]||5;
-    ctx.fillStyle=b.isHit?'rgba(54,160,102,.7)':'rgba(224,69,53,.7)';
+    ctx.fillStyle=b.isHit?'rgba(54,160,102,.75)':'rgba(224,69,53,.75)';
     ctx.beginPath();
-    ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.arc(pos.x,pos.y,radius,0,Math.PI*2);
     ctx.fill();
     ctx.strokeStyle=b.isHit?'#36a066':'#e04535';
-    ctx.lineWidth=1.5;
+    ctx.lineWidth=2;
     ctx.stroke();
   });
 }
