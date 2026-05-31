@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pitcher spray charts — where they're hitting</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#0d1b2a;color:#e2ddd4;padding:20px;max-width:1200px;margin:auto;}
+  h1{color:#c8a96e;}
+  h2{color:#c8a96e;font-size:15px;margin-top:24px;margin-bottom:6px;border-bottom:1px solid rgba(200,169,110,.3);padding-bottom:3px;}
+  .note{background:rgba(200,169,110,.10);color:#c8a96e;padding:10px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+  .chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(500px,1fr));gap:24px;margin-bottom:24px;}
+  .chart-card{background:rgba(255,255,255,.03);border:1px solid rgba(200,169,110,.2);border-radius:6px;padding:14px;}
+  .chart-card h3{color:#e2ddd4;font-size:13px;margin:0 0 4px;font-weight:bold;}
+  .chart-card .stats{font-size:11px;color:#a8b5c5;margin:2px 0 8px;font-family:monospace;}
+  canvas{display:block;border:1px solid rgba(200,169,110,.2);background:#0d1b2a;width:100%;max-width:500px;height:auto;}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:10px;}
+  .legend-item{display:flex;align-items:center;gap:4px;}
+  .legend-dot{width:8px;height:8px;border-radius:50%;}
+  button{background:#c8a96e;color:#000;border:none;padding:12px 22px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;margin-right:8px;}
+  .seg{margin-bottom:12px;}
+  .seg button{background:rgba(255,255,255,.06);color:#c8a96e;padding:6px 12px;font-size:11px;margin-right:4px;}
+  .seg button.on{background:#c8a96e;color:#000;}
+  #status{margin-top:10px;font-size:12px;color:#c8a96e;}
+</style>
+</head>
+<body>
+<h1>Pitcher spray charts</h1>
+<div class="note">
+One spray chart per pitcher showing where opposing batters hit the ball against them. Field viewed from pitcher's mound looking out. Green circles = hits, red = outs. Radius = harder contact (bigger = harder). Positioned by field location (1B, 2B, SS, etc.). Read-only.
+</div>
+<div class="seg">
+  <button id="src-all" class="on" onclick="setSrc('all')">All games</button>
+  <button id="src-fp" onclick="setSrc('fp')">Fully-logged only</button>
+</div>
+<button onclick="run()">Build spray charts</button>
+<div id="status"></div>
+<div class="chart-grid" id="output"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCc3otq-H3V9-Y9IHwAU9WOUzbdE_CNR2A",
+  authDomain: "diamond-statz.firebaseapp.com",
+  projectId: "diamond-statz",
+  storageBucket: "diamond-statz.firebasestorage.app",
+  messagingSenderId: "1012444904664",
+  appId: "1:1012444904664:web:9ace26fb1dd7801243abad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const BIP=new Set(['1B','2B','3B','HR','LLHR','GO','FO','LO','PO','FF','SAC','FC','DP','GIDP','TP','ROE']);
+const HITS=new Set(['1B','2B','3B','HR','LLHR']);
+const HARD_WEIGHT={hard:8,avg:6,soft:4};
+
+// Field positions (field-view coordinates, pitcher at bottom center)
+// Normalized to 0-100 scale for canvas rendering
+const POS_COORDS={
+  1: {x:50, y:90, label:'P'},    // Pitcher
+  2: {x:50, y:95, label:'C'},    // Catcher
+  3: {x:85, y:50, label:'1B'},   // 1B
+  4: {x:65, y:35, label:'2B'},   // 2B
+  5: {x:35, y:35, label:'3B'},   // 3B
+  6: {x:50, y:40, label:'SS'},   // SS
+  7: {x:15, y:15, label:'LF'},   // LF
+  8: {x:50, y:10, label:'CF'},   // CF
+  9: {x:85, y:15, label:'RF'},   // RF
+  '8a': {x:30, y:12, label:'LC'}, // Left-center
+  '8b': {x:70, y:12, label:'RC'}  // Right-center
+};
+
+let _src='all';
+function setSrc(s){_src=s;document.getElementById('src-all').classList.toggle('on',s==='all');document.getElementById('src-fp').classList.toggle('on',s==='fp');}
+function ourSide(g){return g.ht==='Mighty Mussels'?'home':'away';}
+function shortP(n){if(!n)return '—';var p=String(n).trim().split(' ');return p.length>1?p[0][0]+'. '+p[p.length-1]:n;}
+
+async function run(){
+  const status=document.getElementById('status'),out=document.getElementById('output');
+  out.innerHTML='';status.textContent='Loading roster + final games…';
+  try{
+    const rosterSnap=await db.collection('appdata').doc('roster').get();
+    const A=rosterSnap.data().adata||{};
+    const sched=A.schedule||[];
+    const gr=A.gameResults||{};
+    const ids=Object.keys(gr).filter(k=>gr[k]&&gr[k].final===true&&!gr[k].rainedOut&&k!=='test-sandbox');
+    let games=[];
+    for(const id of ids){const d=await db.collection('games').doc(id).get();if(d.exists&&d.data().gdata){const gd=d.data().gdata;gd._eid=id;games.push(gd);}}
+    games.sort((a,b)=>new Date((sched.find(e=>e.id===a._eid)||{}).date||0)-new Date((sched.find(e=>e.id===b._eid)||{}).date||0));
+    if(_src==='fp')games=games.filter(g=>g.fullPitchLog===true);
+    status.textContent='Scanning '+games.length+' games…';
+
+    // collect every opponent ball-in-play against our pitcher
+    const byPit={};
+    games.forEach(g=>{
+      const oppTeam=ourSide(g)==='home'?'away':'home';
+      (g.abs||[]).forEach(ab=>{
+        if(ab.team!==oppTeam)return;
+        if(ab.autoOut)return;
+        if(!BIP.has(ab.result))return;
+        const pit=ab.pitcher||((g.fa&&g.fa[ab.inn]&&g.fa[ab.inn].P)||'—');
+        if(!byPit[pit])byPit[pit]={name:pit,bips:[]};
+        byPit[pit].bips.push({
+          loc:ab.hitLoc!=null?ab.hitLoc:'—',
+          result:ab.result,
+          isHit:HITS.has(ab.result),
+          hard:ab.hardness||'avg'
+        });
+      });
+    });
+    const pitchers=Object.values(byPit).sort((a,b)=>b.bips.length-a.bips.length);
+
+    let html='';
+    pitchers.forEach(p=>{
+      const hits=p.bips.filter(b=>b.isHit).length;
+      const hard=p.bips.filter(b=>b.hard==='hard').length;
+      const babip=(p.bips.length>0?hits/p.bips.length:0).toFixed(3);
+      html+='<div class="chart-card"><h3>'+esc(shortP(p.name))+'</h3>';
+      html+='<div class="stats">'+p.bips.length+' BIP · '+hits+' hits ('+babip+') · '+hard+' hard</div>';
+      html+='<canvas id="chart-'+esc(p.name.replace(/\s+/g,''))+'" width="500" height="500"></canvas>';
+      html+='<div class="legend">';
+      html+='<div class="legend-item"><div class="legend-dot" style="background:#36a066;"></div>Hit</div>';
+      html+='<div class="legend-item"><div class="legend-dot" style="background:#e04535;"></div>Out</div>';
+      html+='<div class="legend-item"><span style="font-size:9px;color:#c8a96e;">●●● = hard · ●● = avg · ● = soft</span></div>';
+      html+='</div></div>';
+    });
+    out.innerHTML=html;
+
+    // Draw charts
+    pitchers.forEach(p=>{
+      const canId='chart-'+esc(p.name.replace(/\s+/g,''));
+      const can=document.getElementById(canId);
+      if(!can)return;
+      drawSprayChart(can,p.bips);
+    });
+
+    status.textContent='✓ Spray charts for '+pitchers.length+' pitchers ('+pitchers.reduce((s,p)=>s+p.bips.length,0)+' total BIP).';
+  }catch(e){status.textContent='Error: '+e.message;console.error(e);}
+}
+
+function drawSprayChart(canvas,bips){
+  const ctx=canvas.getContext('2d');
+  const w=canvas.width, h=canvas.height;
+  const scale=w/100; // 100-unit field → canvas pixels
+
+  // Clear
+  ctx.fillStyle='#0d1b2a';
+  ctx.fillRect(0,0,w,h);
+
+  // Draw field outline (diamond + grass)
+  ctx.strokeStyle='rgba(200,169,110,.3)';
+  ctx.lineWidth=2;
+  // Foul lines
+  ctx.beginPath();
+  ctx.moveTo(scale*15,scale*15);ctx.lineTo(scale*50,scale*90);ctx.lineTo(scale*85,scale*15);
+  ctx.stroke();
+  // Baseline
+  ctx.beginPath();
+  ctx.moveTo(scale*15,scale*15);ctx.lineTo(scale*85,scale*15);
+  ctx.stroke();
+
+  // Draw field zones (arcs for visual reference)
+  ctx.strokeStyle='rgba(200,169,110,.15)';
+  ctx.lineWidth=1;
+  for(let r=10;r<=80;r+=20){
+    ctx.beginPath();
+    ctx.arc(scale*50,scale*90,scale*r,Math.PI*0.2,Math.PI*0.8,false);
+    ctx.stroke();
+  }
+
+  // Label positions
+  ctx.fillStyle='#c8a96e';
+  ctx.font='10px Arial';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  Object.keys(POS_COORDS).forEach(k=>{
+    const pos=POS_COORDS[k];
+    ctx.fillText(pos.label,scale*pos.x,scale*pos.y);
+  });
+
+  // Plot hits
+  bips.forEach(b=>{
+    const pos=POS_COORDS[b.loc];
+    if(!pos)return;
+    const x=scale*pos.x, y=scale*pos.y;
+    const radius=HARD_WEIGHT[b.hard]||5;
+    ctx.fillStyle=b.isHit?'rgba(54,160,102,.7)':'rgba(224,69,53,.7)';
+    ctx.beginPath();
+    ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle=b.isHit?'#36a066':'#e04535';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+  });
+}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>
