@@ -141,96 +141,109 @@ async function run(){
 function drawSprayChart(canvas,bips){
   const ctx=canvas.getContext('2d');
   const w=canvas.width, h=canvas.height;
-  const cx=w/2, cy=h*0.75; // center at home plate (bottom-center)
-  const infield=Math.min(w,h)*0.25; // infield diamond size
+  const cx=w/2, cy=h*0.7;
+  const scale=Math.min(w,h)*0.15;
 
   // Clear
   ctx.fillStyle='#0d1b2a';
   ctx.fillRect(0,0,w,h);
 
-  // Grass (light green arc for outfield)
-  ctx.fillStyle='rgba(50,100,50,.15)';
+  // Outfield grass arc
+  ctx.fillStyle='rgba(40,80,40,.1)';
   ctx.beginPath();
-  ctx.arc(cx,cy,infield*1.8,0,Math.PI,false);
+  ctx.arc(cx,cy,scale*2.4,0,Math.PI,false);
   ctx.fill();
 
-  // Draw diamond (home, 1B, 2B, 3B)
+  // Diamond bases
   const home={x:cx,y:cy};
-  const b1={x:cx+infield,y:cy-infield};
-  const b2={x:cx,y:cy-infield*2};
-  const b3={x:cx-infield,y:cy-infield};
+  const b1={x:cx+scale,y:cy-scale};
+  const b2={x:cx,y:cy-scale*2};
+  const b3={x:cx-scale,y:cy-scale};
 
+  // Base squares
+  ctx.fillStyle='rgba(200,169,110,.2)';
+  ctx.lineWidth=1;
   ctx.strokeStyle='rgba(200,169,110,.4)';
-  ctx.lineWidth=2;
+  [home,b1,b2,b3].forEach(b=>{
+    ctx.fillRect(b.x-5,b.y-5,10,10);
+    ctx.strokeRect(b.x-5,b.y-5,10,10);
+  });
+
+  // Diamond lines
+  ctx.strokeStyle='rgba(200,169,110,.35)';
+  ctx.lineWidth=1.5;
   ctx.beginPath();
   ctx.moveTo(home.x,home.y);ctx.lineTo(b1.x,b1.y);ctx.lineTo(b2.x,b2.y);ctx.lineTo(b3.x,b3.y);ctx.closePath();
   ctx.stroke();
 
-  // Foul lines extending to outfield
-  ctx.strokeStyle='rgba(200,169,110,.25)';
+  // Foul lines to outfield
+  ctx.strokeStyle='rgba(200,169,110,.2)';
   ctx.lineWidth=1;
   ctx.beginPath();
   ctx.moveTo(home.x,home.y);
-  ctx.lineTo(b1.x+infield*0.8,b1.y-infield*0.8);
+  ctx.lineTo(b1.x+scale*1.2,b1.y-scale*1.2);
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(home.x,home.y);
-  ctx.lineTo(b3.x-infield*0.8,b3.y-infield*0.8);
+  ctx.lineTo(b3.x-scale*1.2,b3.y-scale*1.2);
   ctx.stroke();
 
-  // Pitcher's mound marker
-  ctx.fillStyle='rgba(200,169,110,.3)';
-  ctx.beginPath();
-  ctx.arc(cx,cy-infield*0.4,infield*0.08,0,Math.PI*2);
-  ctx.fill();
-
-  // Base labels
+  // Position labels
+  ctx.font='11px Arial';
   ctx.fillStyle='#c8a96e';
-  ctx.font='bold 11px Arial';
   ctx.textAlign='center';
   ctx.textBaseline='middle';
-  ctx.fillText('H',home.x,home.y+20);
-  ctx.fillText('1B',b1.x+20,b1.y);
-  ctx.fillText('2B',b2.x,b2.y-15);
-  ctx.fillText('3B',b3.x-20,b3.y);
+  ctx.fillText('H',home.x,home.y+18);
+  ctx.fillText('1B',b1.x+18,b1.y);
+  ctx.fillText('2B',b2.x,b2.y-16);
+  ctx.fillText('3B',b3.x-18,b3.y);
 
-  // Outfield position labels
   ctx.font='10px Arial';
-  ctx.fillStyle='rgba(200,169,110,.6)';
-  const lf={x:cx-infield*1.5,y:cy-infield*1.3};
-  const cf={x:cx,y:cy-infield*2.2};
-  const rf={x:cx+infield*1.5,y:cy-infield*1.3};
-  ctx.fillText('LF',lf.x,lf.y);
-  ctx.fillText('CF',cf.x,cf.y);
-  ctx.fillText('RF',rf.x,rf.y);
+  ctx.fillStyle='rgba(200,169,110,.5)';
+  ctx.fillText('LF',cx-scale*1.7,cy-scale*1.5);
+  ctx.fillText('CF',cx,cy-scale*2.3);
+  ctx.fillText('RF',cx+scale*1.7,cy-scale*1.5);
 
-  // Map hit locations to field coordinates
+  // Map hit locations
   const locToCoord={
-    1: home,
-    2: home,
-    3: b1,
-    4: {x:cx+infield*0.5,y:cy-infield*1.2},
-    5: b3,
-    6: {x:cx-infield*0.5,y:cy-infield*1.2},
-    7: lf,
-    8: cf,
-    9: rf,
-    '8a': {x:(lf.x+cf.x)/2,y:(lf.y+cf.y)/2},
-    '8b': {x:(cf.x+rf.x)/2,y:(cf.y+rf.y)/2}
+    1: home, 2: home,
+    3: b1, 4: {x:cx+scale*0.6,y:cy-scale*1.4},
+    5: b3, 6: {x:cx-scale*0.6,y:cy-scale*1.4},
+    7: {x:cx-scale*1.6,y:cy-scale*1.4},
+    8: {x:cx,y:cy-scale*2.3},
+    9: {x:cx+scale*1.6,y:cy-scale*1.4},
+    '8a': {x:cx-scale*0.8,y:cy-scale*1.9},
+    '8b': {x:cx+scale*0.8,y:cy-scale*1.9}
   };
 
-  // Plot hits
+  // Group hits by location and jitter to avoid overlap
+  const grouped={};
   bips.forEach(b=>{
-    const pos=locToCoord[b.loc];
+    const key=b.loc||'—';
+    if(!grouped[key])grouped[key]=[];
+    grouped[key].push(b);
+  });
+
+  Object.keys(grouped).forEach(locKey=>{
+    const pos=locToCoord[locKey];
     if(!pos)return;
-    const radius=HARD_WEIGHT[b.hard]||5;
-    ctx.fillStyle=b.isHit?'rgba(54,160,102,.75)':'rgba(224,69,53,.75)';
-    ctx.beginPath();
-    ctx.arc(pos.x,pos.y,radius,0,Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle=b.isHit?'#36a066':'#e04535';
-    ctx.lineWidth=2;
-    ctx.stroke();
+    const hits=grouped[locKey];
+    hits.forEach((b,idx)=>{
+      // Jitter position slightly so overlapping hits are visible
+      const angle=idx*Math.PI*2/Math.max(1,hits.length);
+      const jitter=8;
+      const x=pos.x+Math.cos(angle)*jitter*(idx%2===0?1:-1);
+      const y=pos.y+Math.sin(angle)*jitter*(idx%2===0?1:-1);
+
+      const radius=HARD_WEIGHT[b.hard]||4;
+      ctx.fillStyle=b.isHit?'rgba(54,160,102,.8)':'rgba(224,69,53,.8)';
+      ctx.beginPath();
+      ctx.arc(x,y,radius,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle=b.isHit?'#36a066':'#e04535';
+      ctx.lineWidth=1.5;
+      ctx.stroke();
+    });
   });
 }
 
