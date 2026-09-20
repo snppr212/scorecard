@@ -1,0 +1,1540 @@
+{
+  "name": "projects/diamond-statz/databases/(default)/documents/appdata/roster",
+  "fields": {
+    "updated": {
+      "timestampValue": "2026-09-02T23:18:02.029Z"
+    },
+    "adata": {
+      "mapValue": {
+        "fields": {
+          "epId": {
+            "nullValue": null
+          },
+          "pitchLog": {
+            "mapValue": {}
+          },
+          "statsSorts": {
+            "mapValue": {
+              "fields": {
+                "pit": {
+                  "mapValue": {
+                    "fields": {
+                      "col": {
+                        "stringValue": "ppo"
+                      },
+                      "dir": {
+                        "stringValue": "asc"
+                      }
+                    }
+                  }
+                },
+                "pitAdv": {
+                  "mapValue": {
+                    "fields": {
+                      "dir": {
+                        "stringValue": "desc"
+                      },
+                      "col": {
+                        "stringValue": "pitches"
+                      }
+                    }
+                  }
+                },
+                "bat": {
+                  "mapValue": {
+                    "fields": {
+                      "col": {
+                        "stringValue": "bip"
+                      },
+                      "dir": {
+                        "stringValue": "desc"
+                      }
+                    }
+                  }
+                },
+                "batAdv": {
+                  "mapValue": {
+                    "fields": {
+                      "col": {
+                        "stringValue": "swDec"
+                      },
+                      "dir": {
+                        "stringValue": "desc"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "leaguePitchSort": {
+            "mapValue": {
+              "fields": {
+                "col": {
+                  "stringValue": "pt"
+                },
+                "dir": {
+                  "stringValue": "desc"
+                }
+              }
+            }
+          },
+          "roster": {
+            "arrayValue": {
+              "values": [
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r0"
+                      },
+                      "name": {
+                        "stringValue": "Benjamin Shapiro"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 2.4
+                            },
+                            "throwing": {
+                              "doubleValue": 2.12
+                            },
+                            "fielding": {
+                              "doubleValue": 2.2
+                            },
+                            "pitching": {
+                              "doubleValue": 3.5
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "8"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r1"
+                      },
+                      "name": {
+                        "stringValue": "Bodhi Langford"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 2.7
+                            },
+                            "throwing": {
+                              "doubleValue": 2.5
+                            },
+                            "fielding": {
+                              "doubleValue": 2.25
+                            },
+                            "pitching": {
+                              "doubleValue": 1.5
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "9"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r2"
+                      },
+                      "name": {
+                        "stringValue": "Brody Steinberg"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 3.2
+                            },
+                            "throwing": {
+                              "integerValue": "3"
+                            },
+                            "fielding": {
+                              "doubleValue": 2.8
+                            },
+                            "pitching": {
+                              "doubleValue": 3.8
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "3"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r3"
+                      },
+                      "name": {
+                        "stringValue": "Cobe Bresson"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 1.1
+                            },
+                            "throwing": {
+                              "integerValue": "2"
+                            },
+                            "fielding": {
+                              "doubleValue": 1.9
+                            },
+                            "pitching": {
+                              "doubleValue": 1.25
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "11"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r4"
+                      },
+                      "name": {
+                        "stringValue": "Ethan Thomas"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 3.6
+                            },
+                            "throwing": {
+                              "doubleValue": 3.25
+                            },
+                            "fielding": {
+                              "doubleValue": 2.9
+                            },
+                            "pitching": {
+                              "doubleValue": 3.5
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "2"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r5"
+                      },
+                      "name": {
+                        "stringValue": "Ezra Kalman"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 4.2
+                            },
+                            "throwing": {
+                              "integerValue": "4"
+                            },
+                            "fielding": {
+                              "doubleValue": 3.5
+                            },
+                            "pitching": {
+                              "doubleValue": 3.8
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "1"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r6"
+                      },
+                      "name": {
+                        "stringValue": "Hunter Bresson"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 3.4
+                            },
+                            "throwing": {
+                              "doubleValue": 3.62
+                            },
+                            "fielding": {
+                              "doubleValue": 2.93
+                            },
+                            "pitching": {
+                              "doubleValue": 2.83
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "4"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r7"
+                      },
+                      "name": {
+                        "stringValue": "Jacob Aronstein"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 1.8
+                            },
+                            "throwing": {
+                              "doubleValue": 2.5
+                            },
+                            "fielding": {
+                              "doubleValue": 2.6
+                            },
+                            "pitching": {
+                              "integerValue": "1"
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "10"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r8"
+                      },
+                      "name": {
+                        "stringValue": "Julian Singer"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 2.7
+                            },
+                            "throwing": {
+                              "doubleValue": 3.17
+                            },
+                            "fielding": {
+                              "doubleValue": 2.75
+                            },
+                            "pitching": {
+                              "doubleValue": 1.5
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "6"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r9"
+                      },
+                      "name": {
+                        "stringValue": "Malcolm McPherson"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 2.7
+                            },
+                            "throwing": {
+                              "doubleValue": 3.12
+                            },
+                            "fielding": {
+                              "doubleValue": 3.1
+                            },
+                            "pitching": {
+                              "doubleValue": 2.5
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "7"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r10"
+                      },
+                      "name": {
+                        "stringValue": "Mihir Chatnani"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 1.3
+                            },
+                            "throwing": {
+                              "doubleValue": 1.8
+                            },
+                            "fielding": {
+                              "doubleValue": 1.7
+                            },
+                            "pitching": {
+                              "doubleValue": 1.2
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "12"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "r11"
+                      },
+                      "name": {
+                        "stringValue": "Miles Beck"
+                      },
+                      "jersey": {
+                        "stringValue": ""
+                      },
+                      "ratings": {
+                        "mapValue": {
+                          "fields": {
+                            "hitting": {
+                              "doubleValue": 3.5
+                            },
+                            "throwing": {
+                              "doubleValue": 3.3
+                            },
+                            "fielding": {
+                              "doubleValue": 2.8
+                            },
+                            "pitching": {
+                              "doubleValue": 3.5
+                            },
+                            "confidence": {
+                              "nullValue": null
+                            },
+                            "discipline": {
+                              "nullValue": null
+                            },
+                            "clutch": {
+                              "nullValue": null
+                            }
+                          }
+                        }
+                      },
+                      "draftRound": {
+                        "integerValue": "5"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "filter": {
+            "stringValue": "all"
+          },
+          "playsLogReverse": {
+            "booleanValue": true
+          },
+          "eeId": {
+            "nullValue": null
+          },
+          "schedule": {
+            "arrayValue": {
+              "values": [
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e1"
+                      },
+                      "type": {
+                        "stringValue": "practice"
+                      },
+                      "date": {
+                        "stringValue": "Apr 9, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "Practice"
+                      },
+                      "loc": {
+                        "stringValue": "AFC Fitness"
+                      },
+                      "ha": {
+                        "stringValue": "home"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e2"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "Apr 11, 2026"
+                      },
+                      "time": {
+                        "stringValue": "1:00 pm"
+                      },
+                      "title": {
+                        "stringValue": "@ Hot Rods"
+                      },
+                      "opponent": {
+                        "stringValue": "Hot Rods"
+                      },
+                      "loc": {
+                        "stringValue": "South Ardmore Park Field C"
+                      },
+                      "ha": {
+                        "stringValue": "away"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e3"
+                      },
+                      "type": {
+                        "stringValue": "practice"
+                      },
+                      "date": {
+                        "stringValue": "Apr 16, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "Practice"
+                      },
+                      "loc": {
+                        "stringValue": "Friends' Central School"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e4"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "Apr 18, 2026"
+                      },
+                      "time": {
+                        "stringValue": "2:30 pm"
+                      },
+                      "title": {
+                        "stringValue": "vs Thunder"
+                      },
+                      "opponent": {
+                        "stringValue": "Thunder"
+                      },
+                      "loc": {
+                        "stringValue": "Friends' Central School"
+                      },
+                      "ha": {
+                        "stringValue": "home"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e5"
+                      },
+                      "type": {
+                        "stringValue": "practice"
+                      },
+                      "date": {
+                        "stringValue": "Apr 23, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "Practice"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 2"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e6"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "Apr 24, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "@ Bulls"
+                      },
+                      "opponent": {
+                        "stringValue": "Bulls"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 1"
+                      },
+                      "ha": {
+                        "stringValue": "away"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e7"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "Apr 25, 2026"
+                      },
+                      "time": {
+                        "stringValue": "3:30 pm"
+                      },
+                      "title": {
+                        "stringValue": "vs Lugnuts"
+                      },
+                      "opponent": {
+                        "stringValue": "Lugnuts"
+                      },
+                      "loc": {
+                        "stringValue": "South Ardmore Park Field C"
+                      },
+                      "ha": {
+                        "stringValue": "home"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e8"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "May 1, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "@ Devil Rays"
+                      },
+                      "opponent": {
+                        "stringValue": "Devil Rays"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 1"
+                      },
+                      "ha": {
+                        "stringValue": "away"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e9"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "May 2, 2026"
+                      },
+                      "time": {
+                        "stringValue": "2:30 pm"
+                      },
+                      "title": {
+                        "stringValue": "vs Hurricanes"
+                      },
+                      "opponent": {
+                        "stringValue": "Hurricanes"
+                      },
+                      "loc": {
+                        "stringValue": "Friends' Central School"
+                      },
+                      "ha": {
+                        "stringValue": "home"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e10"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "May 7, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "vs Tin Caps"
+                      },
+                      "opponent": {
+                        "stringValue": "Tin Caps"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 1"
+                      },
+                      "ha": {
+                        "stringValue": "home"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e11"
+                      },
+                      "type": {
+                        "stringValue": "practice"
+                      },
+                      "date": {
+                        "stringValue": "May 8, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "Practice"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 1"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e12"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "May 9, 2026"
+                      },
+                      "time": {
+                        "stringValue": "1:00 pm"
+                      },
+                      "title": {
+                        "stringValue": "@ Cannonballers"
+                      },
+                      "opponent": {
+                        "stringValue": "Cannonballers"
+                      },
+                      "loc": {
+                        "stringValue": "South Ardmore Park Field C"
+                      },
+                      "ha": {
+                        "stringValue": "away"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e13"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "May 14, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "vs Grasshoppers"
+                      },
+                      "opponent": {
+                        "stringValue": "Grasshoppers"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 1"
+                      },
+                      "ha": {
+                        "stringValue": "home"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e14"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "May 16, 2026"
+                      },
+                      "time": {
+                        "stringValue": "3:30 pm"
+                      },
+                      "title": {
+                        "stringValue": "@ Iron Pigs"
+                      },
+                      "opponent": {
+                        "stringValue": "Iron Pigs"
+                      },
+                      "loc": {
+                        "stringValue": "South Ardmore Park Field C"
+                      },
+                      "ha": {
+                        "stringValue": "away"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e15"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "May 18, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "@ Mud Hens"
+                      },
+                      "opponent": {
+                        "stringValue": "Mud Hens"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 1"
+                      },
+                      "ha": {
+                        "stringValue": "away"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e16"
+                      },
+                      "type": {
+                        "stringValue": "practice"
+                      },
+                      "date": {
+                        "stringValue": "May 21, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "Practice"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 2"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e17"
+                      },
+                      "type": {
+                        "stringValue": "game"
+                      },
+                      "date": {
+                        "stringValue": "May 27, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "vs Hot Rods"
+                      },
+                      "opponent": {
+                        "stringValue": "Hot Rods"
+                      },
+                      "loc": {
+                        "stringValue": "McMoran Park Field 1"
+                      },
+                      "ha": {
+                        "stringValue": "home"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "id": {
+                        "stringValue": "e18"
+                      },
+                      "type": {
+                        "stringValue": "practice"
+                      },
+                      "date": {
+                        "stringValue": "May 28, 2026"
+                      },
+                      "time": {
+                        "stringValue": "5:45 pm"
+                      },
+                      "title": {
+                        "stringValue": "Practice"
+                      },
+                      "loc": {
+                        "stringValue": "Friends' Central School"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ratingsSeededV3": {
+            "booleanValue": true
+          },
+          "gameResults": {
+            "mapValue": {
+              "fields": {
+                "e17": {
+                  "mapValue": {
+                    "fields": {
+                      "rainedOut": {
+                        "booleanValue": true
+                      },
+                      "final": {
+                        "booleanValue": false
+                      }
+                    }
+                  }
+                },
+                "e9": {
+                  "mapValue": {
+                    "fields": {
+                      "hs": {
+                        "integerValue": "3"
+                      },
+                      "as": {
+                        "integerValue": "14"
+                      },
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      }
+                    }
+                  }
+                },
+                "e6": {
+                  "mapValue": {
+                    "fields": {
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      },
+                      "as": {
+                        "integerValue": "6"
+                      },
+                      "hs": {
+                        "integerValue": "3"
+                      }
+                    }
+                  }
+                },
+                "e13": {
+                  "mapValue": {
+                    "fields": {
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      },
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "hs": {
+                        "integerValue": "9"
+                      },
+                      "as": {
+                        "integerValue": "8"
+                      }
+                    }
+                  }
+                },
+                "e4": {
+                  "mapValue": {
+                    "fields": {
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      },
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "as": {
+                        "integerValue": "5"
+                      },
+                      "hs": {
+                        "integerValue": "2"
+                      }
+                    }
+                  }
+                },
+                "e10": {
+                  "mapValue": {
+                    "fields": {
+                      "hs": {
+                        "integerValue": "4"
+                      },
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "as": {
+                        "integerValue": "3"
+                      },
+                      "lineupOrder": {
+                        "arrayValue": {
+                          "values": [
+                            {
+                              "stringValue": "r0"
+                            },
+                            {
+                              "stringValue": "r6"
+                            },
+                            {
+                              "stringValue": "r5"
+                            },
+                            {
+                              "stringValue": "r11"
+                            },
+                            {
+                              "stringValue": "r8"
+                            },
+                            {
+                              "stringValue": "r4"
+                            },
+                            {
+                              "stringValue": "r9"
+                            },
+                            {
+                              "stringValue": "r2"
+                            },
+                            {
+                              "stringValue": "r7"
+                            },
+                            {
+                              "stringValue": "r1"
+                            },
+                            {
+                              "stringValue": "r10"
+                            },
+                            {
+                              "stringValue": "r3"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                "e19": {
+                  "mapValue": {
+                    "fields": {
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "as": {
+                        "integerValue": "3"
+                      },
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      },
+                      "hs": {
+                        "integerValue": "2"
+                      }
+                    }
+                  }
+                },
+                "e7": {
+                  "mapValue": {
+                    "fields": {
+                      "final": {
+                        "booleanValue": false
+                      },
+                      "rainedOut": {
+                        "booleanValue": true
+                      }
+                    }
+                  }
+                },
+                "e12": {
+                  "mapValue": {
+                    "fields": {
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "hs": {
+                        "integerValue": "6"
+                      },
+                      "as": {
+                        "integerValue": "2"
+                      },
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      }
+                    }
+                  }
+                },
+                "e15": {
+                  "mapValue": {
+                    "fields": {
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "as": {
+                        "integerValue": "11"
+                      },
+                      "hs": {
+                        "integerValue": "9"
+                      },
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      }
+                    }
+                  }
+                },
+                "e2": {
+                  "mapValue": {
+                    "fields": {
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      },
+                      "hs": {
+                        "integerValue": "4"
+                      },
+                      "as": {
+                        "integerValue": "6"
+                      }
+                    }
+                  }
+                },
+                "e14": {
+                  "mapValue": {
+                    "fields": {
+                      "lineupOrder": {
+                        "arrayValue": {}
+                      },
+                      "final": {
+                        "booleanValue": true
+                      },
+                      "as": {
+                        "integerValue": "5"
+                      },
+                      "hs": {
+                        "integerValue": "2"
+                      }
+                    }
+                  }
+                },
+                "e8": {
+                  "mapValue": {
+                    "fields": {
+                      "as": {
+                        "integerValue": "1"
+                      },
+                      "hs": {
+                        "integerValue": "9"
+                      },
+                      "lineupOrder": {
+                        "arrayValue": {
+                          "values": [
+                            {
+                              "stringValue": "r0"
+                            },
+                            {
+                              "stringValue": "r1"
+                            },
+                            {
+                              "stringValue": "r2"
+                            },
+                            {
+                              "stringValue": "r3"
+                            },
+                            {
+                              "stringValue": "r4"
+                            },
+                            {
+                              "stringValue": "r5"
+                            },
+                            {
+                              "stringValue": "r6"
+                            },
+                            {
+                              "stringValue": "r7"
+                            },
+                            {
+                              "stringValue": "r8"
+                            },
+                            {
+                              "stringValue": "r9"
+                            },
+                            {
+                              "stringValue": "r10"
+                            }
+                          ]
+                        }
+                      },
+                      "final": {
+                        "booleanValue": true
+                      }
+                    }
+                  }
+                },
+                "test-sandbox": {
+                  "mapValue": {
+                    "fields": {
+                      "lineupOrder": {
+                        "arrayValue": {
+                          "values": [
+                            {
+                              "stringValue": "r6"
+                            },
+                            {
+                              "stringValue": "r11"
+                            },
+                            {
+                              "stringValue": "r5"
+                            },
+                            {
+                              "stringValue": "r4"
+                            },
+                            {
+                              "stringValue": "r0"
+                            },
+                            {
+                              "stringValue": "r1"
+                            },
+                            {
+                              "stringValue": "r8"
+                            },
+                            {
+                              "stringValue": "r9"
+                            },
+                            {
+                              "stringValue": "r2"
+                            },
+                            {
+                              "stringValue": "r10"
+                            },
+                            {
+                              "stringValue": "r7"
+                            },
+                            {
+                              "stringValue": "r3"
+                            }
+                          ]
+                        }
+                      },
+                      "hs": {
+                        "integerValue": "0"
+                      },
+                      "as": {
+                        "integerValue": "0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "playsLayoutStyle": {
+            "stringValue": "cards"
+          },
+          "ratingsSeededV2": {
+            "booleanValue": true
+          },
+          "errorRbiReviewEnabled": {
+            "booleanValue": true
+          },
+          "statsOppExpanded": {
+            "booleanValue": false
+          },
+          "seasonStatsView": {
+            "stringValue": "regular"
+          },
+          "experimentalPlaysLayout": {
+            "booleanValue": true
+          },
+          "ratingsSeeded": {
+            "booleanValue": true
+          },
+          "swingQualityEnabled": {
+            "booleanValue": true
+          }
+        }
+      }
+    }
+  },
+  "createTime": "2026-04-11T04:33:01.462362Z",
+  "updateTime": "2026-09-02T23:18:02.575446Z"
+}
