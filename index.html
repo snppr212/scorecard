@@ -382,6 +382,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
 <div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
+<!-- v2.42: stats scope — This season / Lifetime / pick a season (hidden until >1 season exists) -->
+<div class="row" id="season-scope-row" style="display:none;margin-bottom:10px;gap:8px;align-items:center;flex-wrap:wrap;"></div>
 <!-- v100/v189/v203: Regular / Advanced / Opp Pit / Line Scores view toggle -->
 <div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div><div class="team-toggle-btn" id="sv-opppit" onclick="setSeasonView('oppPit')">🥎 Opp Pit</div><div class="team-toggle-btn" id="sv-lines" onclick="setSeasonView('lineScores')">📋 Lines</div></div>
 <!-- v182: first-pitch summary panel — strikes vs balls on the FIRST pitch
@@ -1123,6 +1125,11 @@ try{var a=localStorage.getItem('mm_a');if(a)Object.assign(A,JSON.parse(a));}catc
 if(!A.schedule||!A.schedule.length)A.schedule=SCHED.map(e=>Object.assign({},e));
 if(!A.roster||!A.roster.length)A.roster=RNAMES.map((n,i)=>({id:'r'+i,name:n,jersey:''}));
 if(!A.gameResults)A.gameResults={};if(!A.pitchLog)A.pitchLog={};
+// v2.42: multi-season support. Back-compat: pre-season data is all "Spring 2026 (AA)".
+// Each archived season lives in appdata/season_<id>; the active season is this adata.
+if(!A.seasons||!A.seasons.length)A.seasons=[{id:'2026-spring',name:'Spring 2026 (AA)'}];
+if(!A.activeSeason)A.activeSeason=A.seasons[A.seasons.length-1].id;
+if(!A.statsScope)A.statsScope='active';// 'active' | 'lifetime' | '<seasonId>'
 try{var g=localStorage.getItem('mm_g');if(g)Object.assign(G,JSON.parse(g));}catch(e){}
 // One-time cleanup of pre-Apr-11 test data (runs once per device)
 try{
@@ -1158,6 +1165,32 @@ if(G._needOppPicker===undefined)G._needOppPicker=false;
 }
 function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// v2.42: multi-season helpers.
+function _activeSeasonId(){return A.activeSeason||'2026-spring';}
+function _seasonName(id){var s=(A.seasons||[]).find(function(x){return x.id===id;});return s?s.name:id;}
+// Returns the gameResults map for a season. Active season = live A.gameResults;
+// archived seasons are read (and cached) from appdata/season_<id>.
+async function _seasonResults(seasonId){
+  if(seasonId===_activeSeasonId())return A.gameResults||{};
+  window._seasonResCache=window._seasonResCache||{};
+  if(window._seasonResCache[seasonId])return window._seasonResCache[seasonId];
+  var gr={};
+  if(fbReady&&db){
+    try{
+      var d=await db.collection('appdata').doc('season_'+seasonId).get();
+      if(d.exists&&d.data()&&d.data().adata&&d.data().adata.gameResults)gr=d.data().adata.gameResults;
+    }catch(e){console.log('_seasonResults load error ['+seasonId+']:',e);}
+  }
+  window._seasonResCache[seasonId]=gr;
+  return gr;
+}
+// Which season ids the current stats scope covers.
+function _scopeSeasonIds(){
+  var scope=A.statsScope||'active';
+  if(scope==='lifetime')return (A.seasons||[{id:_activeSeasonId()}]).map(function(s){return s.id;});
+  if(scope==='active')return [_activeSeasonId()];
+  return [scope];
+}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function toast(m,d){var e=$('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),d||2200);}
 // B1: Replace native confirm() / prompt() with styled modals.
@@ -1630,22 +1663,65 @@ async function openSeasonStats(){
   ss('screen-season');
   $('season-loading').style.display='block';$('season-empty').style.display='none';
   $('season-bat').innerHTML='';$('season-pit').innerHTML='';
+  _renderScopeControls();
   var games=[];
   if(fbReady){
     try{
-      var ids=Object.keys(A.gameResults||{}).filter(function(k){return A.gameResults[k]&&A.gameResults[k].final===true&&k!=='test-sandbox';});
+      // v2.42: enumerate final game ids across the season(s) the scope covers.
+      var idMap={};// eid -> seasonId
+      var sids=_scopeSeasonIds();
+      for(var si=0;si<sids.length;si++){
+        var gr=await _seasonResults(sids[si]);
+        Object.keys(gr).forEach(function(k){
+          if(gr[k]&&gr[k].final===true&&k!=='test-sandbox')idMap[k]=sids[si];
+        });
+      }
+      var ids=Object.keys(idMap);
       for(var i=0;i<ids.length;i++){
         var doc=await db.collection('games').doc(ids[i]).get();
-        if(doc.exists&&doc.data()&&doc.data().gdata)games.push(doc.data().gdata);
+        if(doc.exists&&doc.data()&&doc.data().gdata){
+          var gd=doc.data().gdata;gd._season=idMap[ids[i]];games.push(gd);
+        }
       }
     }catch(e){console.log('season stats fetch error:',e);}
   }
   $('season-loading').style.display='none';
-  if(!games.length){$('season-empty').style.display='block';return;}
-  $('season-sub').textContent='Across '+games.length+' game'+(games.length===1?'':'s');
+  if(!games.length){$('season-empty').style.display='block';
+    $('season-sub').textContent=_scopeLabel()+' · no completed games yet';return;}
+  $('season-sub').textContent=_scopeLabel()+' · '+games.length+' game'+(games.length===1?'':'s');
   // v100: cache games for re-render on toggle
   window._seasonGames=games;
   _renderSeasonView();
+}
+// v2.42: scope label for the sub-header + print header.
+function _scopeLabel(){
+  var scope=A.statsScope||'active';
+  if(scope==='lifetime')return 'Lifetime (all seasons)';
+  if(scope==='active')return _seasonName(_activeSeasonId());
+  return _seasonName(scope);
+}
+// v2.42: set the active stats scope and re-aggregate.
+function setStatsScope(v){A.statsScope=v;sa();openSeasonStats();}
+// v2.42: render the This season / Lifetime / season-picker controls.
+function _renderScopeControls(){
+  var host=$('season-scope-row');if(!host)return;
+  var scope=A.statsScope||'active';
+  var seasons=A.seasons||[];
+  // Only show the control once there's more than one season to choose from.
+  if(seasons.length<2){host.style.display='none';return;}
+  host.style.display='flex';
+  var opts=seasons.map(function(s){
+    var sel=(scope===s.id||(scope==='active'&&s.id===_activeSeasonId()))?' selected':'';
+    return '<option value="'+s.id+'"'+sel+'>'+esc(s.name)+'</option>';
+  }).join('');
+  host.innerHTML='<span style="color:var(--text2);font-size:12px;">Scope:</span>'
+    +'<div class="team-toggle" style="flex:1;min-width:160px;">'
+    +'<div class="team-toggle-btn'+(scope==='active'?' active':'')+'" onclick="setStatsScope(\'active\')">This season</div>'
+    +'<div class="team-toggle-btn'+(scope==='lifetime'?' active':'')+'" onclick="setStatsScope(\'lifetime\')">Lifetime</div>'
+    +'</div>'
+    +'<select onchange="setStatsScope(this.value)" style="font-size:12px;padding:4px 6px;border-radius:6px;background:var(--bg2);color:var(--text);border:1px solid var(--border);">'
+    +'<option value="" disabled'+((scope!=='active'&&scope!=='lifetime')?'':' selected')+'>Pick a season…</option>'
+    +opts+'</select>';
 }
 // v100/v189: dispatcher — picks regular / advanced / oppPit renderer based on A.seasonStatsView
 function _renderSeasonView(){
@@ -10304,7 +10380,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.41';
+var APP_VERSION='v2.42';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
