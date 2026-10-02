@@ -343,7 +343,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <body>
 <!-- HOME -->
 <div class="screen active" id="screen-home">
-<div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL · Spring 2026 <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" title="Paste opp data, lineup, fielding plan, etc." onclick="openPasteLineup('opppitchseason')">📋</button><button class="btn btn-sm" title="Game-day options" onclick="openOptionsModal()">⚙</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
+<div class="hdr"><div><div class="hdr-title">⚾ Mighty Mussels</div><div class="hdr-sub">Lower Merion LL <span id="app-version" style="opacity:.6;font-size:10px;margin-left:4px;"></span></div></div><div class="row"><button class="btn btn-sm" onclick="openRosterModal()">Roster</button><button class="btn btn-sm" onclick="openPitchHistoryModal()">Pitchers</button><button class="btn btn-sm" title="Paste opp data, lineup, fielding plan, etc." onclick="openPasteLineup('opppitchseason')">📋</button><button class="btn btn-sm" title="Game-day options" onclick="openOptionsModal()">⚙</button><button class="btn btn-sm" onclick="openAddEventModal()">+ Event</button></div></div>
 <div class="scroll pad">
 <div class="season-banner"><div class="banner-team">Mighty Mussels</div><div class="banner-sub" id="home-record">LMLL · Spring 2026</div></div>
 <div class="row" style="gap:5px;margin-bottom:6px;"><button class="btn btn-xs btn-gold" onclick="openSeasonStats()" style="flex:1;">📊 Season Stats</button><button class="btn btn-xs btn-gold" onclick="openStandings()" style="flex:1;">🏆 Standings</button></div>
@@ -395,7 +395,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
      are at the auto-fill minimum (sequence shorter than pc). -->
 <div class="panel" id="season-pitchlog-audit" style="display:none;padding:8px 10px;margin-bottom:8px;"></div>
 <!-- Print-only header (hidden on screen via CSS, revealed when body has .printing-season) -->
-<div id="season-print-header" style="display:none;"><h1>Mighty Mussels — Season Stats</h1><div id="season-print-sub">LMLL · Spring 2026</div></div>
+<div id="season-print-header" style="display:none;"><h1>Mighty Mussels — Season Stats</h1><div id="season-print-sub">LMLL</div></div>
 <!-- v189: our-team panels (shown in regular + advanced views, hidden in oppPit view) -->
 <div id="season-us-panels">
 <div class="panel"><div class="ptitle">Batting</div><div class="scroll-x"><table class="tbl" id="season-bat"></table></div>
@@ -519,7 +519,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div id="tab-rules" style="display:none;"><div class="panel">
 <div class="rule-section"><div class="rule-section-title">⚾ Pitching Rest — Quick Reference</div><div class="rule-item"><div class="rule-label">Calendar days of rest required</div><div class="rule-body" style="line-height:1.6;">1–20 pitches: <strong>0 days</strong><br>21–35: <strong>1 day</strong><br>36–50: <strong>2 days</strong><br>51–65: <strong>3 days</strong><br>66+: <strong>4 days</strong></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-top:6px;line-height:1.5;">Rest is observed on the calendar days AFTER pitching. 75p Mon → rest Tue/Wed/Thu/Fri → eligible Sat.</div></div>
 <div class="sep"></div>
-<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Lower Merion Little League · 2026 AA Rules and Regulations (as of 1/7/26)</div>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:6px;">Lower Merion Little League · 2026 AAA Rules and Regulations</div>
 <div class="rules-search-wrap"><input type="search" id="rule-search" placeholder="Search rules..." oninput="filterRules(this.value)"></div>
 <div id="rules-book"></div>
 <div class="sep" style="margin:14px 0;"></div>
@@ -1297,6 +1297,19 @@ function theirName(){return isOH()?G.at:G.ht;}
 
 // PITCH REST
 function restD(p){if(p<=20)return 0;if(p<=35)return 1;if(p<=50)return 2;if(p<=65)return 3;return 4;}
+// v2.44: AAA age-based daily pitch cap. League age 9-10 (and unknown) = 75,
+// 7-8 = 50, 11-12 = 85, 13-16 = 95. (Rest-day bands above are pitch-count based,
+// not age based, so they are unchanged.) Reads player.age from the roster.
+function _pitchCapFor(name){
+  var pl=(A.roster||[]).find(function(r){return r.name===name;});
+  var age=pl&&pl.age;
+  if(typeof age==='number'){
+    if(age<=8)return 50;
+    if(age>=13)return 95;
+    if(age>=11)return 85;
+  }
+  return 75;
+}
 function daysBtwn(d1,d2){var a=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()),b=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate());return Math.round((b-a)/864e5);}
 function pSeason(name){return(A.pitchLog[name]||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));}
 // Per LMLL Rule C.4 / LL official: rest is observed on the calendar days
@@ -1379,7 +1392,7 @@ return '<div class="sched-item'+(past?' past':'')+'" style="'+tbdStyle+'" onclic
 function renderRec(){var games=A.schedule.filter(e=>e.type==='game'&&e.id!=='test-sandbox');var w=0,l=0,t=0;
 // v2.27: rained-out games aren't counted in the games total or the W/L/T record
 var g=games.filter(function(ev){var r=A.gameResults[ev.id];return !(r&&r.rainedOut);}).length;
-games.forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final||r.rainedOut)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · Spring 2026 · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';var hasTest=!!A.gameResults['test-sandbox']||A.schedule.some(e=>e.id==='test-sandbox')||G.eid==='test-sandbox';var btn=$('btn-wipe-test');if(btn)btn.style.display=hasTest?'':'none';}
+games.forEach(function(ev){var r=A.gameResults[ev.id];if(!r||!r.final||r.rainedOut)return;var m=ev.ha==='home'?r.hs:r.as,o=ev.ha==='home'?r.as:r.hs;if(m>o)w++;else if(m<o)l++;else t++;});$('home-record').textContent='LMLL · '+_seasonName(_activeSeasonId())+' · '+w+'-'+l+(t?'-'+t:'')+' ('+g+' games)';var hasTest=!!A.gameResults['test-sandbox']||A.schedule.some(e=>e.id==='test-sandbox')||G.eid==='test-sandbox';var btn=$('btn-wipe-test');if(btn)btn.style.display=hasTest?'':'none';}
 
 // RETRO SCORECARD — open the printable scorecard view for the current game.
 // Hidden behind a stealth link in the Rules tab while this feature is WIP.
@@ -3387,7 +3400,7 @@ function exportSeasonPDF(){
   if(!$('season-bat').innerHTML.trim()){toast('No stats yet — make sure season data loaded');return;}
   var d=new Date();var dstr=d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   var sub=$('season-sub')?$('season-sub').textContent:'';
-  $('season-print-sub').textContent='LMLL · Spring 2026 · '+sub+' · '+dstr;
+  $('season-print-sub').textContent='LMLL · '+_scopeLabel()+' · '+sub+' · '+dstr;
   document.body.classList.add('printing-season');
   var done=function(){document.body.classList.remove('printing-season');window.removeEventListener('afterprint',done);};
   window.addEventListener('afterprint',done);
@@ -5479,7 +5492,7 @@ function openPSwitch(who,forced){
   // Build pitcher list
   var html='';
   if(!pl.length){html='<div class="empty">No pitchers added yet</div>';}
-  else{pl.forEach(function(p,i){var active=i===ci;var pc=p.total||0;var col=pc>=75?'var(--red2)':pc>=40?'var(--amber2)':'var(--green2)';
+  else{pl.forEach(function(p,i){var active=i===ci;var pc=p.total||0;var _cap=_pitchCapFor(p.name);var col=pc>=_cap?'var(--red2)':pc>=40?'var(--amber2)':'var(--green2)';
     var hand=p.throws||'R';
     html+='<div style="padding:7px 0;border-bottom:1px solid var(--border);">'
     +'<div class="row-b">'
@@ -6276,9 +6289,10 @@ function chkPitcherLimit(){
   var c=p[i].total||0;
   // 40-pitch warning (non-blocking) — fires at 41+ per final LMLL rules
   if(c>40)toast(sn(p[i].name)+' at '+c+'p — over 40, ineligible next game',4000);
-  // 75-pitch hard block
-  if(c>=75){G.plb=true;sv();
-    $('plimit-msg').textContent=sn(p[i].name)+' has thrown '+c+' pitches (limit: 75).';
+  // daily-cap hard block (age-based: 50/75/85/95)
+  var cap=_pitchCapFor(p[i].name);
+  if(c>=cap){G.plb=true;sv();
+    $('plimit-msg').textContent=sn(p[i].name)+' has thrown '+c+' pitches (limit: '+cap+').';
     om('m-plimit');}
 }
 function chkFieldingWarnOnly(){
@@ -7755,10 +7769,10 @@ function popHPD(){var s=$('hp-inp');s.innerHTML='<option value="">Add from roste
 function popAPD(){var s=$('ap-inp');s.innerHTML='<option value="">Add from opponent lineup</option>';var ex=theirP().map(p=>p.name);tlu().filter(p=>p.name&&ex.indexOf(p.name)<0).forEach(function(p){s.innerHTML+='<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>';});s.innerHTML+='<option value="__custom__">+ Enter name manually</option>';}
 function renderPB(who){var l=who==='us'?ourP():theirP(),i=who==='us'?ourPI():theirPI(),el=$(who==='us'?'hp-bar':'ap-bar');
 if(i<0||!l[i]){el.innerHTML='<div style="font-size:12px;font-family:sans-serif;color:var(--text3);">No pitcher set</div>';if(who==='us')$('hp-label').textContent='None';return;}
-var p=l[i],c=p.total||0,pct=Math.min(100,Math.round(c/75*100)),col=c>=65?'var(--red2)':c>=40?'var(--amber2)':'var(--green2)';
+var p=l[i],c=p.total||0,cap=(who==='us')?_pitchCapFor(p.name):75,pct=Math.min(100,Math.round(c/cap*100)),col=c>=(cap-10)?'var(--red2)':c>=40?'var(--amber2)':'var(--green2)';
 if(who==='us')$('hp-label').textContent=sn(p.name)+' — '+c+'p';
 var st=p.stk||0;var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);
-el.innerHTML='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;"><span style="font-size:24px;font-weight:bold;color:'+col+';">'+c+'</span><span style="font-size:12px;color:var(--text2);font-family:sans-serif;">/ 75</span><span style="font-size:12px;font-family:sans-serif;margin-left:auto;">'+sn(p.name)+'</span></div><div class="pitcher-limit-bar"><div class="pitcher-limit-fill" style="width:'+pct+'%;background:'+col+';"></div></div><div style="font-size:10px;font-family:sans-serif;color:var(--text3);margin-top:4px;">PC:'+c+' St:'+st+' Ba:'+(p.ba||0)+' BIP:'+(p.bip||0)+' HBP:'+(p.hbp||0)+' IP:'+ip+'</div>';}
+el.innerHTML='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;"><span style="font-size:24px;font-weight:bold;color:'+col+';">'+c+'</span><span style="font-size:12px;color:var(--text2);font-family:sans-serif;">/ '+cap+'</span><span style="font-size:12px;font-family:sans-serif;margin-left:auto;">'+sn(p.name)+'</span></div><div class="pitcher-limit-bar"><div class="pitcher-limit-fill" style="width:'+pct+'%;background:'+col+';"></div></div><div style="font-size:10px;font-family:sans-serif;color:var(--text3);margin-top:4px;">PC:'+c+' St:'+st+' Ba:'+(p.ba||0)+' BIP:'+(p.bip||0)+' HBP:'+(p.hbp||0)+' IP:'+ip+'</div>';}
 function renderPS(who){var l=who==='us'?ourP():theirP(),c=who==='us'?ourPI():theirPI();$(who==='us'?'hp-sel':'ap-sel').innerHTML=l.map(function(p,i){var st=p.stk||0;var ip=Math.floor((p.ip_outs||0)/3)+'.'+(( p.ip_outs||0)%3);return '<div class="row-b" style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="font-size:12px;color:'+(i===c?'var(--gold)':'var(--text)')+';">'+(i===c?'▶ ':'')+esc(sn(p.name))+' PC:'+(p.total||0)+' St:'+st+' Ba:'+(p.ba||0)+' IP:'+ip+'</span><button class="btn btn-xs" onclick="setAP(\''+who+'\','+i+')">'+(i===c?'Active':'Set')+'</button></div>';}).join('');}
 function renderSPT(){var td=new Date();$('sp-body').innerHTML=A.roster.map(function(p){var log=pSeason(p.name),cp=ourP().find(h=>h.name===p.name),cur=cp?cp.total||0:0;if(!log.length&&cur===0)return'';var s=pStatus(p.name,td),ok=s.ok&&!s.over40;
   // Hide rows for players who didn't pitch this game AND have no rest debt AND
@@ -9839,7 +9853,8 @@ function confirmEndGame(){
 function openSetup(){$('s-h').value=G.ht;$('s-a').value=G.at;$('s-i').value=G.ti;$('s-ef').value=G.ef||'';om('m-setup');}
 function saveSetup(){G.ht=$('s-h').value||'Home';G.at=$('s-a').value||'Visitors';var ni=parseInt($('s-i').value)||6;if(ni!==G.ti){G.ti=ni;G.inns={h:Array(ni).fill(0),a:Array(ni).fill(0)};}G.ef=$('s-ef').value.trim();APOS=POS.slice();if(G.ef)APOS.push(G.ef);cm('m-setup');sv();renderSC();}
 
-// LMLL 2026 AA Rules and Regulations (verbatim from rule book; section A omitted).
+// LMLL 2026 AAA Rules and Regulations (section A omitted). Pitch-limit logic lives
+// in _pitchCapFor() + restD(); this array is the reference text shown in the Rules tab.
 // Item bodies preserve any sub-list formatting using newlines + tabs/spaces.
 var LMLL_RULES=[
   {letter:'B',title:'General Rules and Regulations',items:[
@@ -9873,8 +9888,8 @@ var LMLL_RULES=[
     {n:'30',label:'Number of Fielders',body:'During the REGULAR SEASON, any team with 10 or more players can play with 10 players in the field (extra outfielder only), even if the other team only has 9 players. During the playoffs, if both teams have 10 or more players, then they will play with 10 in the field. If either team has 9 or fewer players in the playoffs, then the maximum number of fielders is 9.'},
   ]},
   {letter:'C',title:'Pitching Rules',items:[
-    {n:'1',label:'',body:"AA Division shall follow Little League International's Regular Season Pitching Rules - Baseball, a copy of which is attached and incorporated by reference."},
-    {n:'2',label:'Maximum Pitches per Day',body:'A player must be removed from the position of pitcher when he/she reaches the prescribed maximum amount of pitches for his/her 9-10 age group of 75 pitches per day. A pitcher reaching his/her pitch count maximum in the middle of a count to a batter may continue until the batter is out, the batter reaches base, or that half inning ends. Further, players throwing 40 or more pitches per game will be ineligible to pitch in the next game played.\n\nIf a pitcher reaches a day(s) of rest threshold while facing a batter, the pitcher may continue to pitch until any one of the following conditions occurs:\na. That batter reaches base;\nb. That batter is retired;\nc. The third out is made to complete the half-inning.\n\nThe pitcher will only be required to observe the calendar day(s) of rest for the threshold he/she reached during that at-bat, provided that pitcher is removed before delivering a pitch to another batter. This rule also applies to the "40 Pitch" rule described above.'},
+    {n:'1',label:'',body:"AAA Division shall follow Little League International's Regular Season Pitching Rules — Baseball, incorporated by reference."},
+    {n:'2',label:'Maximum Pitches per Day',body:'A player must be removed from the mound when he/she reaches the daily maximum for his/her LEAGUE AGE:\na. 9-10 years old — 75 pitches per day;\nb. 11-12 years old — 85 pitches per day;\nc. 13-16 years old — 95 pitches per day.\n(League-age 7-8 players — e.g. a younger kid playing up — follow the LL 50-pitch limit.)\n\nA pitcher who reaches the maximum in the middle of a count may continue until the batter is out, the batter reaches base, or that half inning ends.\n\nLMLL 40-PITCH RULE: a pitcher who throws 40 or more pitches in a game is ineligible to pitch in the team\'s next game played. (Suspended in the playoffs.) A pitcher who reaches 40 mid-count may finish that batter and is still charged with 40.\n\nIf a pitcher reaches a days-of-rest threshold while facing a batter, he/she may continue until: a) that batter reaches base; b) that batter is retired; or c) the half-inning ends. The official count is recorded through the first pitch to the last batter faced.'},
     {n:'3',label:'',body:'Any player, who has played the position of catcher in four (4) or more innings in a game, is not eligible to pitch on that calendar day. A pitcher who delivers 41 or more pitches in a game may not play the position of catcher for the remainder of that day. For example, a player starting as catcher for less than three (3) innings and moving to pitcher may throw up to 40 pitches and still move back to playing catcher.'},
     {n:'4',label:'Rest Day Requirements',body:'Pitchers must adhere to the following rest requirements:\na. If a player pitches 1-20 pitches, no (0) calendar day of rest is required;\nb. If a player pitches 21-35 pitches, one (1) calendar day of rest must be observed;\nc. If a player pitches 36-50 pitches, two (2) calendar days of rest must be observed;\nd. If a player pitches 51-65 pitches, three (3) calendar days of rest must be observed; and\ne. If a player pitches 66 or more pitches, four (4) calendar days of rest must be observed.\n\nExample: Jim throws 36 pitches in a game on Monday. He may not pitch in any game on Tuesday nor on Wednesday, and is available to pitch on Thursday. Sally throws 75 pitches on Monday. She may not pitch Tuesday, Wednesday, Thursday, or Friday. She is available to pitch on Saturday.'},
     {n:'5',label:'Suspended Games and Pitching Eligibility',body:"Pitches delivered in games declared \"Suspended Games\" shall be charged against the player's eligibility. In suspended games resumed on another day, the pitchers of record at the time the game was halted may continue to pitch to the extent of their eligibility for that day, provided said pitcher has observed the required days of rest. For example, John pitched 25 pitches during the start of the game on Monday, which got suspended due to weather. The game got rescheduled to Thursday that same week without any intervening games, John can pitch up to 75 pitches since he has the allotted one (1) calendar day of rest (21–35 pitches) between the 2 days of rest, regardless of the team he was/is playing against."},
@@ -10454,7 +10469,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.43';
+var APP_VERSION='v2.44';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
