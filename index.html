@@ -381,7 +381,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="screen" id="screen-season">
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
-<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
+<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:120px;" onclick="showSwingFirstLineup()">🏏 Swing-first</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
 <!-- v2.42: stats scope — This season / Lifetime / pick a season (hidden until >1 season exists) -->
 <div class="row" id="season-scope-row" style="display:none;margin-bottom:10px;gap:8px;align-items:center;flex-wrap:wrap;"></div>
 <!-- v100/v189/v203: Regular / Advanced / Opp Pit / Line Scores view toggle -->
@@ -569,7 +569,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <button class="btn btn-full" style="margin-top:6px;opacity:.7;" onclick="cm('m-teststart')">Cancel</button>
 </div></div></div>
 <!-- OPTIMAL LINEUP DISPLAY -->
-<div class="modal-ov" id="m-optlu"><div class="modal" style="max-width:420px;"><h3>🎯 Optimal Mussels lineup</h3><div id="optlu-meta" style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.4;"></div><div id="optlu-body" style="max-height:55vh;overflow-y:auto;"></div><div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-gold btn-sm" id="optlu-apply-game" style="flex:1;" onclick="_applyOptimalToCurrentGame()" title="Set this as our batting order in the active game">↳ Use for current game</button><button class="btn btn-sm" style="flex:1;" onclick="_applyOptimalToRoster()" title="Reorder roster so this becomes the default for future games">Save as roster order</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-optlu')">Close</button></div></div></div>
+<div class="modal-ov" id="m-optlu"><div class="modal" style="max-width:420px;"><h3 id="optlu-title">🎯 Optimal Mussels lineup</h3><div id="optlu-meta" style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.4;"></div><div id="optlu-body" style="max-height:55vh;overflow-y:auto;"></div><div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-gold btn-sm" id="optlu-apply-game" style="flex:1;" onclick="_applyOptimalToCurrentGame()" title="Set this as our batting order in the active game">↳ Use for current game</button><button class="btn btn-sm" style="flex:1;" onclick="_applyOptimalToRoster()" title="Reorder roster so this becomes the default for future games">Save as roster order</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-optlu')">Close</button></div></div></div>
 <div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#" inputmode="numeric"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
 <!-- PLAYER RATINGS (v86) — per-player intangibles + skills, 0-5 scale, decimals OK -->
 <div class="modal-ov" id="m-rating"><div class="modal" style="max-width:380px;"><h3 id="rate-title">Rate player</h3><div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;line-height:1.4;">0-5 scale (decimals OK). Leave a field blank if you don't have a rating yet — the optimal-lineup formula skips blanks.<br><span style="color:var(--amber2);">Hitting/Throwing/Fielding/Pitching seeded from draft pool. Confidence/Discipline/Clutch are intangibles you fill in over time.</span></div><div id="rate-fields"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveRating()">Save</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="clearRatings()">Clear all</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-rating')">Cancel</button></div></div></div>
@@ -3502,7 +3502,63 @@ async function showOptimalLineup(){
   });
   $('optlu-body').innerHTML=rows;
   var coachSummary=coachIds.length?coachIds.length+' coach'+(coachIds.length===1?'':'es')+' rated':'no coach ratings yet';
+  if($('optlu-title'))$('optlu-title').textContent='🎯 Optimal Mussels lineup';
   $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · '+coachSummary+' · slot 3 = best slugger, slots 1+2 = top OBPs, slots 4-5 = composite';
+  om('m-optlu');
+}
+// v2.45: "Swing-first" order — prioritizes aggressive, contact-making hitters.
+// Per-PA score = swings + good-pitch swings (in zone) + balls in play
+//   − looking strikes − 0.3·chases (swings at out-of-zone pitches).
+// Good/Chase need pitch-quality (+/−) logged; swings/BIP/looking come from codes.
+function buildSwingFirstOrder(games){
+  var SWING=['S','F','FT','X'];
+  var byP={};
+  function ent(n){if(!byP[n])byP[n]={pa:0,sw:0,gsw:0,bsw:0,bip:0,look:0,pitches:0};return byP[n];}
+  (games||[]).forEach(function(g){
+    var ourSide=_ourTeamSide(g);
+    (g.abs||[]).forEach(function(ab){
+      if(ab.team!==ourSide||ab.autoOut)return;
+      var e=ent(ab.batter||'?');e.pa++;
+      var p=ab.pitches||[],q=ab.pitchQualities||[];
+      for(var i=0;i<p.length;i++){
+        var c=p[i],qc=q[i]||null;e.pitches++;
+        if(c==='L')e.look++;
+        if(SWING.indexOf(c)>=0){e.sw++;if(c==='X')e.bip++;if(qc==='good')e.gsw++;else if(qc==='bad')e.bsw++;}
+      }
+    });
+  });
+  var rows=A.roster.map(function(rp){
+    var e=byP[rp.name]||{pa:0,sw:0,gsw:0,bsw:0,bip:0,look:0};
+    var pa=e.pa||0,d=pa||1;
+    var score=(e.sw/d)+(e.gsw/d)+(e.bip/d)-(e.look/d)-0.3*(e.bsw/d);
+    return {name:rp.name,jersey:rp.jersey||'',rid:rp.id,_score:pa>0?score:-999,
+      _pa:pa,_sw:e.sw,_gsw:e.gsw,_bsw:e.bsw,_bip:e.bip,_look:e.look};
+  });
+  rows.sort(function(a,b){return b._score-a._score||b._pa-a._pa||b._sw-a._sw;});
+  return rows;
+}
+async function showSwingFirstLineup(){
+  toast('Fetching season data…');
+  var games=await _fetchAllFinalGames();
+  if(!games.length){toast('No completed games yet — nothing to rank on');return;}
+  var lu=buildSwingFirstOrder(games);
+  _lastOptimalLineup=lu;// reuse the modal's apply buttons
+  var gBtn=$('optlu-apply-game');if(gBtn)gBtn.disabled=!G.eid;
+  var rows='';
+  lu.forEach(function(p,i){
+    var statsLine=p._pa>0
+      ?'Sw '+p._sw+' · Good '+p._gsw+' · BIP '+p._bip+' · Look '+p._look+(p._bsw?' · Chase '+p._bsw:'')+' ('+p._pa+' PA)'
+      :'(no game data)';
+    rows+='<div class="lu-row" style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);">'
+      +'<span class="lu-ord" style="width:24px;color:var(--gold);font-weight:bold;">'+(i+1)+'</span>'
+      +'<div class="bat-jersey">'+(p.jersey||'?')+'</div>'
+      +'<div style="flex:1;"><div style="font-size:13px;">'+esc(p.name||'(unnamed)')+'</div>'
+      +'<div style="font-size:10px;color:var(--text3);font-family:sans-serif;">'+statsLine+'</div></div>'
+      +'</div>';
+  });
+  $('optlu-body').innerHTML=rows;
+  if($('optlu-title'))$('optlu-title').textContent='🏏 Swing-first order';
+  $('optlu-meta').innerHTML='Rewards swinging + contact, penalizes watching strikes (and lightly, chasing). Across '+games.length+' game'+(games.length===1?'':'s')+'. Per-PA — small samples are noisy. Good/Chase need pitch-quality (+/−) logged.';
   om('m-optlu');
 }
 // v121: apply the optimal lineup to the active game's batting order. Maps each
@@ -10469,7 +10525,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.44';
+var APP_VERSION='v2.45';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
