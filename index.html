@@ -385,7 +385,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- v2.42: stats scope — This season / Lifetime / pick a season (hidden until >1 season exists) -->
 <div class="row" id="season-scope-row" style="display:none;margin-bottom:10px;gap:8px;align-items:center;flex-wrap:wrap;"></div>
 <!-- v100/v189/v203: Regular / Advanced / Opp Pit / Line Scores view toggle -->
-<div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div><div class="team-toggle-btn" id="sv-opppit" onclick="setSeasonView('oppPit')">🥎 Opp Pit</div><div class="team-toggle-btn" id="sv-lines" onclick="setSeasonView('lineScores')">📋 Lines</div></div>
+<div class="team-toggle" id="season-view-tog" style="margin-bottom:10px;"><div class="team-toggle-btn active" id="sv-reg" onclick="setSeasonView('regular')">Regular</div><div class="team-toggle-btn" id="sv-adv" onclick="setSeasonView('advanced')">Advanced</div><div class="team-toggle-btn" id="sv-opppit" onclick="setSeasonView('oppPit')">🥎 Opp Pit</div><div class="team-toggle-btn" id="sv-lines" onclick="setSeasonView('lineScores')">📋 Lines</div><div class="team-toggle-btn" id="sv-pos" onclick="setSeasonView('positions')">🧤 Field</div></div>
 <!-- v182: first-pitch summary panel — strikes vs balls on the FIRST pitch
      of every AB across all final games. Shown for our batters (what opp
      pitchers threw us) and our pitchers (what we threw to opp). -->
@@ -409,6 +409,14 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="ptitle">📋 Line Scores</div>
 <div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Per-game R/H/E plus pitches/BIP/swings. Swings show "—" when pitch sequences aren't fully logged for that side.</div>
 <div class="scroll-x" id="season-lines-body"></div>
+</div>
+</div>
+<!-- v2.43: Field tab — innings each player logged at each position (distribution). -->
+<div id="season-positions-panel" style="display:none;">
+<div class="panel">
+<div class="ptitle">🧤 Position Distribution</div>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Innings each player logged at each position, from the Field tab. Use it to balance playing time. <strong>Bench</strong> is only counted for innings where a full field was recorded; games that only logged P/C (early games) count those positions but are skipped for bench.</div>
+<div class="scroll-x" id="season-positions-body"></div>
 </div>
 </div>
 <!-- v189: Opp Pit tab — cross-league pitcher table with team filter -->
@@ -1733,9 +1741,11 @@ function _renderSeasonView(){
   if($('sv-adv'))$('sv-adv').classList.toggle('active',view==='advanced');
   if($('sv-opppit'))$('sv-opppit').classList.toggle('active',view==='oppPit');
   if($('sv-lines'))$('sv-lines').classList.toggle('active',view==='lineScores');
+  if($('sv-pos'))$('sv-pos').classList.toggle('active',view==='positions');
   // v189/v203: alternate views hide our-team panels and show their own panel.
-  var usPanels=$('season-us-panels'),oppPanel=$('season-opppit-panel'),linesPanel=$('season-linescores-panel');
+  var usPanels=$('season-us-panels'),oppPanel=$('season-opppit-panel'),linesPanel=$('season-linescores-panel'),posPanel=$('season-positions-panel');
   var firstPitch=$('season-firstpitch'),audit=$('season-pitchlog-audit');
+  if(posPanel)posPanel.style.display='none';// default hidden; positions branch re-shows
   if(view==='oppPit'){
     if(usPanels)usPanels.style.display='none';
     if(oppPanel)oppPanel.style.display='block';
@@ -1754,6 +1764,16 @@ function _renderSeasonView(){
     renderSeasonLineScores(games);
     return;
   }
+  if(view==='positions'){
+    if(usPanels)usPanels.style.display='none';
+    if(oppPanel)oppPanel.style.display='none';
+    if(linesPanel)linesPanel.style.display='none';
+    if(posPanel)posPanel.style.display='block';
+    if(firstPitch)firstPitch.style.display='none';
+    if(audit)audit.style.display='none';
+    renderSeasonPositions(games);
+    return;
+  }
   // Regular / Advanced view: show our-team panels
   if(usPanels)usPanels.style.display='block';
   if(oppPanel)oppPanel.style.display='none';
@@ -1766,6 +1786,60 @@ function _renderSeasonView(){
   _renderSeasonLegend(view);
   _renderFirstPitchPanel(games);
   _renderPitchLogAuditPanel(games);
+}
+// v2.43: aggregate per-inning field assignments (g.fa) into an innings-per-
+// position-per-player table for playing-time balance. Bench is only tallied for
+// innings where a reasonably full field (>=8 positions) was recorded, so early
+// games that only logged P/C don't produce bogus bench counts.
+function renderSeasonPositions(games){
+  var host=$('season-positions-body');if(!host)return;
+  var POS_ORDER=['P','C','1B','2B','3B','SS','LF','LC','CF','RC','RF'];
+  var tally={},seenPos={},totalFieldInnings=0,partialGames=0,fullGames=0;
+  function ent(name){if(!tally[name])tally[name]={pos:{},field:0,bench:0};return tally[name];}
+  (games||[]).forEach(function(g){
+    var fa=g.fa||{};
+    var luNames=(_ourLineup(g)||[]).map(function(p){return p&&p.name;}).filter(Boolean);
+    var innKeys=Object.keys(fa),gameHadFull=false;
+    innKeys.forEach(function(ik){
+      var entries=fa[ik]||{},posKeys=Object.keys(entries);
+      if(!posKeys.length)return;
+      var assigned={};
+      posKeys.forEach(function(pos){
+        var nm=entries[pos];if(!nm)return;
+        var e=ent(nm);e.pos[pos]=(e.pos[pos]||0)+1;e.field++;
+        seenPos[pos]=1;assigned[nm]=1;totalFieldInnings++;
+      });
+      if(posKeys.length>=8){// full field recorded → bench is meaningful
+        gameHadFull=true;
+        luNames.forEach(function(nm){if(!assigned[nm])ent(nm).bench++;});
+      }
+    });
+    if(gameHadFull)fullGames++;else if(innKeys.length)partialGames++;
+  });
+  var names=Object.keys(tally);
+  if(!names.length){host.innerHTML='<div class="empty" style="padding:16px;">No field assignments recorded in this scope yet. Log a game with the Field tab filled in.</div>';return;}
+  var cols=POS_ORDER.filter(function(p){return seenPos[p];});
+  Object.keys(seenPos).forEach(function(p){if(cols.indexOf(p)<0)cols.push(p);});
+  names.sort(function(a,b){return tally[b].field-tally[a].field;});
+  var h='<table class="tbl"><thead><tr><th style="text-align:left;">Player</th>';
+  cols.forEach(function(c){h+='<th>'+c+'</th>';});
+  h+='<th>Field</th><th>Bench</th></tr></thead><tbody>';
+  var totals={};cols.forEach(function(c){totals[c]=0;});var tF=0,tB=0;
+  names.forEach(function(nm){
+    var e=tally[nm];
+    h+='<tr><td style="text-align:left;">'+esc(sn(nm))+'</td>';
+    cols.forEach(function(c){var v=e.pos[c]||0;totals[c]+=v;h+='<td>'+(v||'·')+'</td>';});
+    h+='<td class="hi">'+e.field+'</td><td>'+(e.bench||0)+'</td></tr>';
+    tF+=e.field;tB+=e.bench;
+  });
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td style="text-align:left;">TOTAL</td>';
+  cols.forEach(function(c){h+='<td>'+(totals[c]||'·')+'</td>';});
+  h+='<td class="hi">'+tF+'</td><td>'+tB+'</td></tr></tfoot></table>';
+  var noteBits=[];
+  if(fullGames)noteBits.push(fullGames+' game'+(fullGames===1?'':'s')+' with full fielding');
+  if(partialGames)noteBits.push(partialGames+' partial (P/C only — bench not counted)');
+  h+='<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-top:8px;">'+noteBits.join(' · ')+'</div>';
+  host.innerHTML=h;
 }
 // v203: per-game line scores tab. Walks every finalized game and lays out
 // both teams' totals: R / H / E / P (pitches thrown) / BIP / Sw (swings).
@@ -10380,7 +10454,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.42';
+var APP_VERSION='v2.43';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
