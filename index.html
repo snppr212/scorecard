@@ -1840,28 +1840,33 @@ function renderSeasonPositions(games){
   if(!names.length){host.innerHTML='<div class="empty" style="padding:16px;">No field assignments recorded in this scope yet. Log a game with the Field tab filled in.</div>';return;}
   var cols=POS_ORDER.filter(function(p){return seenPos[p];});
   Object.keys(seenPos).forEach(function(p){if(cols.indexOf(p)<0)cols.push(p);});
-  names.sort(function(a,b){return tally[b].field-tally[a].field;});
-  var h='<table class="tbl"><thead><tr><th style="text-align:left;">Player</th>';
-  cols.forEach(function(c){h+='<th>'+c+'</th>';});
-  h+='<th title="Infield (1B/2B/3B/SS) / Outfield (LF/LC/CF/RC/RF) innings">IF/OF</th><th>Field</th><th>Bench</th></tr></thead><tbody>';
+  // v2.48: sortable row objects keyed by column id (positions + if/of/field/bench).
+  var rows=names.map(function(nm){
+    var e=tally[nm];var row={name:sn(nm)};
+    cols.forEach(function(c){row[c]=e.pos[c]||0;});
+    row.if=ifSum(e);row.of=ofSum(e);row.field=e.field;row.bench=e.bench||0;
+    return row;
+  });
+  rows=_sortRows(rows,_getStatsSort('fld'));
+  var h='<table class="tbl"><thead><tr>'+_sortableTh('Player','name','fld');
+  cols.forEach(function(c){h+=_sortableTh(c,c,'fld');});
+  h+=_sortableTh('IF','if','fld')+_sortableTh('OF','of','fld')+_sortableTh('Field','field','fld')+_sortableTh('Bench','bench','fld')+'</tr></thead><tbody>';
   var totals={};cols.forEach(function(c){totals[c]=0;});var tF=0,tB=0,tIF=0,tOF=0;
-  names.forEach(function(nm){
-    var e=tally[nm];
-    h+='<tr><td style="text-align:left;">'+esc(sn(nm))+'</td>';
-    cols.forEach(function(c){var v=e.pos[c]||0;totals[c]+=v;h+='<td>'+(v||'·')+'</td>';});
-    var _if=ifSum(e),_of=ofSum(e);tIF+=_if;tOF+=_of;
-    h+='<td class="hi">'+((_if||_of)?(_if+' / '+_of):'·')+'</td>';
-    h+='<td class="hi">'+e.field+'</td><td>'+(e.bench||0)+'</td></tr>';
-    tF+=e.field;tB+=e.bench;
+  rows.forEach(function(row){
+    h+='<tr><td style="text-align:left;">'+esc(row.name)+'</td>';
+    cols.forEach(function(c){var v=row[c]||0;totals[c]+=v;h+='<td>'+(v||'·')+'</td>';});
+    h+='<td class="hi">'+(row.if||'·')+'</td><td class="hi">'+(row.of||'·')+'</td>';
+    h+='<td class="hi">'+row.field+'</td><td>'+(row.bench||0)+'</td></tr>';
+    tIF+=row.if;tOF+=row.of;tF+=row.field;tB+=row.bench;
   });
   h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td style="text-align:left;">TOTAL</td>';
   cols.forEach(function(c){h+='<td>'+(totals[c]||'·')+'</td>';});
-  h+='<td class="hi">'+((tIF||tOF)?(tIF+' / '+tOF):'·')+'</td>';
+  h+='<td class="hi">'+(tIF||'·')+'</td><td class="hi">'+(tOF||'·')+'</td>';
   h+='<td class="hi">'+tF+'</td><td>'+tB+'</td></tr></tfoot></table>';
   var noteBits=[];
   if(fullGames)noteBits.push(fullGames+' game'+(fullGames===1?'':'s')+' with full fielding');
   if(partialGames)noteBits.push(partialGames+' partial (P/C only — bench not counted)');
-  noteBits.push('IF/OF = infield (1B/2B/3B/SS) / outfield (LF/LC/CF/RC/RF) innings');
+  noteBits.push('IF = infield (1B/2B/3B/SS), OF = outfield (LF/LC/CF/RC/RF) · tap a header to sort');
   h+='<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-top:8px;">'+noteBits.join(' · ')+'</div>';
   host.innerHTML=h;
 }
@@ -2840,7 +2845,8 @@ function openOppDiagnostic(){
 // renderers (regular bat/pit + advanced bat/pit).
 function _statsSortDefault(which){
   return ({bat:{col:'ba',dir:'desc'}, pit:{col:'ip_outs',dir:'desc'},
-          batAdv:{col:'pa',dir:'desc'}, pitAdv:{col:'pitches',dir:'desc'}})[which]||{col:null,dir:'desc'};
+          batAdv:{col:'pa',dir:'desc'}, pitAdv:{col:'pitches',dir:'desc'},
+          fld:{col:'field',dir:'desc'}})[which]||{col:null,dir:'desc'};
 }
 function _getStatsSort(which){
   if(!A.statsSorts)A.statsSorts={};
@@ -10538,7 +10544,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.47';
+var APP_VERSION='v2.48';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
