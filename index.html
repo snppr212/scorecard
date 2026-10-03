@@ -580,7 +580,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- v2.49: Fielding Builder — availability + per-inning P/C → auto defense + batting order -->
 <div class="modal-ov" id="m-fldbuild"><div class="modal" style="max-width:640px;">
 <h3>🧤 Fielding Builder</h3>
-<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Mark who's available, set your pitcher &amp; catcher per inning, then Generate. It fills the defense behind them (1B from your pool, an infield anchor, Cobe at 2B when he's in) and sits kids evenly. Your batting order comes from the Lineup tab — the builder shows and exports it but never changes it. Regenerate when availability changes; apply writes fielding to the current game.</div>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Mark who's available, set your pitcher &amp; catcher per inning, then Generate. It fills the defense behind them (1B from your pool, an infield anchor, Cobe at 2B when he's in) and sits kids evenly — one from the core six (Hunter, Lucas, Malcolm, Brody, Ethan, Ezra) and one from the rest, never two core kids together. Your batting order comes from the Lineup tab — the builder shows and exports it but never changes it. Regenerate when availability changes; apply writes fielding to the current game.</div>
 <div class="ptitle">Available</div>
 <div id="fb-avail" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
 <div class="row" style="align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:12px;color:var(--text2);font-family:sans-serif;">Innings</span><input type="number" id="fb-innings" value="6" min="1" max="9" style="width:56px;" onchange="_fbSetInnings(this.value)"></div>
@@ -3731,15 +3731,22 @@ function _fbChooseSitters(cand,numSit,st){
   function _remaining(n){var r=0;for(var j=_fb.curInn+1;j<_fb.innings;j++){var b=_fb.battery[j]||{};if(b.p!==n&&b.c!==n)r++;}return r;}
   scored.forEach(function(x){var deficit=expected-(st[x.n].bench||0);if(deficit>0){var rem=_remaining(x.n);if(rem<deficit)x.pr+=1000;else if(rem===deficit)x.pr+=20;}});
   scored.sort(function(a,b){return b.pr-a.pr;});
+  // v3.07: never bench the core six together. Sitters split across two groups —
+  // FB_PROTECT (Hunter/Lucas/Malcolm/Brody/Ethan/Ezra) and everyone else — at most ceil(numSit/2) per group,
+  // so with 2 sitting it's always one from each. Falls back to anyone if a group runs out of eligible kids.
+  var cap=Math.ceil(numSit/2),grp={};
+  function _g(n){return FB_PROTECT.indexOf(n)>=0?'core':'rest';}
   var sit=[];
   for(var i=0;i<scored.length&&sit.length<numSit;i++){
     var n=scored[i].n,tent=sit.concat([n]);
+    if((grp[_g(n)]||0)>=cap)continue;// group already has its share this inning
     var remain=cand.filter(function(x){return tent.indexOf(x)<0;});
     if(!remain.some(function(x){return FB_FIRST.indexOf(x)>=0;}))continue;// keep a 1B option
     if(!remain.some(function(x){return FB_ANCHOR.indexOf(x)>=0;}))continue;// keep an anchor
-    sit.push(n);
+    sit.push(n);grp[_g(n)]=(grp[_g(n)]||0)+1;
   }
-  for(var j=0;j<scored.length&&sit.length<numSit;j++){if(sit.indexOf(scored[j].n)<0)sit.push(scored[j].n);}
+  for(var j=0;j<scored.length&&sit.length<numSit;j++){if(sit.indexOf(scored[j].n)<0&&(grp[_g(scored[j].n)]||0)<cap){sit.push(scored[j].n);grp[_g(scored[j].n)]=(grp[_g(scored[j].n)]||0)+1;}}
+  for(var k=0;k<scored.length&&sit.length<numSit;k++){if(sit.indexOf(scored[k].n)<0)sit.push(scored[k].n);}
   return sit;
 }
 function _fbAssign(playing,positions,st){
@@ -10909,7 +10916,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.06';
+var APP_VERSION='v3.07';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
