@@ -1832,25 +1832,35 @@ function renderSeasonPositions(games){
   var tally={},seenPos={},totalFieldInnings=0,partialGames=0,fullGames=0;
   function ent(name){if(!tally[name])tally[name]={pos:{},field:0,bench:0};return tally[name];}
   (games||[]).forEach(function(g){
-    var fa=g.fa||{};
+    var fa=g.fa||{},frac=g.faFrac||{};// v3.01: faFrac = optional fractional overlay for mid-inning changes
     var luNames=(_ourLineup(g)||[]).map(function(p){return p&&p.name;}).filter(Boolean);
-    var innKeys=Object.keys(fa),gameHadFull=false;
+    var innSet={};Object.keys(fa).forEach(function(k){innSet[k]=1;});Object.keys(frac).forEach(function(k){innSet[k]=1;});
+    var innKeys=Object.keys(innSet),gameHadFull=false;
     innKeys.forEach(function(ik){
-      var entries=fa[ik]||{},posKeys=Object.keys(entries);
+      var entries=fa[ik]||{},fr=frac[ik]||null;
+      var posSet={};Object.keys(entries).forEach(function(p){posSet[p]=1;});
+      if(fr)Object.keys(fr).forEach(function(p){if(p!=='_bench')posSet[p]=1;});
+      var posKeys=Object.keys(posSet);
       if(!posKeys.length)return;
-      var assigned={};
+      var assigned={};// name -> field fraction this inning
       posKeys.forEach(function(pos){
-        var nm=entries[pos];if(!nm)return;
-        var e=ent(nm);e.pos[pos]=(e.pos[pos]||0)+1;e.field++;
-        seenPos[pos]=1;assigned[nm]=1;totalFieldInnings++;
+        // faFrac override wins for that position; else the full-inning fa string (weight 1)
+        var segs=(fr&&fr[pos])?fr[pos]:(entries[pos]?[{name:entries[pos],w:1}]:[]);
+        segs.forEach(function(seg){
+          if(!seg||!seg.name)return;var w=(seg.w==null?1:seg.w);
+          var e=ent(seg.name);e.pos[pos]=(e.pos[pos]||0)+w;e.field+=w;
+          seenPos[pos]=1;assigned[seg.name]=(assigned[seg.name]||0)+w;totalFieldInnings+=w;
+        });
       });
       if(posKeys.length>=8){// full field recorded → bench is meaningful
         gameHadFull=true;
-        luNames.forEach(function(nm){if(!assigned[nm])ent(nm).bench++;});
+        luNames.forEach(function(nm){if(!assigned[nm])ent(nm).bench++;});// fully benched this inning
+        if(fr&&fr._bench)fr._bench.forEach(function(seg){if(seg&&seg.name)ent(seg.name).bench+=(seg.w==null?1:seg.w);});// partial bench (left/came in mid-inning)
       }
     });
     if(gameHadFull)fullGames++;else if(innKeys.length)partialGames++;
   });
+  function _fmtF(n){n=Math.round((n||0)*2)/2;return (n%1===0)?String(n):n.toFixed(1);}
   var names=Object.keys(tally);
   if(!names.length){host.innerHTML='<div class="empty" style="padding:16px;">No field assignments recorded in this scope yet. Log a game with the Field tab filled in.</div>';return;}
   var cols=POS_ORDER.filter(function(p){return seenPos[p];});
@@ -1869,15 +1879,15 @@ function renderSeasonPositions(games){
   var totals={};cols.forEach(function(c){totals[c]=0;});var tF=0,tB=0,tIF=0,tOF=0;
   rows.forEach(function(row){
     h+='<tr><td style="text-align:left;">'+esc(row.name)+'</td>';
-    cols.forEach(function(c){var v=row[c]||0;totals[c]+=v;h+='<td>'+(v||'·')+'</td>';});
-    h+='<td class="hi">'+(row.if||'·')+'</td><td class="hi">'+(row.of||'·')+'</td>';
-    h+='<td class="hi">'+row.field+'</td><td>'+(row.bench||0)+'</td></tr>';
+    cols.forEach(function(c){var v=row[c]||0;totals[c]+=v;h+='<td>'+(v?_fmtF(v):'·')+'</td>';});
+    h+='<td class="hi">'+(row.if?_fmtF(row.if):'·')+'</td><td class="hi">'+(row.of?_fmtF(row.of):'·')+'</td>';
+    h+='<td class="hi">'+_fmtF(row.field)+'</td><td>'+_fmtF(row.bench)+'</td></tr>';
     tIF+=row.if;tOF+=row.of;tF+=row.field;tB+=row.bench;
   });
   h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td style="text-align:left;">TOTAL</td>';
-  cols.forEach(function(c){h+='<td>'+(totals[c]||'·')+'</td>';});
-  h+='<td class="hi">'+(tIF||'·')+'</td><td class="hi">'+(tOF||'·')+'</td>';
-  h+='<td class="hi">'+tF+'</td><td>'+tB+'</td></tr></tfoot></table>';
+  cols.forEach(function(c){h+='<td>'+(totals[c]?_fmtF(totals[c]):'·')+'</td>';});
+  h+='<td class="hi">'+(tIF?_fmtF(tIF):'·')+'</td><td class="hi">'+(tOF?_fmtF(tOF):'·')+'</td>';
+  h+='<td class="hi">'+_fmtF(tF)+'</td><td>'+_fmtF(tB)+'</td></tr></tfoot></table>';
   var noteBits=[];
   if(fullGames)noteBits.push(fullGames+' game'+(fullGames===1?'':'s')+' with full fielding');
   if(partialGames)noteBits.push(partialGames+' partial (P/C only — bench not counted)');
@@ -10729,7 +10739,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.49';
+var APP_VERSION='v3.01';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
