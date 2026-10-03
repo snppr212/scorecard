@@ -580,13 +580,13 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- v2.49: Fielding Builder — availability + per-inning P/C → auto defense + batting order -->
 <div class="modal-ov" id="m-fldbuild"><div class="modal" style="max-width:640px;">
 <h3>🧤 Fielding Builder</h3>
-<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Mark who's available, set your pitcher &amp; catcher per inning, then Generate. It fills the defense behind them (1B from your pool, an infield anchor, Cobe→2B) and balances playing time. Regenerate when availability changes; apply to the current game.</div>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Mark who's available, set your pitcher &amp; catcher per inning, then Generate. It fills the defense behind them (1B from your pool, an infield anchor, Cobe at 2B when he's in) and sits kids evenly. Your batting order comes from the Lineup tab — the builder shows and exports it but never changes it. Regenerate when availability changes; apply writes fielding to the current game.</div>
 <div class="ptitle">Available</div>
 <div id="fb-avail" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
 <div class="row" style="align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:12px;color:var(--text2);font-family:sans-serif;">Innings</span><input type="number" id="fb-innings" value="6" min="1" max="9" style="width:56px;" onchange="_fbSetInnings(this.value)"></div>
 <div class="ptitle">Pitcher &amp; catcher by inning</div>
 <div class="scroll-x" id="fb-battery" style="margin-bottom:8px;"></div>
-<button class="btn btn-gold btn-full" onclick="generateFieldingPlan()">⚙ Generate defense + batting order</button>
+<button class="btn btn-gold btn-full" onclick="generateFieldingPlan()">⚙ Generate defense</button>
 <div id="fb-result" style="margin-top:10px;"></div>
 <div id="fb-batting"></div>
 <div class="mact" id="fb-actions" style="display:none;"><button class="btn btn-gold btn-sm btn-full" id="fb-apply" onclick="applyFieldingPlanToGame()">↳ Use for current game</button><div class="row" style="gap:5px;width:100%;margin-top:6px;"><button class="btn btn-sm" style="flex:1;" onclick="exportFieldingPlanPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;" onclick="exportFieldingPlanPNG()">🖼 PNG</button><button class="btn btn-sm" style="flex:1;" onclick="copyFieldingPlan()">📋 Copy</button></div></div>
@@ -3636,6 +3636,10 @@ var FB_CATCHERS=['Hunter Bresson','Jacob Aronstein','Ezra Kalman'];
 var FB_FIRST=['Ethan Thomas','Hunter Bresson','Ezra Kalman','Brody Steinberg','Malcolm McPherson','Lucas Iskrant','Jacob Aronstein'];
 var FB_ANCHOR=['Malcolm McPherson','Ethan Thomas','Lucas Iskrant','Ezra Kalman','Jacob Aronstein','Hunter Bresson'];
 var FB_COBE='Cobe Bresson';
+// v3.06: play-all-six priority — when someone has to go all game, it's these kids, in this
+// order (they're the last to sit). Malcolm and Lucas tie. Everyone else sits first among equals.
+var FB_PROTECT=['Ezra Kalman','Ethan Thomas','Hunter Bresson','Brody Steinberg','Malcolm McPherson','Lucas Iskrant'];
+function _fbProtectRank(n){var i=FB_PROTECT.indexOf(n);if(i<0)return 10;return (n==='Lucas Iskrant')?4:i;}
 var FB_IF=['1B','2B','3B','SS'];
 var _fb=null;
 function openFieldBuilder(){
@@ -3716,8 +3720,16 @@ function _fbPick(cands,pos,st,zone){
 }
 function _fbChooseSitters(cand,numSit,st){
   if(numSit<=0)return[];
-  // sit priority: played more + non-key + benched less; a kid who needs infield (season) sits less early
-  var scored=cand.map(function(n){var s=st[n];var key=(FB_PITCHERS.indexOf(n)>=0||FB_CATCHERS.indexOf(n)>=0||FB_FIRST.indexOf(n)>=0);return {n:n,pr:(s.field*2)-(s.bench*2)+(key?0:3)-Math.max(0,_fbSeasonNeed(n,'if',st))};});
+  // v3.06: sit EVENLY first (fewest benches so far sit next). Among equals, the play-all-six
+  // priority kids (FB_PROTECT order) sit LAST; then more field innings; small infield-need nudge.
+  var scored=cand.map(function(n){var s=st[n];return {n:n,pr:-(s.bench*100)+(_fbProtectRank(n)*5)+(s.field)-Math.max(0,_fbSeasonNeed(n,'if',st))*0.5};});
+  // v3.06 look-ahead: a kid who still owes a sit but is running out of non-battery innings
+  // (because he pitches/catches later) must take it NOW, or he never sits and someone doubles.
+  var availN=Object.keys(_fb.avail).filter(function(n){return _fb.avail[n];}).length||1;
+  // floor, not round: when there are fewer sits than kids, nobody "owes" one — protect rank decides who plays all six
+  var expected=Math.floor((_fb.innings*numSit)/availN);
+  function _remaining(n){var r=0;for(var j=_fb.curInn+1;j<_fb.innings;j++){var b=_fb.battery[j]||{};if(b.p!==n&&b.c!==n)r++;}return r;}
+  scored.forEach(function(x){var deficit=expected-(st[x.n].bench||0);if(deficit>0){var rem=_remaining(x.n);if(rem<deficit)x.pr+=1000;else if(rem===deficit)x.pr+=20;}});
   scored.sort(function(a,b){return b.pr-a.pr;});
   var sit=[];
   for(var i=0;i<scored.length&&sit.length<numSit;i++){
@@ -3739,12 +3751,15 @@ function _fbAssign(playing,positions,st){
   var fb=_fbPick(firstC.length?firstC:remain,'1B',st,'if');
   if(fb){res['1B']=fb;remain.splice(remain.indexOf(fb),1);}
   var needAnchor=!fb||FB_ANCHOR.indexOf(fb)<0;
-  // Cobe -> 2B when he's in the infield
-  if(remain.indexOf(FB_COBE)>=0&&ifSlots.indexOf('2B')>=0){res['2B']=FB_COBE;remain.splice(remain.indexOf(FB_COBE),1);ifSlots.splice(ifSlots.indexOf('2B'),1);}
+  // (Cobe is NOT forced into the infield — he plays OF too. Handled after the infield fill:
+  //  if the balancer puts him in the infield, that inning's slot becomes 2B.)
   // ensure an anchor somewhere in the infield
   if(needAnchor&&ifSlots.length){var ac=remain.filter(function(n){return FB_ANCHOR.indexOf(n)>=0;});if(ac.length){var a=_fbPick(ac,ifSlots[0],st,'if');res[ifSlots[0]]=a;remain.splice(remain.indexOf(a),1);ifSlots.shift();}}
   // fill remaining infield, then outfield (balanced)
   ifSlots.forEach(function(pos){if(!remain.length)return;var n=_fbPick(remain,pos,st,'if');res[pos]=n;remain.splice(remain.indexOf(n),1);});
+  // v3.06: Cobe is fine in the outfield; when he IS in the infield, make it 2B (swap with the 2B occupant)
+  var cobeAt=['1B','2B','3B','SS'].find(function(p){return res[p]===FB_COBE;});
+  if(cobeAt&&cobeAt!=='2B'&&res['2B']){var _o=res['2B'];res['2B']=FB_COBE;res[cobeAt]=_o;}
   ofSlots.forEach(function(pos){if(!remain.length)return;var n=_fbPick(remain,pos,st,'of');res[pos]=n;remain.splice(remain.indexOf(n),1);});
   return res;
 }
@@ -3815,15 +3830,14 @@ function _fbRenderPlan(){
   $('fb-actions').style.display='block';
   var ab=$('fb-apply');if(ab)ab.disabled=!G.eid;
 }
-async function _fbRenderBatting(){
-  try{
-    var games=await _fetchAllFinalGames();
-    var coachDocs=await _fetchAllCoachRatings();
-    var lu=(games.length?buildOptimalMusselsLineup(games,coachDocs):[]).filter(function(p){return _fb.avail[p.name];});
-    if(!lu.length){lu=(A.roster||[]).filter(function(r){return _fb.avail[r.name];}).map(function(r){return {name:r.name,jersey:r.jersey};});}
-    _fb.batting=lu;
-    $('fb-batting').innerHTML='<div class="ptitle" style="margin-top:8px;">Batting order '+(games.length?'(optimal, available only)':'(roster order — no games yet)')+'</div><ol style="margin:4px 0 0 20px;padding:0;font-size:12px;line-height:1.5;">'+lu.map(function(p){return '<li>'+esc(sn(p.name))+'</li>';}).join('')+'</ol>';
-  }catch(e){$('fb-batting').innerHTML='';console.log('fb batting err',e);}
+function _fbRenderBatting(){
+  // v3.06: the batting order is YOURS (Optimal/Swing-first + ↑↓ edits in the Lineup tab).
+  // The builder only reads this game's order for display + export — it never writes one.
+  var lu=[],src='';
+  if(G.eid){var ours=isOH()?G.hlu:G.alu;lu=(ours||[]).filter(function(p){return p&&p.name;}).map(function(p){return {name:p.name,jersey:p.jersey||''};});src='this game\'s lineup';}
+  if(!lu.length){lu=(A.roster||[]).filter(function(r){return _fb.avail[r.name];}).map(function(r){return {name:r.name,jersey:r.jersey||''};});src=G.eid?'roster order — set the order in the Lineup tab':'roster order — open a game to use its lineup';}
+  _fb.batting=lu;
+  $('fb-batting').innerHTML='<div class="ptitle" style="margin-top:8px;">Batting order <span style="font-weight:normal;color:var(--text3);font-size:10px;">('+esc(src)+')</span></div><ol style="margin:4px 0 0 20px;padding:0;font-size:12px;line-height:1.5;">'+lu.map(function(p){return '<li>'+esc(sn(p.name))+'</li>';}).join('')+'</ol>';
 }
 function applyFieldingPlanToGame(){
   if(!_fb||!_fb.plan){toast('Generate first');return;}
@@ -3833,17 +3847,11 @@ function applyFieldingPlanToGame(){
     var inn=g.inn;if(!G.fa[inn])G.fa[inn]={};
     ['P','C','1B','2B','3B','SS','LF','LC','CF','RC','RF'].forEach(function(pos){if(g[pos])G.fa[inn][pos]=g[pos];});
   });
-  // v3.03: once the game has started, the batting order is in progress — leave it alone
-  var inProgress=!!(G.abs&&G.abs.length);
-  if(!inProgress&&_fb.batting&&_fb.batting.length){
-    var ourKey=isOH()?'hlu':'alu',newLu=[];
-    _fb.batting.forEach(function(p){var rp=A.roster.find(function(r){return r.name===p.name;});if(rp)newLu.push({name:rp.name,jersey:rp.jersey||'',rid:rp.id});});
-    if(newLu.length)G[ourKey]=newLu;
-  }
+  // v3.06: fielding only — the batting order is set in the Lineup tab and is never overwritten here
   sv();if(typeof renderSC==='function')renderSC();
   cm('m-fldbuild');
-  toast(inProgress?'Applied fielding (batting order kept — game in progress)':'Applied fielding + batting order — reorder with ↑↓ if needed',3000);
-  _goToLineupEdit();
+  toast('Applied fielding to the game (batting order untouched)',3000);
+  try{ss('screen-sc');stab('field',document.querySelectorAll('#screen-sc .tab')[1]);}catch(e){}
 }
 function copyFieldingPlan(){
   if(!_fb||!_fb.plan)return;
@@ -10901,7 +10909,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.05';
+var APP_VERSION='v3.06';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
