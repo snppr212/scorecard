@@ -490,7 +490,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="tabs"><div class="tab active" onclick="stab('atbat',this)">At Bat</div><div class="tab" onclick="stab('field',this)">Field</div><div class="tab" onclick="stab('pitch',this)">Pitchers</div><div class="tab" onclick="stab('lineup',this)">Lineup</div><div class="tab" onclick="stab('stats',this)">Box</div><div class="tab" onclick="stab('log',this)">Plays</div><div class="tab" onclick="stab('box',this)">Export</div><div class="tab" onclick="stab('rules',this)">Rules</div></div>
 <div class="scroll pad" id="sc-content">
 <!-- AT BAT -->
-<div id="tab-atbat">
+<div id="tab-atbat"><button id="fb-pregame-btn" class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="openFieldBuilder()" title="Pick who's here, set P/C per inning, generate the defense + batting order, assign it to this game">🧤 Build lineup + fielding for this game</button>
 <div class="view-only-banner" id="view-only-banner">🏁 Game complete · view only<br><span style="font-size:11px;color:var(--text3);">Use the Plays tab to edit at-bats.</span></div>
 <div class="matchup-bar"><div class="mu-side"><div class="mu-label">Pitcher</div><div class="mu-name" id="mu-p">—</div><div class="mu-detail" id="mu-pd"></div></div><div class="mu-vs">vs</div><div class="mu-side"><div class="mu-label">Batter</div><div class="mu-name" id="mu-b">—</div><div class="mu-detail" id="mu-bd"></div></div></div>
 <div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);"><div id="field-svg"></div></div>
@@ -3645,7 +3645,8 @@ function openFieldBuilder(){
   roster.forEach(function(r){_fb.avail[r.name]=true;});
   for(var i=0;i<_fb.innings;i++){
     var fa=(G.eid&&G.fa&&G.fa[i+1])||{};
-    _fb.battery.push({p:fa.P||'',c:fa.C||(_fb.avail['Hunter Bresson']?'Hunter Bresson':'')});
+    var pc=(fa.C&&fa.C!==fa.P)?fa.C:'';// never pre-fill a kid as both P and C
+    _fb.battery.push({p:fa.P||'',c:pc||((_fb.avail['Hunter Bresson']&&fa.P!=='Hunter Bresson')?'Hunter Bresson':'')});
   }
   $('fb-result').innerHTML='';$('fb-batting').innerHTML='';$('fb-actions').style.display='none';
   _fbRenderSetup();om('m-fldbuild');
@@ -3658,8 +3659,13 @@ function _fbRenderSetup(){
   }).join('');
   $('fb-innings').value=_fb.innings;
   function sel(role,inn,val){
+    // v3.04: anyone can pitch or catch — preferred kids first, a divider, then everyone else
     var pool=role==='p'?FB_PITCHERS:FB_CATCHERS;
-    var opts='<option value="">—</option>'+pool.filter(function(n){return _fb.avail[n];}).map(function(n){return '<option value="'+esc(n)+'"'+(val===n?' selected':'')+'>'+esc(sn(n))+'</option>';}).join('');
+    var allAvail=(A.roster||[]).map(function(r){return r.name;}).filter(function(n){return _fb.avail[n];});
+    var pref=pool.filter(function(n){return _fb.avail[n];});
+    var rest=allAvail.filter(function(n){return pool.indexOf(n)<0;});
+    var opt=function(n){return '<option value="'+esc(n)+'"'+(val===n?' selected':'')+'>'+esc(sn(n))+'</option>';};
+    var opts='<option value="">—</option>'+pref.map(opt).join('')+(rest.length?'<option disabled>──────────</option>'+rest.map(opt).join(''):'');
     return '<select onchange="_fbSetBattery('+inn+',\''+role+'\',this.value)" style="font-size:11px;padding:3px;width:100%;">'+opts+'</select>';
   }
   var h='<table class="tbl" style="font-size:11px;"><thead><tr><th>Inn</th><th>Pitcher</th><th>Catcher</th></tr></thead><tbody>';
@@ -3668,7 +3674,16 @@ function _fbRenderSetup(){
 }
 function _fbToggleAvail(idx){var n=((A.roster||[])[idx]||{}).name;if(!n)return;_fb.avail[n]=!_fb.avail[n];_fb.battery.forEach(function(b){if(!_fb.avail[b.p])b.p='';if(!_fb.avail[b.c])b.c='';});_fbRenderSetup();}
 function _fbSetInnings(n){n=Math.max(1,Math.min(9,parseInt(n)||6));var old=_fb.battery.slice();_fb.innings=n;_fb.battery=[];for(var i=0;i<n;i++)_fb.battery.push(old[i]||{p:'',c:(_fb.avail['Hunter Bresson']?'Hunter Bresson':'')});_fbRenderSetup();}
-function _fbSetBattery(inn,role,val){if(!_fb.battery[inn])_fb.battery[inn]={p:'',c:''};_fb.battery[inn][role]=val;}
+function _fbSetBattery(inn,role,val){
+  if(!_fb.battery[inn])_fb.battery[inn]={p:'',c:''};
+  _fb.battery[inn][role]=val;
+  // v3.04: one kid can't pitch AND catch the same inning — picking one clears the other
+  var other=role==='p'?'c':'p';
+  if(val&&_fb.battery[inn][other]===val){
+    _fb.battery[inn][other]='';_fbRenderSetup();
+    toast(sn(val)+' set to '+(role==='p'?'pitch':'catch')+' inning '+(inn+1)+' — '+(other==='p'?'pitcher':'catcher')+' cleared',2500);
+  }
+}
 function _fbLess(a,b){for(var i=0;i<a.length;i++){if(a[i]!==b[i])return a[i]<b[i];}return false;}
 // v3.02: season IF/OF balance. Positive = this kid should get this zone now. Uses the
 // season tally (incl. .5 overlays); stronger in innings 1-3 (guaranteed to be played),
@@ -3754,6 +3769,7 @@ async function generateFieldingPlan(){
     }
     var b=_fb.battery[inn]||{};
     var p=(b.p&&_fb.avail[b.p])?b.p:'',c=(b.c&&_fb.avail[b.c])?b.c:'';
+    if(p&&p===c){warn.push('Inn '+(inn+1)+': '+sn(p)+' was set to pitch AND catch — catcher cleared');c='';}
     if(!p)warn.push('Inn '+(inn+1)+': no pitcher');
     if(!c)warn.push('Inn '+(inn+1)+': no catcher');
     var fielders=Math.min(avail.length,10);
@@ -4832,7 +4848,7 @@ function renderABDetail(){
 }
 
 // SCORECARD
-function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();renderLS();_refreshSwingQualityUI();}
+function renderSC(){var ev=G.eid?A.schedule.find(e=>e.id===G.eid):null;$('sc-title').textContent=G.at+' @ '+G.ht;$('sc-sub').textContent=ev?(ev.date+(ev.loc?' · '+ev.loc:'')):'';$('bt-label').textContent=isHB()?G.ht:G.at;renderSB();renderFD();renderMU();renderCB();renderBL();renderSeq();renderLS();_refreshSwingQualityUI();var _pg=$('fb-pregame-btn');if(_pg)_pg.style.display=(G.abs&&G.abs.length)?'none':'';}
 function stab(name,el){['atbat','field','pitch','lineup','stats','log','box','rules'].forEach(t=>$('tab-'+t).style.display='none');document.querySelectorAll('#screen-sc .tab').forEach(t=>t.classList.remove('active'));$('tab-'+name).style.display='block';el.classList.add('active');
 renderSB();// always keep scorebar current
 if(name==='stats'){renderLS();renderStats();}if(name==='log'){renderLS();renderLog();}if(name==='box'){renderBox();mkShare();}if(name==='field'){renderFT();renderFD();}if(name==='lineup')renderLT();if(name==='pitch'){syncP();renderPT();}if(name==='rules')renderRulesBook();if(name==='atbat'){renderSC();renderABDetail();renderSummary();if(G._needOppPicker){G._needOppPicker=false;setTimeout(function(){openOppBatterPicker();},300);}}}
@@ -10871,7 +10887,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.03';
+var APP_VERSION='v3.04';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
