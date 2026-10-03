@@ -490,7 +490,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="tabs"><div class="tab active" onclick="stab('atbat',this)">At Bat</div><div class="tab" onclick="stab('field',this)">Field</div><div class="tab" onclick="stab('pitch',this)">Pitchers</div><div class="tab" onclick="stab('lineup',this)">Lineup</div><div class="tab" onclick="stab('stats',this)">Box</div><div class="tab" onclick="stab('log',this)">Plays</div><div class="tab" onclick="stab('box',this)">Export</div><div class="tab" onclick="stab('rules',this)">Rules</div></div>
 <div class="scroll pad" id="sc-content">
 <!-- AT BAT -->
-<div id="tab-atbat"><button id="fb-pregame-btn" class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="openFieldBuilder()" title="Pick who's here, set P/C per inning, generate the defense + batting order, assign it to this game">🧤 Build lineup + fielding for this game</button>
+<div id="tab-atbat">
 <div class="view-only-banner" id="view-only-banner">🏁 Game complete · view only<br><span style="font-size:11px;color:var(--text3);">Use the Plays tab to edit at-bats.</span></div>
 <div class="matchup-bar"><div class="mu-side"><div class="mu-label">Pitcher</div><div class="mu-name" id="mu-p">—</div><div class="mu-detail" id="mu-pd"></div></div><div class="mu-vs">vs</div><div class="mu-side"><div class="mu-label">Batter</div><div class="mu-name" id="mu-b">—</div><div class="mu-detail" id="mu-bd"></div></div></div>
 <div style="background:linear-gradient(180deg,#0a1520,#0f1d2d);border-bottom:1px solid var(--border);"><div id="field-svg"></div></div>
@@ -503,6 +503,8 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div></div>
 <div class="panel" id="result-panel"><div class="ptitle">Result</div><div class="rgrid"><button class="rbtn" onclick="endAB('1B')">Single</button><button class="rbtn" onclick="endAB('2B')">Double</button><button class="rbtn" onclick="endAB('3B')">Triple</button><button class="rbtn" onclick="endAB('HR')">HR</button><button class="rbtn" onclick="endAB('FO')">Fly out</button><button class="rbtn" onclick="endAB('GO')">Grd out</button><button class="rbtn" onclick="endAB('LO')">Line out</button><button class="rbtn" onclick="endAB('PO')">Pop out</button><button class="rbtn" onclick="endAB('FF')">Foul fly</button><button class="rbtn" onclick="endAB('SAC')">Sac</button><button class="rbtn" onclick="endAB('FC')">FC</button><button class="rbtn" onclick="endAB('ROE')" style="border-color:var(--amber2);color:var(--amber2);">ROE</button><button class="rbtn" onclick="openCI()" style="border-color:var(--amber2);color:var(--amber2);font-size:10px;">CI</button><button class="rbtn" onclick="endAB('DP')">Dou Play</button><button class="rbtn" onclick="endAB('TP')">Trip Play</button><button class="rbtn" onclick="endAB('LLHR')" style="font-size:10px;">LLHR</button></div><div class="sep"></div><div class="row-b" style="flex-wrap:wrap;gap:5px;"><button class="btn btn-sm btn-green" onclick="logSteal()">SB</button><button class="btn btn-sm btn-red" onclick="logCS()">CS</button><button class="btn btn-sm" onclick="addManualOut()">+ Out</button><button class="btn btn-sm btn-blue" onclick="openManualRun()">+ Run</button><button class="btn btn-sm" onclick="openStandaloneErr()" style="border-color:var(--amber2);color:var(--amber2);">⚠️ Err</button><button class="btn btn-sm" onclick="openAddNote()" style="border-color:#ffcc66;color:#ffcc66;">📝 Note</button></div></div>
 <div class="panel" id="ls-ab-panel" style="padding:8px 10px;"></div>
+<!-- v3.05: Fielding Builder entry, directly below the line score (hidden once scoring starts) -->
+<button id="fb-pregame-btn" class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="openFieldBuilder()" title="Pick who's here, set P/C per inning, generate the defense + batting order, assign it to this game">🧤 Build lineup + fielding for this game</button>
 <div class="panel"><div class="ptitle">Batting order — <span id="bt-label">—</span></div><div id="bat-list"></div></div>
 </div>
 <!-- FIELD -->
@@ -1130,7 +1132,7 @@ var OPP_ROSTERS={
 'Hurricanes':['Paxton Eggert','Nash Davis','Owen Tatlow','Danny Tantino','Gregory Zervalis','Rivaan Dhyllon','Simon Smith','William Leonard','Seth Gold','Neel Khatnani','Whit Baird','PJ Tanker'],
 'Iron Pigs':['Nolan Roth','Ari Elbaum','Gavin Amoroso','Race Mandel','Ryder Berman','Jeffrey Blisard','Bradley Blisard','Zachary Moyer','Ryan Prince','Asi Frechette','Logan Baill','Kiran Meighan'],
 'Lugnuts':['William Gardner','Leo Kesselman','Peter Christopher','Johnny Richardson','Andrew Zelinsky','Elliot Bockman','Brian Ferreira','Jet Sanders','Austin Schroeder','Andrew Miller','Hale Smith','Oscar Oehlberg'],
-'Mud Hens':['Ezra Girson','Peter Huynh','Garrett Freeland','Remy Bull','Anthony Christopher','Gavin Tomback','James Christopher','Lucas Marley','Max Nathan','Jack Bellis','Jack Felkins'],
+'Mud Hens':['PJ Tanker','Anthony Christopher','James Christopher','Rivaan Dhyllon','Nash Davis','Gavin Tomback','Harris Stellabotte','Whit Baird','Theo Cherkas','Garrett Freeland','Paxton Eggert','Yasine Berriche'],// Fall 2026 roster
 'Tin Caps':['Jacob M','Samuel F','Seth G','Yossel S','Solomon N','Leo S','Aiden K','Caleb L','Ariav B','Yair L','Arthur S','Manny M']
 };
 
@@ -3840,7 +3842,8 @@ function applyFieldingPlanToGame(){
   }
   sv();if(typeof renderSC==='function')renderSC();
   cm('m-fldbuild');
-  toast(inProgress?'Applied fielding (batting order kept — game in progress)':'Applied fielding + batting order to the game',3000);
+  toast(inProgress?'Applied fielding (batting order kept — game in progress)':'Applied fielding + batting order — reorder with ↑↓ if needed',3000);
+  _goToLineupEdit();
 }
 function copyFieldingPlan(){
   if(!_fb||!_fb.plan)return;
@@ -3923,6 +3926,16 @@ async function exportFieldingPlanPNG(){
     },'image/png');
   }catch(e){el.style.left='-9999px';el.style.zIndex='';console.log('png export',e);toast('PNG export failed: '+(e&&e.message||e),4000);}
 }
+// v3.05: after an auto lineup is applied, land on the game's Lineup tab in EDIT mode
+// (↑↓ arrows) so the order can be tweaked right away — the math is a starting point.
+function _goToLineupEdit(){
+  try{
+    ss('screen-sc');
+    var tabs=document.querySelectorAll('#screen-sc .tab');
+    stab('lineup',tabs[3]);
+    if(typeof _luEdit!=='undefined'&&!_luEdit.us)toggleLuEdit('us');
+  }catch(e){console.log('_goToLineupEdit',e);}
+}
 // v121: apply the optimal lineup to the active game's batting order. Maps each
 // optimal-list player back to A.roster (case-insensitive) so we get the rid
 // reference that the in-game lineup needs. Skips anyone not on roster.
@@ -3958,8 +3971,9 @@ function _applyOptimalToCurrentGame(){
   G[ourKey]=newLu;
   sv();
   cm('m-optlu');
-  toast(unmatched.length?('Applied '+newLu.length+' (skipped '+unmatched.length+' unmatched)'):'Applied '+newLu.length+' to lineup',3000);
+  toast(unmatched.length?('Applied '+newLu.length+' (skipped '+unmatched.length+' unmatched)'):'Applied '+newLu.length+' — reorder with ↑↓ if needed',3000);
   if(typeof renderSC==='function')renderSC();
+  _goToLineupEdit();
 }
 // v121: reorder A.roster to match optimal. Roster players not in the optimal
 // list (rare — usually means a name mismatch) get appended at the end in their
@@ -10887,7 +10901,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.04';
+var APP_VERSION='v3.05';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
