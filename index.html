@@ -384,7 +384,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="screen" id="screen-season">
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
-<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:120px;" onclick="showSwingFirstLineup()">🏏 Swing-first</button><button class="btn btn-sm" style="flex:1;min-width:120px;" onclick="openFieldBuilder()">🧤 Field builder</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
+<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:120px;" onclick="showSwingFirstLineup()">🏏 Swing-first</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
 <!-- v2.42: stats scope — This season / Lifetime / pick a season (hidden until >1 season exists) -->
 <div class="row" id="season-scope-row" style="display:none;margin-bottom:10px;gap:8px;align-items:center;flex-wrap:wrap;"></div>
 <!-- v100/v189/v203: Regular / Advanced / Opp Pit / Line Scores view toggle -->
@@ -510,7 +510,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- PITCHERS -->
 <div id="tab-pitch" style="display:none;"><div class="team-toggle" id="pt-tog"><div class="team-toggle-btn active" id="pt-tog-us" onclick="setPT('us',this)">Our Pitchers</div><div class="team-toggle-btn" id="pt-tog-them" onclick="setPT('them',this)">Their Pitchers</div></div><div id="pt-us"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;">Active</div><div id="hp-label" style="font-size:12px;color:var(--gold);font-family:sans-serif;">None</div></div><div id="hp-bar"></div><div class="sep"></div><div class="ptitle">Set active</div><div id="hp-sel"></div><div class="row" style="margin-top:8px;"><select id="hp-inp" style="flex:1;"><option value="">Add from roster</option></select><button class="btn btn-sm btn-green" onclick="addP('us')">Add</button></div><div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;"><button class="btn btn-xs btn-full" onclick="if(confirm('Rebuild all pitcher stats from the AB log? Use this if you changed pitcher attribution after the fact.')){recalcPitcherStats();renderPT();renderMU();toast('Pitcher stats rebuilt from ABs',2500);}" style="font-size:10px;border-color:var(--text3);color:var(--text2);">⟲ Recalc stats from ABs (after retroactive change)</button></div></div><div class="panel"><div class="ptitle">Season log</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>This game</th><th>Rest</th><th>Avail?</th><th>40+?</th></tr></thead><tbody id="sp-body"></tbody></table></div></div></div><div id="pt-them" style="display:none;"><div class="panel"><div class="ptitle">Their active pitcher</div><div id="ap-bar"></div><div class="sep"></div><div id="ap-sel"></div><div class="row" style="margin-top:8px;"><select id="ap-inp" style="flex:1;"><option value="">Add from opponent lineup</option></select><button class="btn btn-sm btn-green" onclick="addP('them')">Add</button></div></div><div class="panel"><div class="ptitle">This game — pitch totals</div><div class="scroll-x"><table class="tbl" id="opp-pc-tbl"></table></div></div></div></div>
 <!-- LINEUP -->
-<div id="tab-lineup" style="display:none;"><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><div class="row" style="gap:4px;"><button class="btn btn-xs" onclick="openPasteLineup('us')" title="Paste from Claude">📋</button><button class="btn btn-xs" id="btn-lu-edit-us" onclick="toggleLuEdit('us')">Edit</button><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><div class="row" style="gap:4px;"><button class="btn btn-xs" onclick="openPasteLineup('opp')" title="Paste from Claude">📋</button><button class="btn btn-xs" id="btn-lu-edit-them" onclick="toggleLuEdit('them')">Edit</button><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div></div><div id="their-lu-list"></div></div></div>
+<div id="tab-lineup" style="display:none;"><button class="btn btn-gold btn-full" style="margin-bottom:8px;" onclick="openFieldBuilder()" title="Pick who's here, set P/C per inning, generate the defense + batting order, and assign it to this game">🧤 Build lineup + fielding for this game</button><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-our-title">Our batting order</div><div class="row" style="gap:4px;"><button class="btn btn-xs" onclick="openPasteLineup('us')" title="Paste from Claude">📋</button><button class="btn btn-xs" id="btn-lu-edit-us" onclick="toggleLuEdit('us')">Edit</button><button class="btn btn-sm btn-green" onclick="addGB('us')">+ Late arrival</button></div></div><div style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Tap DNP to remove injured/absent players — they stay in the box score.</div><div id="our-lu-list"></div></div><div class="panel"><div class="row-b" style="margin-bottom:8px;"><div class="ptitle" style="margin:0;" id="lu-their-title">Opponent lineup</div><div class="row" style="gap:4px;"><button class="btn btn-xs" onclick="openPasteLineup('opp')" title="Paste from Claude">📋</button><button class="btn btn-xs" id="btn-lu-edit-them" onclick="toggleLuEdit('them')">Edit</button><button class="btn btn-sm btn-green" onclick="addOppInGame()">+ Add</button></div></div><div id="their-lu-list"></div></div></div>
 <!-- STATS / BOX -->
 <div id="tab-stats" style="display:none;"><div class="panel" id="ls-stats-panel" style="padding:8px 10px;"></div><div class="team-toggle"><div class="team-toggle-btn active" id="st-tog-us" onclick="setST('us',this)">Us</div><div class="team-toggle-btn" id="st-tog-them" onclick="setST('them',this)">Them</div></div><div class="panel"><div class="ptitle" id="st-bt">Batting</div><div class="scroll-x"><table class="tbl" id="st-btbl"></table></div></div><div class="panel"><div class="ptitle" id="st-pt">Pitching</div><div class="scroll-x"><table class="tbl" id="st-ptbl"></table></div></div><div class="panel" id="st-err"><div class="ptitle">Fielding errors</div><div class="scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Pos</th><th>Inn</th><th>Type</th><th>Play</th></tr></thead><tbody id="err-body"></tbody></table></div></div></div>
 <!-- LOG -->
@@ -1887,21 +1887,25 @@ function renderSeasonPositions(games){
     return row;
   });
   rows=_sortRows(rows,_getStatsSort('fld'));
-  var h='<table class="tbl"><thead><tr>'+_sortableTh('Player','name','fld');
+  // v3.03: summary columns (IF / OF / Played / Sat) first, then the specific positions
+  var h='<table class="tbl"><thead><tr>'+_sortableTh('Player','name','fld')
+    +_sortableTh('IF','if','fld')+_sortableTh('OF','of','fld')+_sortableTh('Played','field','fld')+_sortableTh('Sat','bench','fld');
   cols.forEach(function(c){h+=_sortableTh(c,c,'fld');});
-  h+=_sortableTh('IF','if','fld')+_sortableTh('OF','of','fld')+_sortableTh('Field','field','fld')+_sortableTh('Bench','bench','fld')+'</tr></thead><tbody>';
+  h+='</tr></thead><tbody>';
   var totals={};cols.forEach(function(c){totals[c]=0;});var tF=0,tB=0,tIF=0,tOF=0;
   rows.forEach(function(row){
     h+='<tr><td style="text-align:left;">'+esc(row.name)+'</td>';
-    cols.forEach(function(c){var v=row[c]||0;totals[c]+=v;h+='<td>'+(v?_fmtF(v):'·')+'</td>';});
     h+='<td class="hi">'+(row.if?_fmtF(row.if):'·')+'</td><td class="hi">'+(row.of?_fmtF(row.of):'·')+'</td>';
-    h+='<td class="hi">'+_fmtF(row.field)+'</td><td>'+_fmtF(row.bench)+'</td></tr>';
+    h+='<td class="hi">'+_fmtF(row.field)+'</td><td>'+_fmtF(row.bench)+'</td>';
+    cols.forEach(function(c){var v=row[c]||0;totals[c]+=v;h+='<td>'+(v?_fmtF(v):'·')+'</td>';});
+    h+='</tr>';
     tIF+=row.if;tOF+=row.of;tF+=row.field;tB+=row.bench;
   });
   h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td style="text-align:left;">TOTAL</td>';
-  cols.forEach(function(c){h+='<td>'+(totals[c]?_fmtF(totals[c]):'·')+'</td>';});
   h+='<td class="hi">'+(tIF?_fmtF(tIF):'·')+'</td><td class="hi">'+(tOF?_fmtF(tOF):'·')+'</td>';
-  h+='<td class="hi">'+_fmtF(tF)+'</td><td>'+_fmtF(tB)+'</td></tr></tfoot></table>';
+  h+='<td class="hi">'+_fmtF(tF)+'</td><td>'+_fmtF(tB)+'</td>';
+  cols.forEach(function(c){h+='<td>'+(totals[c]?_fmtF(totals[c]):'·')+'</td>';});
+  h+='</tr></tfoot></table>';
   var noteBits=[];
   if(fullGames)noteBits.push(fullGames+' game'+(fullGames===1?'':'s')+' with full fielding');
   if(partialGames)noteBits.push(partialGames+' partial (P/C only — bench not counted)');
@@ -3634,9 +3638,15 @@ var FB_IF=['1B','2B','3B','SS'];
 var _fb=null;
 function openFieldBuilder(){
   var roster=A.roster||[];
-  _fb={innings:6,avail:{},battery:[],plan:null,batting:null};
+  // v3.03: per-game. Innings come from the open game; P/C pre-fill from anything
+  // already assigned, so an adjust-at-the-field regen keeps your battery.
+  var N=(G.eid&&G.ti)?G.ti:6;
+  _fb={innings:N,avail:{},battery:[],plan:null,batting:null};
   roster.forEach(function(r){_fb.avail[r.name]=true;});
-  for(var i=0;i<_fb.innings;i++)_fb.battery.push({p:'',c:(_fb.avail['Hunter Bresson']?'Hunter Bresson':'')});
+  for(var i=0;i<_fb.innings;i++){
+    var fa=(G.eid&&G.fa&&G.fa[i+1])||{};
+    _fb.battery.push({p:fa.P||'',c:fa.C||(_fb.avail['Hunter Bresson']?'Hunter Bresson':'')});
+  }
   $('fb-result').innerHTML='';$('fb-batting').innerHTML='';$('fb-actions').style.display='none';
   _fbRenderSetup();om('m-fldbuild');
 }
@@ -3669,9 +3679,12 @@ function _fbSeasonNeed(n,zone,st){
   // projected season-to-date INCLUDING this game so far, so the push relaxes as the
   // kid banks innings in the needed zone (front-loads IF early, then rebalances).
   var eIF=(sea.if||0)+(g.if||0),eOF=(sea.of||0)+(g.of||0);
-  var w=(_fb&&_fb.curInn<3)?1:0.4;
+  var early=!!(_fb&&_fb.curInn<3);
+  // gentle catch-up: the bias hands out at most 2 IF in innings 1-3 (IF/IF/OF, not IF/IF/IF)
+  if(early&&zone==='if'&&(g.if||0)>=2)return 0;
+  var w=early?1:0.4;
   var need=(zone==='if')?(eOF-eIF):(eIF-eOF);
-  var cap=(zone==='if')?(eOF>2*eIF+1?10:0):(eIF>2*eOF+1?10:0);
+  var cap=(zone==='if')?(eOF>2*eIF+1?4:0):(eIF>2*eOF+1?4:0);// soft 2:1 nudge, not a mandate
   return need*w+cap;
 }
 function _fbPick(cands,pos,st,zone){
@@ -3728,6 +3741,17 @@ async function generateFieldingPlan(){
   avail.forEach(function(n){st[n]={field:0,bench:0,pos:{},if:0,of:0};});
   for(var inn=0;inn<N;inn++){
     _fb.curInn=inn;
+    // v3.03: innings already played stay exactly as they were (adjust-at-the-field regen)
+    var lockedFa=(G.eid&&G.inn>inn+1&&G.fa&&G.fa[inn+1])?G.fa[inn+1]:null;
+    if(lockedFa){
+      var rec0={inn:inn+1,P:lockedFa.P||'',C:lockedFa.C||'',bench:[],locked:true},placed={};
+      Object.keys(lockedFa).forEach(function(pos){var n=lockedFa[pos];if(!n)return;rec0[pos]=n;placed[n]=1;
+        if(!st[n])st[n]={field:0,bench:0,pos:{},if:0,of:0};
+        st[n].field++;st[n].pos[pos]=(st[n].pos[pos]||0)+1;
+        if(FB_IF.indexOf(pos)>=0)st[n].if++;else if(pos!=='P'&&pos!=='C')st[n].of++;});
+      rec0.bench=avail.filter(function(n){return !placed[n];});rec0.bench.forEach(function(n){st[n].bench++;});
+      grid.push(rec0);continue;
+    }
     var b=_fb.battery[inn]||{};
     var p=(b.p&&_fb.avail[b.p])?b.p:'',c=(b.c&&_fb.avail[b.c])?b.c:'';
     if(!p)warn.push('Inn '+(inn+1)+': no pitcher');
@@ -3791,14 +3815,16 @@ function applyFieldingPlanToGame(){
     var inn=g.inn;if(!G.fa[inn])G.fa[inn]={};
     ['P','C','1B','2B','3B','SS','LF','LC','CF','RC','RF'].forEach(function(pos){if(g[pos])G.fa[inn][pos]=g[pos];});
   });
-  if(_fb.batting&&_fb.batting.length){
+  // v3.03: once the game has started, the batting order is in progress — leave it alone
+  var inProgress=!!(G.abs&&G.abs.length);
+  if(!inProgress&&_fb.batting&&_fb.batting.length){
     var ourKey=isOH()?'hlu':'alu',newLu=[];
     _fb.batting.forEach(function(p){var rp=A.roster.find(function(r){return r.name===p.name;});if(rp)newLu.push({name:rp.name,jersey:rp.jersey||'',rid:rp.id});});
     if(newLu.length)G[ourKey]=newLu;
   }
   sv();if(typeof renderSC==='function')renderSC();
   cm('m-fldbuild');
-  toast('Applied fielding + batting order to the game',3000);
+  toast(inProgress?'Applied fielding (batting order kept — game in progress)':'Applied fielding + batting order to the game',3000);
 }
 function copyFieldingPlan(){
   if(!_fb||!_fb.plan)return;
@@ -10845,7 +10871,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.02';
+var APP_VERSION='v3.03';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
