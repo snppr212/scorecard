@@ -1270,11 +1270,15 @@ function oppDisplayHtml(p,idx){
   if(p.autoOut)return'⚪ Auto Out';
   if(!p.name&&!p.jersey)return typeof idx==='number'?esc(holeLabel(idx)):'TBD';
   var jHtml=p.jersey?('<sup style="font-size:8px;font-weight:normal;">#</sup>'+esc(p.jersey)+' '):'';
+  // v2.47: show the batting-order spot in parens for number-only opp batters
+  // (e.g. "#12 (1)") — we only know their number, so the (N) says where they bat.
+  var numOnly=!p.name||/^#?\d+$/.test(String(p.name).trim());
+  var ord=(numOnly&&typeof idx==='number')?' <span style="opacity:.55;font-size:.82em;">('+(idx+1)+')</span>':'';
   if(isPlaceholder(p.name))return jHtml+esc(p.name);
-  if(!p.name)return'<sup style="font-size:8px;font-weight:normal;">#</sup>'+esc(p.jersey);
+  if(!p.name)return'<sup style="font-size:8px;font-weight:normal;">#</sup>'+esc(p.jersey)+ord;
   var parts=p.name.trim().split(/\s+/);
   var nm=parts.length>1?parts[0].charAt(0)+'. '+parts[parts.length-1]:p.name;
-  return jHtml+esc(nm);
+  return jHtml+esc(nm)+ord;
 }
 function theyBat(){return isOH()!==isHB();}// true when opponent is currently batting
 function isPast(ev){try{return new Date(ev.date+' '+ev.time)<new Date();}catch(e){return false;}}
@@ -1807,6 +1811,9 @@ function _renderSeasonView(){
 function renderSeasonPositions(games){
   var host=$('season-positions-body');if(!host)return;
   var POS_ORDER=['P','C','1B','2B','3B','SS','LF','LC','CF','RC','RF'];
+  var IF_POS=['1B','2B','3B','SS'],OF_POS=['LF','LC','CF','RC','RF'];// P/C are battery, excluded
+  function ifSum(e){return IF_POS.reduce(function(a,p){return a+(e.pos[p]||0);},0);}
+  function ofSum(e){return OF_POS.reduce(function(a,p){return a+(e.pos[p]||0);},0);}
   var tally={},seenPos={},totalFieldInnings=0,partialGames=0,fullGames=0;
   function ent(name){if(!tally[name])tally[name]={pos:{},field:0,bench:0};return tally[name];}
   (games||[]).forEach(function(g){
@@ -1836,21 +1843,25 @@ function renderSeasonPositions(games){
   names.sort(function(a,b){return tally[b].field-tally[a].field;});
   var h='<table class="tbl"><thead><tr><th style="text-align:left;">Player</th>';
   cols.forEach(function(c){h+='<th>'+c+'</th>';});
-  h+='<th>Field</th><th>Bench</th></tr></thead><tbody>';
-  var totals={};cols.forEach(function(c){totals[c]=0;});var tF=0,tB=0;
+  h+='<th title="Infield (1B/2B/3B/SS) / Outfield (LF/LC/CF/RC/RF) innings">IF/OF</th><th>Field</th><th>Bench</th></tr></thead><tbody>';
+  var totals={};cols.forEach(function(c){totals[c]=0;});var tF=0,tB=0,tIF=0,tOF=0;
   names.forEach(function(nm){
     var e=tally[nm];
     h+='<tr><td style="text-align:left;">'+esc(sn(nm))+'</td>';
     cols.forEach(function(c){var v=e.pos[c]||0;totals[c]+=v;h+='<td>'+(v||'·')+'</td>';});
+    var _if=ifSum(e),_of=ofSum(e);tIF+=_if;tOF+=_of;
+    h+='<td class="hi">'+((_if||_of)?(_if+' / '+_of):'·')+'</td>';
     h+='<td class="hi">'+e.field+'</td><td>'+(e.bench||0)+'</td></tr>';
     tF+=e.field;tB+=e.bench;
   });
   h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td style="text-align:left;">TOTAL</td>';
   cols.forEach(function(c){h+='<td>'+(totals[c]||'·')+'</td>';});
+  h+='<td class="hi">'+((tIF||tOF)?(tIF+' / '+tOF):'·')+'</td>';
   h+='<td class="hi">'+tF+'</td><td>'+tB+'</td></tr></tfoot></table>';
   var noteBits=[];
   if(fullGames)noteBits.push(fullGames+' game'+(fullGames===1?'':'s')+' with full fielding');
   if(partialGames)noteBits.push(partialGames+' partial (P/C only — bench not counted)');
+  noteBits.push('IF/OF = infield (1B/2B/3B/SS) / outfield (LF/LC/CF/RC/RF) innings');
   h+='<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-top:8px;">'+noteBits.join(' · ')+'</div>';
   host.innerHTML=h;
 }
@@ -10527,7 +10538,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.46';
+var APP_VERSION='v2.47';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
