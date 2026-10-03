@@ -381,7 +381,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <div class="screen" id="screen-season">
 <div class="hdr"><div><div class="hdr-title">Season stats</div><div class="hdr-sub" id="season-sub">Aggregated across all completed games</div></div><button class="btn btn-sm" onclick="ss('screen-home')">← Back</button></div>
 <div class="scroll pad">
-<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:120px;" onclick="showSwingFirstLineup()">🏏 Swing-first</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
+<div class="row" id="season-export-row" style="margin-bottom:10px;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" style="flex:1;min-width:140px;" onclick="showOptimalLineup()">🎯 Optimal lineup</button><button class="btn btn-sm" style="flex:1;min-width:120px;" onclick="showSwingFirstLineup()">🏏 Swing-first</button><button class="btn btn-sm" style="flex:1;min-width:120px;" onclick="openFieldBuilder()">🧤 Field builder</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="exportSeasonPDF()">📄 PDF</button><button class="btn btn-sm" style="flex:1;min-width:90px;" onclick="copySeasonStats()">📋 Copy</button></div>
 <!-- v2.42: stats scope — This season / Lifetime / pick a season (hidden until >1 season exists) -->
 <div class="row" id="season-scope-row" style="display:none;margin-bottom:10px;gap:8px;align-items:center;flex-wrap:wrap;"></div>
 <!-- v100/v189/v203: Regular / Advanced / Opp Pit / Line Scores view toggle -->
@@ -570,6 +570,21 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div></div></div>
 <!-- OPTIMAL LINEUP DISPLAY -->
 <div class="modal-ov" id="m-optlu"><div class="modal" style="max-width:420px;"><h3 id="optlu-title">🎯 Optimal Mussels lineup</h3><div id="optlu-meta" style="font-size:10px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;line-height:1.4;"></div><div id="optlu-body" style="max-height:55vh;overflow-y:auto;"></div><div class="mact"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-gold btn-sm" id="optlu-apply-game" style="flex:1;" onclick="_applyOptimalToCurrentGame()" title="Set this as our batting order in the active game">↳ Use for current game</button><button class="btn btn-sm" style="flex:1;" onclick="_applyOptimalToRoster()" title="Reorder roster so this becomes the default for future games">Save as roster order</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-optlu')">Close</button></div></div></div>
+<!-- v2.49: Fielding Builder — availability + per-inning P/C → auto defense + batting order -->
+<div class="modal-ov" id="m-fldbuild"><div class="modal" style="max-width:640px;">
+<h3>🧤 Fielding Builder</h3>
+<div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;line-height:1.45;">Mark who's available, set your pitcher &amp; catcher per inning, then Generate. It fills the defense behind them (1B from your pool, an infield anchor, Cobe→2B) and balances playing time. Regenerate when availability changes; apply to the current game.</div>
+<div class="ptitle">Available</div>
+<div id="fb-avail" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
+<div class="row" style="align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:12px;color:var(--text2);font-family:sans-serif;">Innings</span><input type="number" id="fb-innings" value="6" min="1" max="9" style="width:56px;" onchange="_fbSetInnings(this.value)"></div>
+<div class="ptitle">Pitcher &amp; catcher by inning</div>
+<div class="scroll-x" id="fb-battery" style="margin-bottom:8px;"></div>
+<button class="btn btn-gold btn-full" onclick="generateFieldingPlan()">⚙ Generate defense + batting order</button>
+<div id="fb-result" style="margin-top:10px;"></div>
+<div id="fb-batting"></div>
+<div class="mact" id="fb-actions" style="display:none;"><div class="row" style="gap:5px;width:100%;"><button class="btn btn-gold btn-sm" id="fb-apply" style="flex:1;" onclick="applyFieldingPlanToGame()">↳ Use for current game</button><button class="btn btn-sm" style="flex:1;" onclick="copyFieldingPlan()">📋 Copy</button></div></div>
+<button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-fldbuild')">Close</button>
+</div></div>
 <div class="modal-ov" id="m-player"><div class="modal"><h3 id="mp-title">Edit</h3><div class="mrow"><label>Name</label><input type="text" id="pm-n"></div><div class="mrow"><label>Jersey #</label><input type="text" id="pm-j" placeholder="#" inputmode="numeric"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="savePl()">Save</button><button class="btn btn-red btn-full" onclick="delPl()">Delete</button><button class="btn btn-full" onclick="cm('m-player')">Cancel</button></div></div></div>
 <!-- PLAYER RATINGS (v86) — per-player intangibles + skills, 0-5 scale, decimals OK -->
 <div class="modal-ov" id="m-rating"><div class="modal" style="max-width:380px;"><h3 id="rate-title">Rate player</h3><div style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-bottom:10px;line-height:1.4;">0-5 scale (decimals OK). Leave a field blank if you don't have a rating yet — the optimal-lineup formula skips blanks.<br><span style="color:var(--amber2);">Hitting/Throwing/Fielding/Pitching seeded from draft pool. Confidence/Discipline/Clutch are intangibles you fill in over time.</span></div><div id="rate-fields"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="saveRating()">Save</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="clearRatings()">Clear all</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-rating')">Cancel</button></div></div></div>
@@ -3579,6 +3594,176 @@ async function showSwingFirstLineup(){
   if($('optlu-title'))$('optlu-title').textContent='🏏 Swing-first order';
   $('optlu-meta').innerHTML='Rewards swinging + contact, penalizes watching strikes (and lightly, chasing). Across '+games.length+' game'+(games.length===1?'':'s')+'. Per-PA — small samples are noisy. Good/Chase need pitch-quality (+/−) logged.';
   om('m-optlu');
+}
+// =============================================================================
+// v2.49 FIELDING BUILDER — you set P/C per inning + who's available; it fills the
+// defense behind them honoring the roster constraints, balances playing time +
+// IF/OF rotation, pairs the optimal batting order, and applies to the game.
+// Pools are the current-roster constraints the coach described.
+// =============================================================================
+var FB_PITCHERS=['Ezra Kalman','Brody Steinberg','Hunter Bresson','Ethan Thomas','Jacob Aronstein'];
+var FB_CATCHERS=['Hunter Bresson','Jacob Aronstein','Ezra Kalman'];
+var FB_FIRST=['Ethan Thomas','Hunter Bresson','Ezra Kalman','Brody Steinberg','Malcolm McPherson','Lucas Iskrant','Jacob Aronstein'];
+var FB_ANCHOR=['Malcolm McPherson','Ethan Thomas','Lucas Iskrant','Ezra Kalman','Jacob Aronstein','Hunter Bresson'];
+var FB_COBE='Cobe Bresson';
+var FB_IF=['1B','2B','3B','SS'];
+var _fb=null;
+function openFieldBuilder(){
+  var roster=A.roster||[];
+  _fb={innings:6,avail:{},battery:[],plan:null,batting:null};
+  roster.forEach(function(r){_fb.avail[r.name]=true;});
+  for(var i=0;i<_fb.innings;i++)_fb.battery.push({p:'',c:(_fb.avail['Hunter Bresson']?'Hunter Bresson':'')});
+  $('fb-result').innerHTML='';$('fb-batting').innerHTML='';$('fb-actions').style.display='none';
+  _fbRenderSetup();om('m-fldbuild');
+}
+function _fbRenderSetup(){
+  var roster=A.roster||[];
+  $('fb-avail').innerHTML=roster.map(function(r,i){
+    var on=_fb.avail[r.name];
+    return '<span onclick="_fbToggleAvail('+i+')" style="cursor:pointer;padding:4px 9px;border-radius:12px;font-size:11px;font-family:sans-serif;border:1px solid '+(on?'var(--green2)':'var(--border)')+';color:'+(on?'var(--green2)':'var(--text3)')+';background:'+(on?'rgba(54,160,102,.12)':'transparent')+';">'+(on?'✓ ':'')+esc(sn(r.name))+'</span>';
+  }).join('');
+  $('fb-innings').value=_fb.innings;
+  function sel(role,inn,val){
+    var pool=role==='p'?FB_PITCHERS:FB_CATCHERS;
+    var opts='<option value="">—</option>'+pool.filter(function(n){return _fb.avail[n];}).map(function(n){return '<option value="'+esc(n)+'"'+(val===n?' selected':'')+'>'+esc(sn(n))+'</option>';}).join('');
+    return '<select onchange="_fbSetBattery('+inn+',\''+role+'\',this.value)" style="font-size:11px;padding:3px;width:100%;">'+opts+'</select>';
+  }
+  var h='<table class="tbl" style="font-size:11px;"><thead><tr><th>Inn</th><th>Pitcher</th><th>Catcher</th></tr></thead><tbody>';
+  for(var i=0;i<_fb.innings;i++){var b=_fb.battery[i]||{};h+='<tr><td>'+(i+1)+'</td><td>'+sel('p',i,b.p)+'</td><td>'+sel('c',i,b.c)+'</td></tr>';}
+  $('fb-battery').innerHTML=h+'</tbody></table>';
+}
+function _fbToggleAvail(idx){var n=((A.roster||[])[idx]||{}).name;if(!n)return;_fb.avail[n]=!_fb.avail[n];_fb.battery.forEach(function(b){if(!_fb.avail[b.p])b.p='';if(!_fb.avail[b.c])b.c='';});_fbRenderSetup();}
+function _fbSetInnings(n){n=Math.max(1,Math.min(9,parseInt(n)||6));var old=_fb.battery.slice();_fb.innings=n;_fb.battery=[];for(var i=0;i<n;i++)_fb.battery.push(old[i]||{p:'',c:(_fb.avail['Hunter Bresson']?'Hunter Bresson':'')});_fbRenderSetup();}
+function _fbSetBattery(inn,role,val){if(!_fb.battery[inn])_fb.battery[inn]={p:'',c:''};_fb.battery[inn][role]=val;}
+function _fbLess(a,b){for(var i=0;i<a.length;i++){if(a[i]!==b[i])return a[i]<b[i];}return false;}
+function _fbPick(cands,pos,st,zone){// player who's played this pos least; tiebreak zone balance, total field
+  var best=null,bk=null;
+  cands.forEach(function(n){var s=st[n]||{pos:{},if:0,of:0,field:0};var key=[s.pos[pos]||0,(zone==='if'?s.if:s.of),s.field];if(!best||_fbLess(key,bk)){best=n;bk=key;}});
+  return best;
+}
+function _fbChooseSitters(cand,numSit,st){
+  if(numSit<=0)return[];
+  var scored=cand.map(function(n){var s=st[n];var key=(FB_PITCHERS.indexOf(n)>=0||FB_CATCHERS.indexOf(n)>=0||FB_FIRST.indexOf(n)>=0);return {n:n,pr:(s.field*2)-(s.bench*2)+(key?0:3)};});
+  scored.sort(function(a,b){return b.pr-a.pr;});
+  var sit=[];
+  for(var i=0;i<scored.length&&sit.length<numSit;i++){
+    var n=scored[i].n,tent=sit.concat([n]);
+    var remain=cand.filter(function(x){return tent.indexOf(x)<0;});
+    if(!remain.some(function(x){return FB_FIRST.indexOf(x)>=0;}))continue;// keep a 1B option
+    if(!remain.some(function(x){return FB_ANCHOR.indexOf(x)>=0;}))continue;// keep an anchor
+    sit.push(n);
+  }
+  for(var j=0;j<scored.length&&sit.length<numSit;j++){if(sit.indexOf(scored[j].n)<0)sit.push(scored[j].n);}
+  return sit;
+}
+function _fbAssign(playing,positions,st){
+  var remain=playing.slice(),res={};
+  var ofSlots=positions.filter(function(p){return FB_IF.indexOf(p)<0;});
+  var ifSlots=['2B','SS','3B'].filter(function(p){return positions.indexOf(p)>=0;});
+  // 1B from the pool (rotate)
+  var firstC=remain.filter(function(n){return FB_FIRST.indexOf(n)>=0;});
+  var fb=_fbPick(firstC.length?firstC:remain,'1B',st,'if');
+  if(fb){res['1B']=fb;remain.splice(remain.indexOf(fb),1);}
+  var needAnchor=!fb||FB_ANCHOR.indexOf(fb)<0;
+  // Cobe -> 2B when he's in the infield
+  if(remain.indexOf(FB_COBE)>=0&&ifSlots.indexOf('2B')>=0){res['2B']=FB_COBE;remain.splice(remain.indexOf(FB_COBE),1);ifSlots.splice(ifSlots.indexOf('2B'),1);}
+  // ensure an anchor somewhere in the infield
+  if(needAnchor&&ifSlots.length){var ac=remain.filter(function(n){return FB_ANCHOR.indexOf(n)>=0;});if(ac.length){var a=_fbPick(ac,ifSlots[0],st,'if');res[ifSlots[0]]=a;remain.splice(remain.indexOf(a),1);ifSlots.shift();}}
+  // fill remaining infield, then outfield (balanced)
+  ifSlots.forEach(function(pos){if(!remain.length)return;var n=_fbPick(remain,pos,st,'if');res[pos]=n;remain.splice(remain.indexOf(n),1);});
+  ofSlots.forEach(function(pos){if(!remain.length)return;var n=_fbPick(remain,pos,st,'of');res[pos]=n;remain.splice(remain.indexOf(n),1);});
+  return res;
+}
+function generateFieldingPlan(){
+  var roster=A.roster||[];
+  var avail=roster.map(function(r){return r.name;}).filter(function(n){return _fb.avail[n];});
+  if(avail.length<8){toast('Need at least 8 available players');return;}
+  var N=_fb.innings,warn=[],st={},grid=[];
+  avail.forEach(function(n){st[n]={field:0,bench:0,pos:{},if:0,of:0};});
+  for(var inn=0;inn<N;inn++){
+    var b=_fb.battery[inn]||{};
+    var p=(b.p&&_fb.avail[b.p])?b.p:'',c=(b.c&&_fb.avail[b.c])?b.c:'';
+    if(!p)warn.push('Inn '+(inn+1)+': no pitcher');
+    if(!c)warn.push('Inn '+(inn+1)+': no catcher');
+    var fielders=Math.min(avail.length,10);
+    var of=(fielders>=10)?['LF','LC','RC','RF']:(fielders===9?['LF','CF','RF']:['LF','CF','RF'].slice(0,Math.max(0,fielders-6)));
+    var positions=['1B','2B','3B','SS'].concat(of);
+    var cand=avail.filter(function(n){return n!==p&&n!==c;});
+    var numSit=Math.max(0,cand.length-positions.length);
+    var sitters=_fbChooseSitters(cand,numSit,st);
+    var playing=cand.filter(function(n){return sitters.indexOf(n)<0;});
+    var assign=_fbAssign(playing,positions,st);
+    var rec={inn:inn+1,P:p,C:c,bench:sitters.slice()};
+    Object.keys(assign).forEach(function(pos){rec[pos]=assign[pos];});
+    grid.push(rec);
+    if(p){st[p].field++;st[p].pos.P=(st[p].pos.P||0)+1;}
+    if(c){st[c].field++;st[c].pos.C=(st[c].pos.C||0)+1;}
+    Object.keys(assign).forEach(function(pos){var n=assign[pos];if(!n)return;st[n].field++;st[n].pos[pos]=(st[n].pos[pos]||0)+1;if(FB_IF.indexOf(pos)>=0)st[n].if++;else st[n].of++;});
+    sitters.forEach(function(n){st[n].bench++;});
+  }
+  _fb.plan={grid:grid,avail:avail,st:st,warn:warn};
+  _fbRenderPlan();
+}
+function _fbRenderPlan(){
+  var pl=_fb.plan;if(!pl)return;
+  var POS_ROWS=['P','C','1B','2B','3B','SS','LF','LC','CF','RC','RF'];
+  var used=POS_ROWS.filter(function(pos){return pl.grid.some(function(g){return g[pos];});});
+  var h='';
+  if(pl.warn.length)h+='<div style="font-size:11px;color:var(--amber2);font-family:sans-serif;margin-bottom:6px;">⚠ '+esc(pl.warn.join(' · '))+'</div>';
+  h+='<div class="ptitle">Defense by inning</div><div class="scroll-x"><table class="tbl" style="font-size:11px;"><thead><tr><th>Pos</th>';
+  pl.grid.forEach(function(g){h+='<th>'+g.inn+'</th>';});
+  h+='</tr></thead><tbody>';
+  used.forEach(function(pos){h+='<tr><td style="color:var(--gold);">'+pos+'</td>';pl.grid.forEach(function(g){h+='<td>'+(g[pos]?esc(sn(g[pos])):'·')+'</td>';});h+='</tr>';});
+  h+='<tr><td style="color:var(--amber2);">SIT</td>';
+  pl.grid.forEach(function(g){h+='<td style="font-size:10px;color:var(--text3);">'+(g.bench.length?esc(g.bench.map(function(n){return sn(n);}).join(', ')):'—')+'</td>';});
+  h+='</tr></tbody></table></div>';
+  h+='<div class="ptitle" style="margin-top:8px;">Playing time</div><div class="scroll-x"><table class="tbl" style="font-size:11px;"><thead><tr><th>Player</th><th>Field</th><th>Bench</th><th>IF</th><th>OF</th></tr></thead><tbody>';
+  pl.avail.slice().sort(function(a,b){return pl.st[b].field-pl.st[a].field||pl.st[a].bench-pl.st[b].bench;}).forEach(function(n){var s=pl.st[n];h+='<tr><td style="text-align:left;">'+esc(sn(n))+'</td><td class="hi">'+s.field+'</td><td>'+s.bench+'</td><td>'+s.if+'</td><td>'+s.of+'</td></tr>';});
+  h+='</tbody></table></div>';
+  $('fb-result').innerHTML=h;
+  $('fb-batting').innerHTML='<div class="ptitle" style="margin-top:8px;">Batting order</div><div style="font-size:11px;color:var(--text3);">computing…</div>';
+  _fbRenderBatting();
+  $('fb-actions').style.display='block';
+  var ab=$('fb-apply');if(ab)ab.disabled=!G.eid;
+}
+async function _fbRenderBatting(){
+  try{
+    var games=await _fetchAllFinalGames();
+    var coachDocs=await _fetchAllCoachRatings();
+    var lu=(games.length?buildOptimalMusselsLineup(games,coachDocs):[]).filter(function(p){return _fb.avail[p.name];});
+    if(!lu.length){lu=(A.roster||[]).filter(function(r){return _fb.avail[r.name];}).map(function(r){return {name:r.name,jersey:r.jersey};});}
+    _fb.batting=lu;
+    $('fb-batting').innerHTML='<div class="ptitle" style="margin-top:8px;">Batting order '+(games.length?'(optimal, available only)':'(roster order — no games yet)')+'</div><ol style="margin:4px 0 0 20px;padding:0;font-size:12px;line-height:1.5;">'+lu.map(function(p){return '<li>'+esc(sn(p.name))+'</li>';}).join('')+'</ol>';
+  }catch(e){$('fb-batting').innerHTML='';console.log('fb batting err',e);}
+}
+function applyFieldingPlanToGame(){
+  if(!_fb||!_fb.plan){toast('Generate first');return;}
+  if(!G.eid){toast('Start a game first to apply');return;}
+  if(!G.fa)G.fa={};
+  _fb.plan.grid.forEach(function(g){
+    var inn=g.inn;if(!G.fa[inn])G.fa[inn]={};
+    ['P','C','1B','2B','3B','SS','LF','LC','CF','RC','RF'].forEach(function(pos){if(g[pos])G.fa[inn][pos]=g[pos];});
+  });
+  if(_fb.batting&&_fb.batting.length){
+    var ourKey=isOH()?'hlu':'alu',newLu=[];
+    _fb.batting.forEach(function(p){var rp=A.roster.find(function(r){return r.name===p.name;});if(rp)newLu.push({name:rp.name,jersey:rp.jersey||'',rid:rp.id});});
+    if(newLu.length)G[ourKey]=newLu;
+  }
+  sv();if(typeof renderSC==='function')renderSC();
+  cm('m-fldbuild');
+  toast('Applied fielding + batting order to the game',3000);
+}
+function copyFieldingPlan(){
+  if(!_fb||!_fb.plan)return;
+  var pl=_fb.plan,POS_ROWS=['P','C','1B','2B','3B','SS','LF','LC','CF','RC','RF'];
+  var used=POS_ROWS.filter(function(pos){return pl.grid.some(function(g){return g[pos];});});
+  var lines=['MIGHTY MUSSELS — Fielding plan ('+pl.grid.length+' inn)',''];
+  lines.push(['Pos'].concat(pl.grid.map(function(g){return g.inn;})).join('\t'));
+  used.forEach(function(pos){lines.push([pos].concat(pl.grid.map(function(g){return g[pos]?sn(g[pos]):'-';})).join('\t'));});
+  lines.push(['SIT'].concat(pl.grid.map(function(g){return g.bench.map(function(n){return sn(n);}).join(',')||'-';})).join('\t'));
+  if(_fb.batting)lines.push('','Batting: '+_fb.batting.map(function(p,i){return(i+1)+'.'+sn(p.name);}).join('  '));
+  var txt=lines.join('\n');
+  try{navigator.clipboard.writeText(txt);toast('Plan copied');}catch(e){toast('Copy failed');}
 }
 // v121: apply the optimal lineup to the active game's batting order. Maps each
 // optimal-list player back to A.roster (case-insensitive) so we get the rid
@@ -10544,7 +10729,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v2.48';
+var APP_VERSION='v2.49';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
