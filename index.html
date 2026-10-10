@@ -679,7 +679,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 </div>
 <div class="play-action-bar"><button class="btn btn-gold btn-full" onclick="submitPlay()">Log it</button><button class="btn btn-full" onclick="cancelPlay()">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-steal"><div class="modal"><h3>Stolen base</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:8px;">Check who advanced — multiple OK for double steals</div><div id="sb-opts" style="margin-bottom:10px;"></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmSB()">Log steal(s)</button><button class="btn btn-full" onclick="cm('m-steal')">Cancel</button></div></div></div>
-<div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-cs"><div class="modal"><h3>Caught stealing</h3><div class="mrow"><label>Out at</label><select id="cs-at"><option value="2">2nd</option><option value="3">3rd</option><option value="4">Home</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmCS()">Log CS</button><button class="btn btn-full" onclick="cm('m-cs')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-pos"><div class="modal"><h3 id="mpos-t">Assign</h3><div id="mpos-list"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-pos')">Cancel</button></div></div></div>
 <div class="modal-ov" id="m-runner"><div class="modal"><h3 id="mr-t">Runner</h3><div id="mr-btns"></div><div class="mact"><button class="btn btn-full" onclick="cm('m-runner')">Close</button></div></div></div>
 <!-- PINCH-RUN MODAL: swap a runner on base for another player so SB/run credits go to the right kid -->
@@ -699,7 +699,7 @@ label{font-size:11px;color:var(--text2);font-family:sans-serif;display:block;mar
 <!-- EDIT-AB MODAL: fix a logged at-bat (wrong batter, wrong result, wrong RBI) -->
 <div class="modal-ov" id="m-editab"><div class="modal" style="max-width:380px;"><h3 id="editab-title">Edit at-bat</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">Fixes the box-score attribution + pitch sequence. Bases-state at the time stays as-logged.</div><div class="mrow"><label>Batter</label><select id="editab-bat"></select></div><div class="mrow"><label>Result</label><select id="editab-res" onchange="_renderEditAbHitDetails()"><option value="1B">1B</option><option value="2B">2B</option><option value="3B">3B</option><option value="HR">HR</option><option value="LLHR">LLHR</option><option value="K">K</option><option value="KL">KL</option><option value="BB">BB</option><option value="HBP">HBP</option><option value="CI">CI</option><option value="FO">FO</option><option value="GO">GO</option><option value="LO">LO</option><option value="PO">PO</option><option value="FF">FF</option><option value="SAC">SAC</option><option value="FC">FC</option><option value="DP">DP</option><option value="GIDP">GIDP</option><option value="TP">TP</option></select></div><div class="mrow"><label>RBI</label><input type="number" id="editab-rbi" min="0" max="4" step="1"></div><div class="mrow"><label>Notation</label><input type="text" id="editab-not" placeholder="e.g. 4-3, F8, L9"></div><!-- v198: which pitcher faced this AB. Lets the user retroactively fix a mid-inning pitching change that was logged at the wrong AB. --><div class="mrow"><label>Pitcher</label><select id="editab-pitcher"><option value="">— unset (fall back to inning P) —</option></select></div><!-- v193: batted-ball details (hit location, trajectory, hardness) — shown only for batted-ball results --><div class="mrow" id="editab-hit-section" style="display:none;"><label>Batted ball</label><div id="editab-hit-details"></div></div><div class="mrow"><label>Pitch sequence</label><div id="editab-pitches"></div></div><div class="mrow"><label>📝 Fix-it note (optional)</label><textarea id="editab-note" rows="2" placeholder="e.g. 'check who threw to first'" style="font-size:12px;width:100%;font-family:inherit;padding:6px;"></textarea></div><div class="mrow"><label>Steals during this AB</label><div id="editab-steals" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-green" style="margin-top:6px;" onclick="openAddSBToAB()">+ Add steal</button></div><div class="mrow"><label>Outs on this AB</label><div id="editab-outs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm btn-red" style="margin-top:6px;" onclick="openAddOutToAB()">+ Add out</button></div><!-- v195: errors logged on this AB (view + remove). Add-error happens via the live play picker. --><div class="mrow"><label>Fielding errors on this AB</label><div id="editab-errors" style="font-size:12px;font-family:sans-serif;"></div></div><div class="mrow"><label>Advances on this AB</label><div id="editab-advs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;" onclick="openAddAdvanceToAB()">+ Add advance</button></div><div class="mrow"><label>Runs scored on this AB</label><div id="editab-runs" style="font-size:12px;font-family:sans-serif;"></div><button class="btn btn-sm" style="margin-top:6px;border-color:var(--amber2);color:var(--amber2);" onclick="openAddRunToAB()">+ Add run scored</button></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmEditAB()">Save</button><div class="row" style="gap:6px;margin-top:6px;"><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('before')">+ Insert AB before</button><button class="btn btn-sm btn-green" style="flex:1;" onclick="_insertFromEditModal('after')">+ Insert AB after</button></div><button class="btn btn-full" style="margin-top:6px;" onclick="_swapFromEditModal()">⇄ Swap with another AB</button><button class="btn btn-red btn-full" style="margin-top:6px;" onclick="confirmDeleteAB()">🗑 Delete this AB</button><button class="btn btn-full" style="margin-top:6px;" onclick="cancelEditAB()">Cancel</button></div></div></div>
 <!-- v127: add-steal-to-AB picker modal -->
-<div class="modal-ov" id="m-absb"><div class="modal" style="max-width:340px;"><h3>Add steal during this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">LMLL: no steal of home permitted.</div><div class="mrow"><label>Runner</label><select id="absb-runner"></select></div><div class="mrow"><label>Steal</label><select id="absb-bases"><option value="1-2">1st → 2nd</option><option value="2-3">2nd → 3rd</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddSBToAB()">Log steal</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-absb')">Cancel</button></div></div></div>
+<div class="modal-ov" id="m-absb"><div class="modal" style="max-width:340px;"><h3>Add steal during this AB</h3><div style="font-size:11px;color:var(--text3);font-family:sans-serif;margin-bottom:10px;">AAA: one steal of home per team per inning. A steal of home also logs the run.</div><div class="mrow"><label>Runner</label><select id="absb-runner"></select></div><div class="mrow"><label>Steal</label><select id="absb-bases"><option value="1-2">1st → 2nd</option><option value="2-3">2nd → 3rd</option><option value="3-4">3rd → Home</option></select></div><div class="mact"><button class="btn btn-gold btn-full" onclick="confirmAddSBToAB()">Log steal</button><button class="btn btn-full" style="margin-top:6px;" onclick="cm('m-absb')">Cancel</button></div></div></div>
 <!-- v135: AB delete with state-rewind option. Shown when deleting the LATEST
      AB (where _lastGSnap is meaningful). Earlier ABs only get the simple
      "remove from log" path through confirmModal directly. -->
@@ -7960,13 +7960,25 @@ function confirmPinchRun(idx){
 // STEALS
 function logSteal(){
   if(_voGuard())return;
-  // Build checkbox list of physically possible steals (no stealing home in LL)
+  // Build checkbox list of physically possible steals.
+  // v3.08 (AAA): stealing home IS allowed — one per team per inning (AAA rule g).
+  var _stTeamNow=isHB()?'home':'away';
+  var homeUsed=(G.steals||[]).some(function(s){return s.to===4&&s.inn===G.inn&&s.half===G.half&&(s.team||(s.half==='top'?'away':'home'))===_stTeamNow;});
   var html='';
-  var has2 = G.bases[1] && !G.bases[2];// 2nd → 3rd is only possible if 3B is empty
+  var canH = !!G.bases[2] && !homeUsed;
+  var has2 = G.bases[1] && (!G.bases[2] || canH);// 2nd → 3rd needs 3B empty, or 3rd also stealing home
   var has1 = G.bases[0] && (!G.bases[1] || has2);// 1st → 2nd needs 2B empty, or 2nd also stealing
-  if(has2){
+  if(canH){
+    var nm3h = G.bases[2].name || '?';
+    html += '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border2);border-radius:var(--rs);margin-bottom:6px;font-family:sans-serif;font-size:13px;cursor:pointer;background:var(--bg3);"><input type="checkbox" id="sb-3toH" style="width:auto;margin:0;flex-shrink:0;"><strong style="color:var(--gold);">'+esc(nm3h)+'</strong> 3rd → Home <span style="font-size:10px;color:var(--text3);">(scores · 1 per inning)</span></label>';
+  }
+  if(G.bases[1]){
     var nm2 = G.bases[1].name || '?';
-    html += '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border2);border-radius:var(--rs);margin-bottom:6px;font-family:sans-serif;font-size:13px;cursor:pointer;background:var(--bg3);"><input type="checkbox" id="sb-2to3" style="width:auto;margin:0;flex-shrink:0;"><strong style="color:var(--gold);">'+esc(nm2)+'</strong> 2nd → 3rd</label>';
+    var blocked2 = G.bases[2] && !canH;// 3rd occupied AND can't go home (already used this inning)
+    var note2 = '';
+    if(G.bases[2] && canH) note2 = ' <span style="font-size:10px;color:var(--text3);">(only with 3rd→Home)</span>';
+    if(blocked2) note2 = ' <span style="font-size:10px;color:var(--red2);">(blocked — 3rd occupied)</span>';
+    html += '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border2);border-radius:var(--rs);margin-bottom:6px;font-family:sans-serif;font-size:13px;cursor:pointer;background:var(--bg3);'+(blocked2?'opacity:.4;':'')+'"><input type="checkbox" id="sb-2to3" '+(blocked2?'disabled':'')+' style="width:auto;margin:0;flex-shrink:0;"><strong style="color:var(--gold);">'+esc(nm2)+'</strong> 2nd → 3rd'+note2+'</label>';
   }
   if(G.bases[0]){
     var nm1 = G.bases[0].name || '?';
@@ -7976,23 +7988,31 @@ function logSteal(){
     if(blocked) note = ' <span style="font-size:10px;color:var(--red2);">(blocked — 2nd occupied)</span>';
     html += '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border2);border-radius:var(--rs);margin-bottom:6px;font-family:sans-serif;font-size:13px;cursor:pointer;background:var(--bg3);'+(blocked?'opacity:.4;':'')+'"><input type="checkbox" id="sb-1to2" '+(blocked?'disabled':'')+' style="width:auto;margin:0;flex-shrink:0;"><strong style="color:var(--gold);">'+esc(nm1)+'</strong> 1st → 2nd'+note+'</label>';
   }
-  if(G.bases[2]){
+  if(G.bases[2]&&homeUsed){
     var nm3 = G.bases[2].name || '?';
-    html += '<div style="padding:8px 10px;font-family:sans-serif;font-size:11px;color:var(--text3);border:1px dashed var(--border);border-radius:var(--rs);margin-top:4px;">'+esc(nm3)+' on 3rd — stealing home not allowed in LL</div>';
+    html += '<div style="padding:8px 10px;font-family:sans-serif;font-size:11px;color:var(--text3);border:1px dashed var(--border);border-radius:var(--rs);margin-top:4px;">'+esc(nm3)+' on 3rd — steal of home already used this inning (AAA: 1 per inning)</div>';
   }
   if(!html){toast('No runners can steal');return;}
   $('sb-opts').innerHTML = html;
   om('m-steal');
 }
 function confirmSB(){
+  var go3H = $('sb-3toH') && $('sb-3toH').checked;
   var go23 = $('sb-2to3') && $('sb-2to3').checked;
   var go12 = $('sb-1to2') && $('sb-1to2').checked;
-  if(!go23 && !go12){toast('Check at least one steal');return;}
-  // Validate: 1st→2nd requires 2nd to be empty or also stealing
+  if(!go3H && !go23 && !go12){toast('Check at least one steal');return;}
+  // Validate: each trailing runner needs the next base empty or also stealing
+  if(go23 && G.bases[2] && !go3H){toast('Cannot steal 3rd — 3rd is occupied');return;}
   if(go12 && G.bases[1] && !go23){toast('Cannot steal 2nd — 2nd is occupied');return;}
-  // Execute lead-to-trail so 2nd vacates before 1st advances
+  // Execute lead-to-trail so each base vacates before the trailing runner advances
   // Stamp the running team on each steal so box-score stats can filter correctly.
   var _stTeam=isHB()?'home':'away';
+  if(go3H && G.bases[2]){
+    // v3.08 (AAA): steal of home — log the SB, then score the runner (run, pscored, score, 6-run cap)
+    var r3 = G.bases[2];
+    G.steals.push({from:3,to:4,bi:r3.bi,inn:G.inn,half:G.half,name:r3.name,team:_stTeam,during_ab_num:G.abc+1});
+    scoreRun(3);
+  }
   if(go23){
     var r2 = G.bases[1];
     G.bases[2] = r2;
@@ -8007,8 +8027,8 @@ function confirmSB(){
   }
   G.isu = true;
   cm('m-steal');sv();renderSC();
-  var n = (go23?1:0)+(go12?1:0);
-  toast(n>1?'Double steal logged':'SB logged');
+  var n = (go3H?1:0)+(go23?1:0)+(go12?1:0);
+  toast(n>1?'Double steal logged':(go3H?'Stole home — run scored':'SB logged'));
 }
 function logCS(){if(_voGuard())return;if(!G.bases.some(b=>b!==null)){toast('No runners');return;}om('m-cs');}
 // STANDALONE FIELDING ERROR — for errors during baserunning (not tied to an AB)
@@ -8051,12 +8071,12 @@ function confirmStandaloneErr(){
 function _posNum(p){var m={P:1,C:2,'1B':3,'2B':4,'3B':5,SS:6,LF:7,CF:8,LC:'8a',RC:'8b',RF:9,RCF:10};return m[p]||p;}
 function confirmCS(){var at=$('cs-at').value;
 // Capture the runner's name + bi BEFORE clearing the base, for the Plays log sub-line
-var fromBaseIdx=at==='2'?0:(at==='3'?1:-1);
+var fromBaseIdx=at==='2'?0:(at==='3'?1:(at==='4'?2:-1));// v3.08: '4' = caught stealing home
 var csRunner=fromBaseIdx>=0&&G.bases[fromBaseIdx]?G.bases[fromBaseIdx]:null;
 var csName=csRunner?(csRunner.name||'?'):'?';
 var csBi=csRunner?csRunner.bi:null;
-var fromLabel=at==='2'?'1st':'2nd';
-if(at==='2'&&G.bases[0])G.bases[0]=null;else if(at==='3'&&G.bases[1])G.bases[1]=null;
+var fromLabel=at==='2'?'1st':(at==='3'?'2nd':'3rd');
+if(fromBaseIdx>=0&&G.bases[fromBaseIdx])G.bases[fromBaseIdx]=null;
 var _fp=curPitcher();if(_fp)_fp.ip_outs=(_fp.ip_outs||0)+1;
 // B5: Stamp the pitcher (and team) on the CS so recalcPitcherStats can
 // attribute the out correctly even if the pitcher changes mid-inning later.
@@ -9029,17 +9049,32 @@ function confirmAddSBToAB(){
   if(_editAbIdx<0){cm('m-absb');return;}
   var ab=G.abs[_editAbIdx];if(!ab){cm('m-absb');return;}
   var bi=parseInt($('absb-runner').value);
-  var bases=$('absb-bases').value;// "1-2" or "2-3"
+  var bases=$('absb-bases').value;// "1-2", "2-3" or "3-4" (home)
   var parts=bases.split('-');
   var from=parseInt(parts[0]),to=parseInt(parts[1]);
   var lu=ab.team==='home'?G.hlu:G.alu;
   var runner=lu[bi];if(!runner){toast('Pick a runner');return;}
   if(!G.steals)G.steals=[];
+  if(to===4){
+    // v3.08 (AAA): one steal of home per team per inning
+    var used=G.steals.some(function(s){return s.to===4&&s.inn===ab.inn&&s.half===ab.half&&(s.team||(s.half==='top'?'away':'home'))===ab.team;});
+    if(used){toast('Steal of home already used in that inning (AAA: 1 per inning)');return;}
+  }
   G.steals.push({from:from,to:to,bi:bi,inn:ab.inn,half:ab.half,name:runner.name||'',team:ab.team,during_ab_num:ab.num});
+  if(to===4){
+    // stealing home scores — mirror confirmAddRunToAB: pscored + score + G.runs
+    if(!ab.pscored)ab.pscored=[];
+    ab.pscored.push({bi:bi,team:ab.team,name:runner.name||'?'});
+    if(ab.team==='home'){G.hs=(G.hs||0)+1;if(G.inns&&G.inns.h)G.inns.h[ab.inn-1]=(G.inns.h[ab.inn-1]||0)+1;}
+    else{G.as=(G.as||0)+1;if(G.inns&&G.inns.a)G.inns.a[ab.inn-1]=(G.inns.a[ab.inn-1]||0)+1;}
+    if(!G.runs)G.runs=[];
+    G.runs.push({bi:bi,team:ab.team,inn:ab.inn,half:ab.half,pitcher:ab.pitcher||null,ab_num:ab.num,unearned:false});
+  }
   sv();
   cm('m-absb');
   _renderEditAbSteals();
-  toast('Steal logged on AB #'+ab.num);
+  if(to===4){if(typeof _renderEditAbRuns==='function')try{_renderEditAbRuns();}catch(e){}if(typeof renderSC==='function')renderSC();if(typeof renderSB==='function')renderSB();}
+  toast(to===4?'Steal of home + run logged on AB #'+ab.num:'Steal logged on AB #'+ab.num);
 }
 function _removeSBFromAB(stealIdx){
   if(_editAbIdx<0)return;
@@ -9417,7 +9452,7 @@ if(_ag&&(_ag.awayGap!==0||_ag.homeGap!==0)){
 var _revOrder=!!A.playsLogReverse;
 html+='<div style="display:flex;justify-content:flex-end;margin-bottom:6px;"><button class="btn btn-xs" onclick="_togglePlaysOrder()" style="font-size:10px;color:var(--text2);">'+(_revOrder?'⇅ Newest first':'⇅ Oldest first')+'</button></div>';
 // Compact base-name helper for sub-lines (e.g. "1st", "2nd", "3rd")
-function _baseLbl(n){return n===1||n==='1'||n==='1st'?'1st':n===2||n==='2'||n==='2nd'?'2nd':n===3||n==='3'||n==='3rd'?'3rd':String(n);}
+function _baseLbl(n){return n===1||n==='1'||n==='1st'?'1st':n===2||n==='2'||n==='2nd'?'2nd':n===3||n==='3'||n==='3rd'?'3rd':n===4||n==='4'||n==='Home'?'Home':String(n);}
 // First initial + last name for sub-line names
 function _shortName(name){if(!name)return'?';var p=name.trim().split(' ');return p.length>1?p[0].charAt(0)+'. '+p[p.length-1]:name;}
 function mkHalf(abs,label,inn,half){
@@ -10369,7 +10404,7 @@ var LMLL_RULES=[
     {n:'14',label:'Going Beyond Base',body:'On a walk, a runner may go beyond 1st base in any direction. However, if said runner makes a deliberate attempt to go to 2nd base and a play is made on said runner resulting in an out then that runner is out. LL Rule 7.08 (C).'},
     {n:'15',label:'',body:'Home plate is in fair territory.'},
     {n:'16',label:'"Hit Player" Rule',body:"a) A pitch that hits the dirt and then a batter shall result in the batter being awarded 1st base as a hit batman.\nb) If a ball is hit in fair territory and hits the batter when he/she is out of the batter's box then the batter is out."},
-    {n:'17',label:'Lead Off & Stealing',body:'a) Stealing is permitted on a limited basis of one base per runner. If a runner leaves the bag before the pitched ball reaches the batter, the runner must return to the last base occupied unless forced to advance by the batter. (LL Rule 7.13).\nb) Lead offs are not permitted.\nc) There is no stealing of home.\nd) Players cannot advance beyond the base that they were attempting to steal on an errant throw by the catcher.\ne) A maximum of (1) steal per ½ inning is allowed.\n  a. \'double\' steals are allowed. If runners are on 1st and 2nd and the (1) steal has not been utilized, both runner may steal the respective bases.\nf) When there are runners at 1st and 3rd base, the catcher is allowed a "free throw" to 2nd if the runner attempts to steal 2nd base. The runner at 3rd cannot steal home if the catcher throws to 2nd, even on an overthrow to 2nd base.'},
+    {n:'17',label:'Lead Off & Stealing (AAA)',body:'a) No lead-offs. A runner may leave the base only after the pitched ball reaches the batter or is hit; a steal may be attempted only once the ball crosses the plate. Leaving early: runner returns + warning; 2nd offense by the same runner = out.\nb) Steals may occur via straight steal, passed ball or wild pitch. Double steals (1st + 2nd) are allowed.\nc) One base per batter per runner.\nd) Each team is allowed ONE steal of home per inning.\ne) No advance on an errant catcher throw during a steal; +1 base on an errant pickoff throw by the pitcher or catcher.\nf) No delayed steals. Runners may lead/steal on a dropped 3rd strike (which is still an out).'},
     {n:'18',label:'Passed Balls & Overthrows',body:'a) Only one base shall be allowed on an overthrow on a play to a given base to limit the continual advancement of runner simply on errant throwing and poor catching.\nb) Only one base shall be allowed per runner if a ball is overthrown on a play and determined to be out of play by the umpire or field circumstances.\nc) Routine return throws from the catcher to the pitcher will be considered dead balls, regardless of whether the ball is overthrown or missed by the pitcher, unless a base steal is attempted prior to the return throw by the catcher.'},
     {n:'19',label:'Dropped 3rd Strike',body:'A batter is out when:\na) A third strike is legally caught by the catcher;\nb) Catcher does not have to throw to 1st on a dropped 3rd strike. The batter is out.'},
     {n:'20',label:'Bunting',body:"Bunting is allowed, No 'slap' or 'slug' bunting is permitted.\na) No bunting with a runner on third base is permitted. No swings are permitted AFTER the hitter fakes a bunt/squares to bunt."},
@@ -10916,7 +10951,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.07';
+var APP_VERSION='v3.08';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
