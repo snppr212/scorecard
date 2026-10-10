@@ -6776,9 +6776,11 @@ function _ciAward(){
   // cascade. With bases loaded, R3 is forced home for an RBI.
   if(G.cbi<0)return;
   ensurePitcher();
-  var fa=G.fa[G.inn]||{};var catcherName=fa.C||'(catcher)';
+  // v3.09: only charge OUR catcher when we're fielding; when we bat it's the opp catcher's error
+  var _ciWf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+  var fa=G.fa[G.inn]||{};var catcherName=_ciWf?(fa.C||'(catcher)'):'Opp C';
   if(!G.errs)G.errs=[];
-  G.errs.push({player:catcherName,pos:'C',inn:G.inn,half:G.half,type:'C',play:'CI',standalone:false,ab_num:G.abc+1});
+  G.errs.push({player:catcherName,pos:'C',inn:G.inn,half:G.half,type:'C',play:'CI',standalone:false,ab_num:G.abc+1,oppErr:!_ciWf});
   var rbi=(G.bases[0]&&G.bases[1]&&G.bases[2])?1:0;
   finAB('CI','CI',rbi);
 }
@@ -6811,8 +6813,9 @@ if((r==='BB'||r==='HBP'||r==='CI')&&G.bases[0]&&G.bases[1]&&G.bases[2]){
 // some other path passes 'CI' to endAB (e.g., Edit AB result change), keep
 // the cascade fallback below.
 if(r==='CI'){
-  var fa=G.fa[G.inn]||{};var catcherName=fa.C||'(catcher)';
-  G.errs.push({player:catcherName,pos:'C',inn:G.inn,half:G.half,type:'C',play:'CI',standalone:false,ab_num:G.abc+1});
+  var _ciWf2=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
+  var fa=G.fa[G.inn]||{};var catcherName=_ciWf2?(fa.C||'(catcher)'):'Opp C';
+  G.errs.push({player:catcherName,pos:'C',inn:G.inn,half:G.half,type:'C',play:'CI',standalone:false,ab_num:G.abc+1,oppErr:!_ciWf2});
   finAB('CI','CI',0);return;
 }
 if(r==='K'||r==='KL'||r==='BB'||r==='HBP'){var not=r==='K'?'K':r==='KL'?'Ⓚ':r==='BB'?'BB':'HBP';finAB(r,not,0);return;}
@@ -7052,7 +7055,8 @@ function setPlayErr(t){
     el.classList.toggle('selected',el.getAttribute('data-err')===t);
   });
   if(t&&$('play-err-details'))$('play-err-details').open=true;
-  if(t)popErrPos();
+  // v3.09: pass who's fielding — without it the picker defaulted to OUR fielder names even when we're batting
+  if(t){var _wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());popErrPos(_wf);}
   // v98: auto-default the error position based on type:
   //   F/T/M (Field/Throw/Mental) → fielder where ball went (_playPos1)
   //   C (Catch) → throw target (_playPos2) if set, else 1B (most common force)
@@ -7099,7 +7103,7 @@ var wf=(G.half==='top'&&isOH())||(G.half==='bottom'&&!isOH());
 // the error doesn't count toward our team's defensive error tally.
 if(et&&ep){
   var fa=G.fa[G.inn]||{};
-  var _errPlayer=wf?(fa[ep]||'(unknown)'):('Opp '+(_posToLabel(ep)||('#'+ep)));
+  var _errPlayer=wf?(fa[ep]||'(unknown)'):('Opp '+(_posToLabel(ep)||ep));// ep is already a label ('2B'), so "Opp 2B"
   G.errs.push({player:_errPlayer,pos:ep,inn:G.inn,half:G.half,type:et,play:not||G.pres,standalone:false,ab_num:G.abc+1,oppErr:!wf});
 }
 if(res==='DP'&&$('gidp-chk')&&$('gidp-chk').checked)res='GIDP';
@@ -10951,7 +10955,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.08';
+var APP_VERSION='v3.09';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
