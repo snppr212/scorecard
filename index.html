@@ -7955,12 +7955,21 @@ function confirmPinchRun(idx){
     inn:G.inn,half:G.half,base:b,
     fromName:fromName,fromBi:fromBi,
     toName:p.name||'#'+p.jersey,toBi:idx,
-    during_ab_num:G.abc+1,
+    during_ab_num:_eventAbNum(),
   });
   cm('m-prun');sv();renderSC();
   toast(sn(p.name||'#'+p.jersey)+' pinch ran for '+sn(fromName||'?'));
 }
 
+// v3.10: which AB does a runner event (steal / CS / pinch run) belong to? If nothing has been
+// thrown to the current batter yet, it happened on the LAST pitch of the previous AB (e.g. a steal
+// on strike three) — the new batter can't have been involved. Otherwise it's the AB in progress.
+function _eventAbNum(){
+  var last=G.abs.length?G.abs[G.abs.length-1]:null;
+  var noPitchYet=!(G.cpitch&&G.cpitch.length);
+  if(last&&noPitchYet&&last.inn===G.inn&&last.half===G.half)return last.num;
+  return G.abc+1;
+}
 // STEALS
 function logSteal(){
   if(_voGuard())return;
@@ -8011,23 +8020,24 @@ function confirmSB(){
   // Execute lead-to-trail so each base vacates before the trailing runner advances
   // Stamp the running team on each steal so box-score stats can filter correctly.
   var _stTeam=isHB()?'home':'away';
+  var _evAb=_eventAbNum();
   if(go3H && G.bases[2]){
     // v3.08 (AAA): steal of home — log the SB, then score the runner (run, pscored, score, 6-run cap)
     var r3 = G.bases[2];
-    G.steals.push({from:3,to:4,bi:r3.bi,inn:G.inn,half:G.half,name:r3.name,team:_stTeam,during_ab_num:G.abc+1});
+    G.steals.push({from:3,to:4,bi:r3.bi,inn:G.inn,half:G.half,name:r3.name,team:_stTeam,during_ab_num:_evAb});
     scoreRun(3);
   }
   if(go23){
     var r2 = G.bases[1];
     G.bases[2] = r2;
     G.bases[1] = null;
-    G.steals.push({from:2,to:3,bi:r2.bi,inn:G.inn,half:G.half,name:r2.name,team:_stTeam,during_ab_num:G.abc+1});
+    G.steals.push({from:2,to:3,bi:r2.bi,inn:G.inn,half:G.half,name:r2.name,team:_stTeam,during_ab_num:_evAb});
   }
   if(go12){
     var r1 = G.bases[0];
     G.bases[1] = r1;
     G.bases[0] = null;
-    G.steals.push({from:1,to:2,bi:r1.bi,inn:G.inn,half:G.half,name:r1.name,team:_stTeam,during_ab_num:G.abc+1});
+    G.steals.push({from:1,to:2,bi:r1.bi,inn:G.inn,half:G.half,name:r1.name,team:_stTeam,during_ab_num:_evAb});
   }
   G.isu = true;
   cm('m-steal');sv();renderSC();
@@ -8085,7 +8095,7 @@ var _fp=curPitcher();if(_fp)_fp.ip_outs=(_fp.ip_outs||0)+1;
 // B5: Stamp the pitcher (and team) on the CS so recalcPitcherStats can
 // attribute the out correctly even if the pitcher changes mid-inning later.
 var _pTeam=G.half==='top'?'home':'away';
-G.css.push({at:at,inn:G.inn,half:G.half,name:csName,bi:csBi,from:fromLabel,during_ab_num:G.abc+1,pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null});
+G.css.push({at:at,inn:G.inn,half:G.half,name:csName,bi:csBi,from:fromLabel,during_ab_num:_eventAbNum(),pitcher:_fp?_fp.name:null,pitcherTeam:_fp?_pTeam:null});
 G.outs=Math.min(3,G.outs+1);cm('m-cs');sv();
 if(G.outs>=3){
   // batter's AB was never completed — they lead off next time their team bats
@@ -10955,7 +10965,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.09';
+var APP_VERSION='v3.10';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
