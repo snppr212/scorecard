@@ -2932,7 +2932,7 @@ function renderSeasonBat(games){
     lu.forEach(function(p,i){
       if(!p||!p.name)return;
       var key=p.name;
-      if(!byPlayer[key])byPlayer[key]={name:p.name,jersey:p.jersey||'',games:0,pa:0,ab:0,h:0,r:0,rbi:0,bb:0,k:0,hbp:0,hr:0,xbh:0,sb:0,cs:0,tb:0,sf:0,bip:0,roe:0};
+      if(!byPlayer[key])byPlayer[key]={name:p.name,jersey:p.jersey||'',games:0,pa:0,ab:0,h:0,d2:0,d3:0,r:0,rbi:0,bb:0,k:0,hbp:0,hr:0,xbh:0,sb:0,cs:0,tb:0,sf:0,bip:0,roe:0};
       var s=byPlayer[key];
       var played=false;
       (g.abs||[]).forEach(function(ab){
@@ -2944,6 +2944,7 @@ function renderSeasonBat(games){
         if(['1B','2B','3B','HR','LLHR'].includes(r))s.h++;
         if(['2B','3B','HR','LLHR'].includes(r))s.xbh++;
         if(r==='HR'||r==='LLHR')s.hr++;
+        if(r==='2B')s.d2++;if(r==='3B')s.d3++;
         if(r==='BB')s.bb++;
         if(r==='K'||r==='KL')s.k++;
         if(r==='HBP')s.hbp++;
@@ -2978,8 +2979,10 @@ function renderSeasonBat(games){
     +_sortableTh('AB','ab','bat')
     +_sortableTh('R','r','bat')
     +_sortableTh('H','h','bat')
-    +_sortableTh('RBI','rbi','bat')
+    +_sortableTh('2B','d2','bat')
+    +_sortableTh('3B','d3','bat')
     +_sortableTh('HR','hr','bat')
+    +_sortableTh('RBI','rbi','bat')
     +_sortableTh('BB','bb','bat')
     +_sortableTh('K','k','bat')
     +_sortableTh('HBP','hbp','bat')
@@ -2992,13 +2995,13 @@ function renderSeasonBat(games){
     +'</tr></thead><tbody>';
   rows.forEach(function(s){
     var nm=s.jersey?'#'+s.jersey+' '+sn(s.name):sn(s.name);
-    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pa+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.rbi+'</td><td>'+s.hr+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td>'+s.sb+'</td><td>'+s.bip+'</td><td>'+(s.roe||0)+'</td><td class="hi">'+(s.ab>0?fmt3(s.ba):'—')+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td>'+s.pa+'</td><td>'+s.ab+'</td><td>'+s.r+'</td><td>'+s.h+'</td><td>'+s.d2+'</td><td>'+s.d3+'</td><td>'+s.hr+'</td><td>'+s.rbi+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td>'+s.sb+'</td><td>'+s.bip+'</td><td>'+(s.roe||0)+'</td><td class="hi">'+(s.ab>0?fmt3(s.ba):'—')+'</td><td class="hi">'+(s.ab+s.bb+s.hbp+s.sf>0?fmt3(s.obp):'—')+'</td><td class="hi">'+(s.ab>0?fmt3(s.slg):'—')+'</td></tr>';
   });
   // Totals
-  var T={games:games.length,pa:0,ab:0,r:0,h:0,rbi:0,hr:0,bb:0,k:0,sb:0,tb:0,hbp:0,sf:0,bip:0,roe:0};
-  rows.forEach(function(s){T.pa+=s.pa;T.ab+=s.ab;T.r+=s.r;T.h+=s.h;T.rbi+=s.rbi;T.hr+=s.hr;T.bb+=s.bb;T.k+=s.k;T.sb+=s.sb;T.tb+=s.tb;T.hbp+=s.hbp;T.sf+=s.sf;T.bip+=s.bip;T.roe+=(s.roe||0);});
+  var T={games:games.length,pa:0,ab:0,r:0,h:0,d2:0,d3:0,rbi:0,hr:0,bb:0,k:0,sb:0,tb:0,hbp:0,sf:0,bip:0,roe:0};
+  rows.forEach(function(s){T.pa+=s.pa;T.ab+=s.ab;T.r+=s.r;T.h+=s.h;T.d2+=s.d2;T.d3+=s.d3;T.rbi+=s.rbi;T.hr+=s.hr;T.bb+=s.bb;T.k+=s.k;T.sb+=s.sb;T.tb+=s.tb;T.hbp+=s.hbp;T.sf+=s.sf;T.bip+=s.bip;T.roe+=(s.roe||0);});
   var Tba=T.ab>0?T.h/T.ab:0;var Tobp=(T.ab+T.bb+T.hbp+T.sf)>0?(T.h+T.bb+T.hbp)/(T.ab+T.bb+T.hbp+T.sf):0;var Tslg=T.ab>0?T.tb/T.ab:0;
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TEAM</td><td>'+T.games+'</td><td>'+T.pa+'</td><td>'+T.ab+'</td><td>'+T.r+'</td><td>'+T.h+'</td><td>'+T.rbi+'</td><td>'+T.hr+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td>'+T.sb+'</td><td>'+T.bip+'</td><td>'+T.roe+'</td><td class="hi">'+(T.ab>0?fmt3(Tba):'—')+'</td><td class="hi">'+(T.ab+T.bb+T.hbp+T.sf>0?fmt3(Tobp):'—')+'</td><td class="hi">'+(T.ab>0?fmt3(Tslg):'—')+'</td></tr></tfoot>';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>TEAM</td><td>'+T.games+'</td><td>'+T.pa+'</td><td>'+T.ab+'</td><td>'+T.r+'</td><td>'+T.h+'</td><td>'+T.d2+'</td><td>'+T.d3+'</td><td>'+T.hr+'</td><td>'+T.rbi+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td>'+T.sb+'</td><td>'+T.bip+'</td><td>'+T.roe+'</td><td class="hi">'+(T.ab>0?fmt3(Tba):'—')+'</td><td class="hi">'+(T.ab+T.bb+T.hbp+T.sf>0?fmt3(Tobp):'—')+'</td><td class="hi">'+(T.ab>0?fmt3(Tslg):'—')+'</td></tr></tfoot>';
   // v189: OPP rows removed — Season Stats tab is now Mussels-only.
   // Cross-league opp pitching lives in the "Opp Pit" tab.
   $('season-bat').innerHTML=h;
@@ -3010,7 +3013,7 @@ function renderSeasonPit(games){
     pl.forEach(function(p){
       if(!p||!p.name)return;
       var key=p.name;
-      if(!byPit[key])byPit[key]={name:p.name,games:0,ip_outs:0,pc:0,ba:0,stk:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,tbf:0,sac:0};
+      if(!byPit[key])byPit[key]={name:p.name,games:0,ip_outs:0,pc:0,ba:0,stk:0,hits:0,d2:0,d3:0,hr:0,r:0,er:0,bb:0,k:0,hbp:0,tbf:0,sac:0};
       var s=byPit[key];
       if((p.ip_outs||0)>0||(p.total||0)>0)s.games++;
       s.ip_outs+=(p.ip_outs||0);s.pc+=(p.total||0);
@@ -3027,6 +3030,8 @@ function renderSeasonPit(games){
       if(!byPit[ab.pitcher])return;
       byPit[ab.pitcher].tbf++;
       if(ab.result==='SAC')byPit[ab.pitcher].sac++;
+      // v3.12: extra-base hits allowed, from the AB log
+      if(ab.result==='2B')byPit[ab.pitcher].d2++;else if(ab.result==='3B')byPit[ab.pitcher].d3++;else if(ab.result==='HR'||ab.result==='LLHR')byPit[ab.pitcher].hr++;
     });
   });
   var rows=Object.values(byPit).filter(function(s){return s.games>0;});
@@ -3056,6 +3061,9 @@ function renderSeasonPit(games){
     +_sortableTh('Ba','baEst','pit')
     +_sortableTh('St','stkEst','pit')
     +_sortableTh('H','hits','pit')
+    +_sortableTh('2B','d2','pit')
+    +_sortableTh('3B','d3','pit')
+    +_sortableTh('HR','hr','pit')
     +_sortableTh('R','r','pit')
     +_sortableTh('ER','er','pit')
     +_sortableTh('BB','bb','pit')
@@ -3073,16 +3081,16 @@ function renderSeasonPit(games){
     var ppo=s.ip_outs>0?(s.pc/s.ip_outs).toFixed(2):'—';
     var baa=s.abAgainst>0?fmt3(s.baa):'—';
     var j=_findJersey(s.name);var nm=j?'#'+j+' '+sn(s.name):sn(s.name);
-    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td class="hi">'+ip+'</td><td>'+s.bf+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baa+'</td><td class="hi">'+era+'</td><td class="hi">'+whip+'</td><td class="hi">'+ppo+'</td></tr>';
+    h+='<tr><td>'+esc(nm)+'</td><td>'+s.games+'</td><td class="hi">'+ip+'</td><td>'+s.bf+'</td><td>'+s.pc+'</td><td>'+s.baEst+'</td><td>'+s.stkEst+'</td><td>'+s.hits+'</td><td>'+s.d2+'</td><td>'+s.d3+'</td><td>'+s.hr+'</td><td>'+s.r+'</td><td>'+s.er+'</td><td>'+s.bb+'</td><td>'+s.k+'</td><td>'+s.hbp+'</td><td class="hi">'+baa+'</td><td class="hi">'+era+'</td><td class="hi">'+whip+'</td><td class="hi">'+ppo+'</td></tr>';
   });
-  var T={games:games.length,ip_outs:0,pc:0,baEst:0,stkEst:0,hits:0,r:0,er:0,bb:0,k:0,hbp:0,abAgainst:0,bf:0};
-  rows.forEach(function(s){T.ip_outs+=s.ip_outs;T.pc+=s.pc;T.baEst+=s.baEst;T.stkEst+=s.stkEst;T.hits+=s.hits;T.r+=s.r;T.er+=s.er;T.bb+=s.bb;T.k+=s.k;T.hbp+=s.hbp;T.abAgainst+=s.abAgainst;T.bf+=s.bf;});
+  var T={games:games.length,ip_outs:0,pc:0,baEst:0,stkEst:0,hits:0,d2:0,d3:0,hr:0,r:0,er:0,bb:0,k:0,hbp:0,abAgainst:0,bf:0};
+  rows.forEach(function(s){T.ip_outs+=s.ip_outs;T.pc+=s.pc;T.baEst+=s.baEst;T.stkEst+=s.stkEst;T.hits+=s.hits;T.d2+=s.d2;T.d3+=s.d3;T.hr+=s.hr;T.r+=s.r;T.er+=s.er;T.bb+=s.bb;T.k+=s.k;T.hbp+=s.hbp;T.abAgainst+=s.abAgainst;T.bf+=s.bf;});
   var Tip=Math.floor(T.ip_outs/3)+'.'+(T.ip_outs%3);
   var Tera=T.ip_outs>0?fmt3(T.er/(T.ip_outs/3)*6):'—';
   var Tbaa=T.abAgainst>0?fmt3(T.hits/T.abAgainst):'—';
   var Twhip=T.ip_outs>0?((T.bb+T.hits)/(T.ip_outs/3)).toFixed(2):'—';
   var Tppo=T.ip_outs>0?(T.pc/T.ip_outs).toFixed(2):'—';
-  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td><td class="hi">'+Twhip+'</td><td class="hi">'+Tppo+'</td></tr></tfoot>';
+  h+='</tbody><tfoot><tr style="font-weight:bold;border-top:2px solid var(--border2);"><td>STAFF</td><td>'+T.games+'</td><td class="hi">'+Tip+'</td><td>'+T.bf+'</td><td>'+T.pc+'</td><td>'+T.baEst+'</td><td>'+T.stkEst+'</td><td>'+T.hits+'</td><td>'+T.d2+'</td><td>'+T.d3+'</td><td>'+T.hr+'</td><td>'+T.r+'</td><td>'+T.er+'</td><td>'+T.bb+'</td><td>'+T.k+'</td><td>'+T.hbp+'</td><td class="hi">'+Tbaa+'</td><td class="hi">'+Tera+'</td><td class="hi">'+Twhip+'</td><td class="hi">'+Tppo+'</td></tr></tfoot>';
   // v189: OPP rows removed — see "Opp Pit" tab for cross-league pitcher data.
   $('season-pit').innerHTML=h;
 }
@@ -10965,7 +10973,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.11';
+var APP_VERSION='v3.12';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
