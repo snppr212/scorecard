@@ -4496,7 +4496,7 @@ function enterLineupFlow(ev){
   goToLineupBuild();ss('screen-avail');
 }
 function resetG(ev){var ih=ev.ha==='home',op=ev.opponent||'Visitors';
-G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],pinchRuns:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false};APOS=POS.slice();sg();}
+G={eid:ev.id,ht:ih?'Mighty Mussels':op,at:ih?op:'Mighty Mussels',ti:6,ef:'',inn:1,half:'top',outs:0,balls:0,strikes:0,hs:0,as:0,inns:{h:Array(6).fill(0),a:Array(6).fill(0)},bases:[null,null,null],hlu:ih?r2lu():[],alu:ih?[]:r2lu(),hp:[],ap:[],chp:-1,cap:-1,cbi:-1,cpitch:[],lastABPitches:[],abs:[],abc:0,steals:[],css:[],errs:[],runs:[],pinchRuns:[],fa:{},notes:'',isu:false,pp:A.roster.map(r=>r.id),pres:null,prbi:0,pscored:[],dpout:null,fcout:null,stv:'us',ptv:'us',hbi:-1,abi:-1,plb:false,oppLuDone:false,fullPitchLog:true};APOS=POS.slice();sg();}
 function r2lu(){return A.roster.map(p=>({name:p.name||'',jersey:p.jersey||'',rid:p.id}));}
 
 // AVAILABILITY — Step 1: mark present/absent
@@ -10965,7 +10965,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.10';
+var APP_VERSION='v3.11';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
