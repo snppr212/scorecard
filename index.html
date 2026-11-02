@@ -1133,6 +1133,7 @@ var OPP_ROSTERS={
 'Iron Pigs':['Nolan Roth','Ari Elbaum','Gavin Amoroso','Race Mandel','Ryder Berman','Jeffrey Blisard','Bradley Blisard','Zachary Moyer','Ryan Prince','Asi Frechette','Logan Baill','Kiran Meighan'],
 'Lugnuts':['William Gardner','Leo Kesselman','Peter Christopher','Johnny Richardson','Andrew Zelinsky','Elliot Bockman','Brian Ferreira','Jet Sanders','Austin Schroeder','Andrew Miller','Hale Smith','Oscar Oehlberg'],
 'Mud Hens':['PJ Tanker','Anthony Christopher','James Christopher','Rivaan Dhyllon','Nash Davis','Gavin Tomback','Harris Stellabotte','Whit Baird','Theo Cherkas','Garrett Freeland','Paxton Eggert','Yasine Berriche'],// Fall 2026 roster
+'Kings':['Ralph Agnew','William Agnew','Bo Burke','Leo Cohen','Ishaan Guruswamy','Penn Leonards','Theo Reznik-Slater','Christopher Rieman','Eric Rosenthal','Simon Smith','Quinn Strauss','Lucas Ziemba'],// Fall 2026 roster (spring Bulls); Bo = William Burke
 'Tin Caps':['Jacob M','Samuel F','Seth G','Yossel S','Solomon N','Leo S','Aiden K','Caleb L','Ariav B','Yair L','Arthur S','Manny M']
 };
 
@@ -10973,7 +10974,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.12';
+var APP_VERSION='v3.13';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
