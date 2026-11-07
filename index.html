@@ -3282,8 +3282,8 @@ async function _fetchAllFinalGames(){
   }catch(e){console.log('_fetchAllFinalGames error:',e);}
   return games;
 }
-function buildOptimalMusselsLineup(games,coachDocs){
-  coachDocs=coachDocs||{};
+function buildOptimalMusselsLineup(games,coachDocs,availIds){
+  coachDocs=coachDocs||{};// availIds (optional): roster ids present for this game — see v3.14 filter below
   // Aggregate per-player batting stats from Mussels' own ABs across all games.
   var byPlayer={};
   // v2.36: recency weighting — sort games chronologically (via schedule date) and
@@ -3428,6 +3428,10 @@ function buildOptimalMusselsLineup(games,coachDocs){
     return {rp:rp,score:score,pa:s.pa,obp:obp,wobp:wobp,slg:slg,ba:ba,k:s.k,bip:s.bip,bipRate:bipRate,qBip:s.qBip,qRate:qRate,dispObp:dispObp,dispSlg:dispSlg,dispPa:s.rawPa,dispBip:s.rawBip,dispK:s.rawK,qSwR:qSwR,swingCredit:swingCredit,kPenCoef:kPenCoef,h:s.h,xbh:s.xbh,rosterIdx:idx,statsScore:statsScore,ratingsTerm:ratingsTerm,hRating:hRating,hRated:r.hitting!=null,confRated:r.confidence!=null,discRated:r.discipline!=null,clutchRated:r.clutch!=null,coachCount:r._coachCount||0};
   });
   // Primary sort: composite score desc; tiebreakers: PA desc, then roster idx asc.
+  // v3.14: when a game's present list is passed, drop absent kids BEFORE slotting so the
+  // slugger / table-setter / RBI slots are chosen from who's actually here — not
+  // "rank all 12, then delete the missing ones and shift everybody up".
+  if(availIds&&availIds.length)ranked=ranked.filter(function(r){return availIds.indexOf(r.rp.id)>=0;});
   ranked.sort(function(a,b){if(a.score!==b.score)return b.score-a.score;if(a.pa!==b.pa)return b.pa-a.pa;return a.rosterIdx-b.rosterIdx;});
   // v104 slot rules (slugger-anchored):
   //   - Slot 3 = highest SLG in top 5 (slugger drives in 1+2)
@@ -3556,7 +3560,10 @@ async function showOptimalLineup(){
   if(!games.length){toast('No completed games yet — nothing to optimize on');return;}
   var coachDocs=await _fetchAllCoachRatings();
   var coachIds=Object.keys(coachDocs);
-  var lu=buildOptimalMusselsLineup(games,coachDocs);
+  // v3.14: with a game open, build from that game's present list (G.pp) so absent kids are
+  // left out BEFORE the slot rules run; with no game open, rank the whole roster.
+  var avail=(G.eid&&G.pp&&G.pp.length&&G.pp.length<(A.roster||[]).length)?G.pp:null;
+  var lu=buildOptimalMusselsLineup(games,coachDocs,avail);
   _lastOptimalLineup=lu;// v121: cached for the apply buttons
   // Disable "Use for current game" button if no game is active
   var gBtn=$('optlu-apply-game');if(gBtn)gBtn.disabled=!G.eid;
@@ -3576,7 +3583,7 @@ async function showOptimalLineup(){
   $('optlu-body').innerHTML=rows;
   var coachSummary=coachIds.length?coachIds.length+' coach'+(coachIds.length===1?'':'es')+' rated':'no coach ratings yet';
   if($('optlu-title'))$('optlu-title').textContent='🎯 Optimal Mussels lineup';
-  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · '+coachSummary+' · slot 3 = best slugger, slots 1+2 = top OBPs, slots 4-5 = composite';
+  $('optlu-meta').innerHTML='Across '+games.length+' game'+(games.length===1?'':'s')+' · '+coachSummary+(avail?' · <span style="color:var(--gold);">'+avail.length+' of '+(A.roster||[]).length+' available for this game</span>':'')+' · slot 3 = best slugger, slots 1+2 = top OBPs, slots 4-5 = composite';
   om('m-optlu');
 }
 // v2.45: "Swing-first" order — prioritizes aggressive, contact-making hitters.
@@ -4592,7 +4599,7 @@ async function importOptimalLineup(){
   var games=await _fetchAllFinalGames();
   if(!games.length){toast('No completed games yet — nothing to optimize on');return;}
   var coachDocs=await _fetchAllCoachRatings();
-  var lu=buildOptimalMusselsLineup(games,coachDocs);
+  var lu=buildOptimalMusselsLineup(games,coachDocs,G.pp);// v3.14: slot from the present kids only
   // Map each optimal entry → roster id, in order; only include present players.
   var newOrder=[];var unmatched=[];
   lu.forEach(function(p){
@@ -10974,7 +10981,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.13';
+var APP_VERSION='v3.14';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
