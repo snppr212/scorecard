@@ -4564,8 +4564,15 @@ $('lineup-spots').innerHTML=spots;
 // pool: present players NOT in lineup
 var used=_lineupOrder.filter(Boolean);
 var pool=G.pp.filter(id=>used.indexOf(id)<0).map(id=>A.roster.find(r=>r.id===id)).filter(Boolean);
-$('lineup-pool').innerHTML=pool.length?pool.map(function(p){return '<div class="pos-row" style="cursor:pointer;opacity:.7;" onclick="autoFillPool(\''+p.id+'\')">'+'<div class="bat-jersey">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;">'+esc(p.name||'#'+p.jersey)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap to add →</span></div>';}).join(''):'<div class="empty">All present players assigned</div>';
-$('avail-count').textContent=_lineupOrder.filter(Boolean).length+' in lineup · '+G.pp.length+' present';}
+// v3.15: pool rows carry an explicit "✗ absent" button, and absent kids show below as tap-to-restore chips,
+// so "not playing today" is a real state (G.pp) rather than just "sitting in the pool".
+var poolHtml=pool.length?pool.map(function(p){return '<div class="pos-row" style="cursor:pointer;opacity:.7;" onclick="autoFillPool(\''+p.id+'\')">'+'<div class="bat-jersey">'+(p.jersey||'?')+'</div><span style="flex:1;font-size:13px;">'+esc(p.name||'#'+p.jersey)+'</span><span style="font-size:10px;color:var(--text3);font-family:sans-serif;">tap to add →</span><button class="btn btn-xs btn-red" style="margin-left:8px;padding:2px 7px;font-size:10px;" onclick="event.stopPropagation();markAbsent(\''+p.id+'\')" title="Not playing today">✗ absent</button></div>';}).join(''):'<div class="empty">All present players assigned</div>';
+var absentKids=A.roster.filter(function(r){return G.pp.indexOf(r.id)<0;});
+if(absentKids.length)poolHtml+='<div style="margin-top:8px;font-size:11px;font-family:sans-serif;color:var(--text3);">Absent today (tap to restore): '+absentKids.map(function(p){return '<span onclick="markPresent(\''+p.id+'\')" style="cursor:pointer;display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border:1px solid var(--red2);border-radius:10px;color:var(--red2);">✗ '+esc(sn(p.name||'#'+p.jersey))+'</span>';}).join('')+'</div>';
+$('lineup-pool').innerHTML=poolHtml;
+$('avail-count').textContent=_lineupOrder.filter(Boolean).length+' in lineup · '+G.pp.length+' present'+(absentKids.length?' · '+absentKids.length+' absent':'');}
+function markAbsent(pid){var i=G.pp.indexOf(pid);if(i>=0)G.pp.splice(i,1);_lineupOrder=_lineupOrder.map(function(id){return id===pid?null:id;});sg();renderLineupSpots();}
+function markPresent(pid){if(G.pp.indexOf(pid)<0)G.pp.push(pid);sg();renderLineupSpots();}
 function openLinePick(spot){_pickingSpot=spot;
 var used=_lineupOrder.filter((id,i)=>id&&i!==spot);
 var avail=G.pp.map(id=>A.roster.find(r=>r.id===id)).filter(Boolean);
@@ -4595,6 +4602,17 @@ renderLineupSpots();toast('Imported!');}
 // games + coach ratings, maps to roster ids, and seeds _lineupOrder with
 // present players in the optimal order (absent ones skipped).
 async function importOptimalLineup(){
+  // v3.15: kids sitting in the pool while others are slotted are almost always "not playing today".
+  // Ask once, mark them absent, then build from who's left — instead of silently bringing them back.
+  var filled=_lineupOrder.filter(Boolean);
+  var poolIds=G.pp.filter(function(id){return filled.indexOf(id)<0;});
+  if(filled.length&&poolIds.length){
+    var names=poolIds.map(function(id){var r=A.roster.find(function(x){return x.id===id;});return r?sn(r.name||'#'+r.jersey):id;}).join(', ');
+    var choice=await new Promise(function(res){confirmModal('Not in the lineup: '+names,'Mark '+(poolIds.length===1?'this kid':'these '+poolIds.length+' kids')+' absent and build the optimal order from the other '+filled.length+'?',function(){res(true);},function(){res(false);},{yesLabel:'Yes, absent',noLabel:'No — use all '+G.pp.length});
+    });
+    if(choice)poolIds.forEach(function(id){var i=G.pp.indexOf(id);if(i>=0)G.pp.splice(i,1);});
+    sg();
+  }
   toast('Computing optimal lineup…');
   var games=await _fetchAllFinalGames();
   if(!games.length){toast('No completed games yet — nothing to optimize on');return;}
@@ -10981,7 +10999,7 @@ function _aggregateRatings(playerName,coachDocs){
 }
 
 // BOOT
-var APP_VERSION='v3.14';
+var APP_VERSION='v3.15';
 // Check for rate-mode URL: ?rate=<coachId>. If present, we're a coach-rating page,
 // not the coach's main app. Skip the home/scorecard flow entirely.
 var _rateMode=(function(){try{return new URLSearchParams(location.search).get('rate');}catch(e){return null;}})();
